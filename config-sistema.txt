@@ -463,4 +463,19 @@ Data: 14/10/2026. Estado: corrigido, testado e validado em runtime.
   * Solução no Popup Grid (`dock/components/TrayOverflowPopup.qml`): substituído o `PanelToolTip` por um elemento `Rectangle` customizado com `anchors.bottom: parent.top` e `anchors.bottomMargin: 25`, acompanhado de elevação de profundidade (`z: itemMouse.containsMouse ? 100 : 1`), garantindo que o tooltip de cada um dos 6 ícones do grid flutue com precisão cirúrgica 25 pixels acima de seu respectivo ícone, sem ocultar a visualização do glifo.
   * Validação técnica: shell reinicializado via `omarchy restart shell` com zero erros no journalctl (`quickshell`), garantindo posicionamento responsivo e livre de colisões.
 
+24. UNIFICAÇÃO DOS TOOLTIPS DO CANTO INFERIOR DIREITO (ALINHAMENTO COESO E OFFSET DE 35PX ACIMA DA BARRA)
+Data: 14/10/2026. Estado: unificado, corrigido, testado e validado em tempo real.
+
+- Unificação e equalização de altura de todos os tooltips do canto inferior direito da barra inferior:
+  * Diagnóstico minucioso: anteriormente, apenas os ícones da bandeja haviam recebido intervenção enquanto o Relógio (`rightWidgetSlotMouse`) e o botão Show Desktop (`desktopMouse`) ainda utilizavam instâncias isoladas de `PanelToolTip` presas à geometria interna da barra (50px). Além disso, o cálculo anterior com coordenadas negativas de âncora provocava contenção do compositor.
+  * Arquitetura centralizada de Tooltip (`dock/DockPanel.qml`): criada uma instância unificada de `PopupWindow` vinculada diretamente à janela `dockLayer` de cada monitor, controlada pelas funções globais `showRightTooltip(item, text)` e `hideRightTooltip(item)`.
+  * Ancoragem e Geometria Idêntica: a âncora fixa `rect.y = 0` (topo da barra de tarefas) com `edges: Edges.Top | Edges.Left`, `gravity: Edges.Top | Edges.Right` e `adjustment: PopupAdjustment.None`. A janela do popup cresce para cima com altura `bubble.height + 35px`, posicionando a bolha visual no topo com margem inferior vazia de 35px. Isso assegura que o Relógio, Chevron, ícones fixados e Show Desktop tenham exatamente a mesma cota vertical de altura (alinhamento rigoroso pela base).
+  * Centralização e Limites de Tela: cálculo horizontal reativo (`rx = targetCenterX - popupW / 2`) mapeado via `contentItem.mapFromItem()`, com proteção de margem de 6px nas bordas da tela.
+  * Delegação nos Componentes:
+    - `dock/components/SystemIconTray.qml`: repasse transparente de eventos dos botões chevron e ícones fixados para `showRightTooltip`/`hideRightTooltip`.
+    - `dock/DockPanel.qml`: conexão de `showDesktopItem` e do Relógio (`isClockWidget`, com data completa formatada) ao controlador unificado.
+    - `dock/components/TrayOverflowPopup.qml`: offset do tooltip interno do grid ampliado para 35 pixels (`anchors.bottomMargin: 35`).
+  * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`), verificação IPC de resposta imediata e logs limpos sem advertências.
+
+
 

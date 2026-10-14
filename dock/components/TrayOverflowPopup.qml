@@ -262,7 +262,7 @@ PanelWindow {
                         visible: itemMouse.containsMouse
                         z: 9999
                         anchors.bottom: parent.top
-                        anchors.bottomMargin: 25
+                        anchors.bottomMargin: 35
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: tipLabel.implicitWidth + 14
                         height: tipLabel.implicitHeight + 8

@@ -2954,8 +2954,23 @@ Item {
         root.evaluateHoverState()
     }
 
-    onIsEditingFolderTitleChanged: {
-        root.evaluateHoverState()
+    property var activeRightTooltipTarget: null
+    property string activeRightTooltipText: ""
+
+    function showRightTooltip(item, text) {
+        if (!item || !text) {
+            hideRightTooltip(item)
+            return
+        }
+        activeRightTooltipTarget = item
+        activeRightTooltipText = text
+    }
+
+    function hideRightTooltip(item) {
+        if (activeRightTooltipTarget === item || !item) {
+            activeRightTooltipTarget = null
+            activeRightTooltipText = ""
+        }
     }
 
     readonly property var dockWindow: {
@@ -3530,15 +3545,16 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
+                                onEntered: {
+                                    root.showRightTooltip(desktopMouse, "Mostrar área de trabalho")
+                                }
+                                onExited: {
+                                    root.hideRightTooltip(desktopMouse)
+                                }
                                 onClicked: {
+                                    root.hideRightTooltip(desktopMouse)
                                     Util.execDetached("hyprctl dispatch 'hl.dsp.workspace.toggle_special()'")
                                 }
-                            }
-
-                            PanelToolTip {
-                                visible: desktopMouse.containsMouse
-                                text: "Mostrar área de trabalho"
-                                fontFamily: Style.font.family
                             }
                         }
 
@@ -3660,22 +3676,93 @@ Item {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                             cursorShape: root.isEditMode ? Qt.ArrowCursor : Qt.PointingHandCursor
-                            onClicked: function(mouse) {
-                                root.activateWidget(modelData, rightWidgetLoader.item, rightWidgetSlotRoot, mouse)
+                            onEntered: {
+                                var txt = root.isClockWidget(modelData)
+                                    ? Qt.formatDate(new Date(), "dddd, d 'de' MMMM 'de' yyyy")
+                                    : (rightWidgetLoader.item && rightWidgetLoader.item.tooltipText ? rightWidgetLoader.item.tooltipText : modelData)
+                                root.showRightTooltip(rightWidgetSlotMouse, txt)
                             }
-
-                            PanelToolTip {
-                                visible: rightWidgetSlotMouse.containsMouse && root.isClockWidget(modelData) && !calendarPopup.opened
-                                text: Qt.formatDate(new Date(), "dddd, d 'de' MMMM 'de' yyyy")
-                                fontFamily: Style.font.family
+                            onExited: {
+                                root.hideRightTooltip(rightWidgetSlotMouse)
+                            }
+                            onClicked: function(mouse) {
+                                root.hideRightTooltip(rightWidgetSlotMouse)
+                                root.activateWidget(modelData, rightWidgetLoader.item, rightWidgetSlotRoot, mouse)
                             }
                         }
                     }
                 }
             }
         }
-    }
-    }
+
+                PopupWindow {
+                    id: rightTooltipPopup
+                    visible: root.activeRightTooltipTarget !== null && root.activeRightTooltipText !== "" && !root.trayOverflowOpened && !calendarPopup.opened
+                    color: "transparent"
+                    implicitWidth: Math.ceil(bubble.implicitWidth)
+                    implicitHeight: Math.ceil(bubble.implicitHeight) + 35
+
+                    function updatePosition() {
+                        var target = root.activeRightTooltipTarget
+                        if (!target || !dockLayer || !dockLayer.contentItem) return
+                        var popupW = rightTooltipPopup.implicitWidth
+                        var targetPt = dockLayer.contentItem.mapFromItem(target, 0, 0)
+                        var targetCenterX = targetPt.x + (target.width / 2)
+                        var rx = targetCenterX - (popupW / 2)
+                        if (rx + popupW > dockLayer.width - 6) rx = dockLayer.width - popupW - 6
+                        if (rx < 6) rx = 6
+                        rightTooltipAnchor.rect.x = Math.round(rx)
+                        rightTooltipAnchor.rect.y = 0
+                    }
+
+                    Connections {
+                        target: root
+                        function onActiveRightTooltipTargetChanged() {
+                            rightTooltipPopup.updatePosition()
+                        }
+                        function onActiveRightTooltipTextChanged() {
+                            rightTooltipPopup.updatePosition()
+                        }
+                    }
+
+                    anchor {
+                        id: rightTooltipAnchor
+                        window: dockLayer
+                        adjustment: PopupAdjustment.None
+                        edges: Edges.Top | Edges.Left
+                        gravity: Edges.Top | Edges.Right
+                        rect.width: 1
+                        rect.height: 1
+
+                        onAnchoring: {
+                            rightTooltipPopup.updatePosition()
+                        }
+                    }
+
+                    Rectangle {
+                        id: bubble
+                        anchors.top: parent.top
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        implicitWidth: bubbleLabel.implicitWidth + 16
+                        implicitHeight: bubbleLabel.implicitHeight + 10
+                        radius: 5
+                        color: Color.popups.background
+                        border.width: 1
+                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.4)
+
+                        Text {
+                            id: bubbleLabel
+                            anchors.centerIn: parent
+                            textFormat: Text.PlainText
+                            text: root.activeRightTooltipText
+                            font.family: Style.font.family
+                            font.pixelSize: 11
+                            color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // 2. The Isolated Action Card Popup Overlay Window (Folder Icon Picker)
