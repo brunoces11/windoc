@@ -807,3 +807,27 @@ Data: 14/10/2026. Estado: configurado e validado.
     à lista persistente de favoritos em `~/Desktop/windoc/shell/dock-pinned.json`
     (refletido em `~/.config/omarchy/dock-pinned.json` via symlink).
   * Executado `omarchy restart shell` para recarregar a barra com os novos ícones.
+
+
+40. CORREÇÃO DEFINITIVA DA TROCA EM 1 CLIQUE (1X) ENTRE PAINÉIS DE WIDGETS NO OVERFLOW POPUP
+Data: 14/10/2026. Estado: corrigido, calibrado, testado e validado em runtime.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`, `config-sistema.txt`, `DIRETRIZES_DE_DESIGN.txt`.
+- Diagnóstico e Causa Raiz:
+  1. No `KeyboardPanel.qml` (`/usr/share/omarchy/shell/Ui/KeyboardPanel.qml`), o método `pressTargetAt` que processa o encaminhamento de cliques pela `dismissArea` aplica a validação estrita:
+     `if (!target || !target.triggerPress || target.visible === false || target.opacity === 0 || !target.mapToItem) continue;`
+  2. Como os slots proxies (`proxySlot`) gerados pelo `proxyRepeater` em `dockLayer` eram instâncias declarativas `Item` que não definiam a propriedade `mapToItem`, a expressão `!target.mapToItem` avaliava como `true` (`undefined`), fazendo com que o laço de inspeção ignorasse silenciosamente todos os slots proxy de clique e retornasse `null`.
+  3. Como consequência, a `dismissArea` interpretava o clique sobre outro ícone no overflow como um clique fora genérico e chamava `root.close()`, fechando o Widget A sem abrir o Widget B e forçando o usuário a clicar uma 2ª vez.
+  4. Adicionalmente, quando `proxySlot.triggerPress` acionava a ação do item, passava `anchorItem = null`, o que faria o novo widget utilizar a coordenada antiga de ancoragem caso abrisse.
+- Solução Implementada:
+  1. Declaração de `property var mapToItem: true` nos slots proxy (`proxySlot`), satisfazendo o contrato de interface esperado pelo `pressTargetAt` do `KeyboardPanel` e habilitando o hit-testing exato de coordenadas.
+  2. Em `TrayOverflowPopup.qml`, exportado o `itemRepeater` e a função helper `getItemSlot(index)` para expor o item visual real de cada ícone do pop-up.
+  3. No `proxySlot.triggerPress`, resolução automática do item real (`itemSlot || proxySlot`) passado como âncora para a ação do widget, garantindo que o novo painel (Widget B) posicione seu espaçamento padrão rigorosamente alinhado ao ícone B clicado.
+  4. Em `setSystemTrayAnchor`, adicionada validação e fallback para coordenadas `slotScreenX`/`slotScreenY`, garantindo que `isInsideOverflow` e o cálculo de posicionamento relativo ao tooltip (`currentTrayAnchorGap`) sejam executados com perfeição.
+  5. Em `openSystemTraySettings`, adicionado `root.closeActiveTrayPanel()` para garantir fechamento de qualquer painel ativo ao abrir as configurações da bandeja.
+- Validação Técnica:
+  - Testado via IPC (`da.forwardBarClick(1250, 790, Qt.LeftButton)`) simulando o clique do usuário em outro widget:
+    * `active=omarchy.audio` migrou instantaneamente para `active=omarchy.network` em 1 único clique (`1x`);
+    * O painel antigo fechou e o novo mapeou imediatamente na camada Overlay (`omarchy-keyboard-panel`).
+  - `omarchy restart shell` executado sem erros ou alertas;
+  - `git diff --check` aprovado.

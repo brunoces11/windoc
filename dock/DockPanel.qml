@@ -1034,9 +1034,13 @@ Item {
         var screenY = 0
         var itemW = anchorItem.width || 24
         var itemH = anchorItem.height || 24
-        var isInsideOverflow = (win && win.namespace === "omarchy-dock-tray-overflow")
+        var isInsideOverflow = (win && win.namespace === "omarchy-dock-tray-overflow") || (anchorItem && anchorItem.slotScreenX !== undefined)
 
-        if (isInsideOverflow) {
+        if (anchorItem && anchorItem.slotScreenX !== undefined && anchorItem.slotScreenY !== undefined) {
+            screenX = anchorItem.slotScreenX
+            screenY = anchorItem.slotScreenY
+            isInsideOverflow = true
+        } else if (isInsideOverflow) {
             var pt = anchorItem.mapToItem(win.contentItem, 0, 0)
             screenX = pt.x
             screenY = pt.y
@@ -1144,6 +1148,7 @@ Item {
     }
 
     function openSystemTraySettings() {
+        root.closeActiveTrayPanel()
         if (typeof systemTraySettingsModal !== "undefined" && systemTraySettingsModal) {
             systemTraySettingsModal.opened = true
         }
@@ -3342,6 +3347,7 @@ Item {
                             id: proxySlot
                             required property var modelData
                             required property int index
+                            property var mapToItem: true
 
                             readonly property real slotSpan: (trayOverflowPopup ? trayOverflowPopup.itemSlotSize : 40) + (trayOverflowPopup ? trayOverflowPopup.itemSpacing : 2)
                             readonly property int col: (trayOverflowPopup && trayOverflowPopup.gridCols > 0) ? (index % trayOverflowPopup.gridCols) : 0
@@ -3363,10 +3369,14 @@ Item {
                             opacity: 1
 
                             function triggerPress(button) {
+                                var itemSlot = (trayOverflowPopup && typeof trayOverflowPopup.getItemSlot === "function")
+                                    ? trayOverflowPopup.getItemSlot(index)
+                                    : null
+                                var anchor = itemSlot || proxySlot
                                 if (button === Qt.RightButton && typeof modelData.rightAction === "function") {
-                                    modelData.rightAction(null)
+                                    modelData.rightAction(anchor)
                                 } else if (typeof modelData.action === "function") {
-                                    modelData.action(null)
+                                    modelData.action(anchor)
                                 }
                             }
                         }

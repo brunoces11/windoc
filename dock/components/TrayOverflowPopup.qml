@@ -22,6 +22,11 @@ PanelWindow {
     readonly property real cardWidth: card ? card.width : 0
     readonly property real cardHeight: card ? card.height : 0
     readonly property var cardItem: card
+    property alias itemRepeater: itemRepeater
+
+    function getItemSlot(index) {
+        return (itemRepeater && itemRepeater.count > index) ? itemRepeater.itemAt(index) : null
+    }
 
     onOpenedChanged: {
         console.log("WinDoc TrayOverflowPopup: opened ->", opened, "visible ->", visible)

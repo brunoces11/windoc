@@ -145,9 +145,11 @@
 #            mesmo clique, sem necessidade de duplo clique (`2x`).
 #          - A sincronização utiliza proxy click targets (`proxyRepeater`) mapeados no espaço
 #            de coordenadas da dock e integrados a `dockBarContext.clickTargets` e à expansão
-#            dinâmica da `barSize`. Isso permite que a `dismissArea` nativa do `KeyboardPanel`
-#            reconheça o clique sobre os slots do overflow e execute a troca em 1 clique nativo
-#            sem gerar erros de JavaScript em runtime.
+#            dinâmica da `barSize`. Os slots declaram explicitamente `property var mapToItem: true`
+#            para satisfazer o contrato de validação estrito do `KeyboardPanel.pressTargetAt`.
+#          - Cada slot proxy resolve dinamicamente seu item visual real via `getItemSlot(index)`
+#            do `TrayOverflowPopup`, preservando rigorosamente o espaçamento padrão relativo
+#            ao ícone clicado para o novo widget aberto.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)
