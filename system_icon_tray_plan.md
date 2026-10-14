@@ -157,13 +157,72 @@ só documental não exige reload; `omarchy refresh shell` restaura padrões e n�
 um comando de recarga. Alterações de configuração do Hyprland, se realmente
 necessárias e justificadas, seguem as verificações obrigatórias do projeto.
 
-## Registro de passagem entre etapas
+## Controle e passagem obrigatória entre etapas
 
-- Etapa 1: pendente. O mapa acima é uma orientação baseada na inspeção de 14/10/2026,
-  não uma alegação de execução ou validação visual da futura mudança.
-- Saída a preencher pela etapa 1: commit-base, arquivos-alvo, identidade/projeção,
-  tratamento de Loader e eventos, glyph/estados visuais, verificações e pendências.
-- Etapa 2: pendente; iniciar após a conclusão da etapa 1 e sua solicitação.
+Este protocolo permite que uma LLM execute uma etapa sem depender do histórico do
+chat. O estado registrado aqui é a fonte de verdade. Uma solicitação para trabalhar
+neste plano deve indicar qual etapa será executada; o executor realiza somente essa
+etapa e atualiza seu estado antes de encerrar.
 
-Estas duas etapas produzem uma única entrega minimalista. Não recuperar
-funcionalidades de versões anteriores como requisitos ativos.
+| Etapa | Estado | Registro de conclusão |
+| --- | --- | --- |
+| 1 — preparação técnica | PENDENTE | Será preenchido pelo executor da etapa 1. |
+| 2 — implementação e validação | BLOQUEADA até a conclusão da etapa 1 | Será preenchido pelo executor da etapa 2. |
+
+### Regra de passagem
+
+**Não iniciar código executável da etapa 2 enquanto a etapa 1 não estiver marcada
+como CONCLUÍDA nesta tabela.** Uma descrição da etapa 1 ou uma resposta no chat
+não substitui o registro. Se faltar qualquer item de saída, manter a etapa 2
+bloqueada, completar a etapa 1 caso ela tenha sido solicitada, ou informar o que
+falta caso a solicitação seja apenas para a etapa 2.
+
+Para marcar a etapa 1 como concluída, registrar abaixo, no próprio plano:
+
+- commit-base inspecionado e resultado da checagem de estado/links;
+- arquivos executáveis previstos para alteração na etapa 2;
+- identidade interna escolhida e como substitui o clima na projeção da dock;
+- como o Loader do clima, o fallback de plugin e os três botões ficam isolados;
+- glyph e estados visuais definidos;
+- verificações planejadas, limitações e dúvidas ainda abertas;
+- commit documental que contém este registro.
+
+A etapa 1 permanece documental e não pode incluir implementação parcial da UI.
+Depois de verificar a lista, alterar seu estado para CONCLUÍDA, registrar o commit
+e atualizar a etapa 2 para LIBERADA. Fazer essa atualização no mesmo commit da
+entrega da etapa 1, junto ao registro incremental exigido em `config-sistema.txt`.
+
+O executor da etapa 2 deve ler este arquivo e o registro de conclusão antes de
+editar. Deve confirmar que o commit da etapa 1 está presente na base atual e que
+não há alterações conflitantes pendentes. Se qualquer pré-condição falhar, não
+implementar; registrar a pendência e devolver o controle. Com as pré-condições
+atendidas, executar a implementação, a verificação e o encerramento completos
+descritos na etapa 2. Marcar a etapa 2 como CONCLUÍDA apenas após as verificações,
+o registro incremental e o commit/push exigidos pelo projeto.
+
+### Registro da etapa 1
+
+Estado atual: PENDENTE. Ainda não foi executada.
+
+- Commit-base:
+- Arquivos executáveis previstos:
+- Identidade interna e projeção:
+- Isolamento de Loader, fallback e eventos:
+- Glyph e estados visuais:
+- Verificações planejadas e limitações:
+- Commit desta etapa:
+
+### Registro da etapa 2
+
+Estado atual: BLOQUEADA até a etapa 1 estar CONCLUÍDA e LIBERADA.
+
+- Commit da etapa 1 usado como base:
+- Arquivos efetivamente alterados:
+- Verificações executadas e resultados:
+- Limitações pendentes, se houver:
+- Commit desta etapa:
+
+As etapas são sequenciais, complementares e executadas em entregas separadas.
+Cada uma tem um resultado próprio, mas a segunda depende do registro concluído da
+primeira. Juntas produzem somente a base minimalista definida neste plano. Não
+recuperar funcionalidades de versões anteriores como requisitos ativos.

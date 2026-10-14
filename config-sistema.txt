@@ -373,3 +373,19 @@ Data: 14/10/2026. Estado: diretrizes documentadas; ambas as etapas pendentes.
 - Arquivos afetados: system_icon_tray_plan.md, README.md, AGENTS.md e este histórico.
   Nenhum código ou configuração ativa alterado. Referências e diff verificados;
   validação visual/runtime da implementação permanece para a etapa 2.
+
+
+18. SYSTEM ICON TRAY — CONTROLE FORMAL DA PASSAGEM ENTRE ETAPAS
+Data: 14/10/2026. Estado: protocolo sequencial registrado; execução pendente.
+
+- Revisão: as etapas 1 e 2 tinham escopos separados, mas o estado e o bloqueio
+  da segunda dependiam de interpretação do texto livre.
+- Agora: system_icon_tray_plan.md contém tabela de estado, campos de conclusão,
+  pré-condições verificáveis e regra explícita que impede iniciar código da etapa
+  2 enquanto a etapa 1 não estiver marcada CONCLUÍDA e LIBERADA no próprio plano.
+- Cada agente deve executar somente a etapa delegada. A etapa 1 termina com registro
+  técnico e commit documental. A etapa 2 lê esse registro, confirma a base e encerra
+  implementação, verificações, histórico, commit e push na mesma entrega.
+- AGENTS.md aponta para o gate obrigatório. Status atual: etapa 1 PENDENTE;
+  etapa 2 BLOQUEADA. Nenhum código ou configuração ativa foi alterado.
+- Verificação documental: estrutura do gate, campos de estado, referências e diff.
