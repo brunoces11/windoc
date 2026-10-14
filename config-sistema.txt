@@ -299,3 +299,15 @@ Data: 13/10/2026. Estado: configurado e validado.
   * `windoc status`: exibe arquivos alterados no projeto.
   * `windoc push [msg]`: adiciona, comita e envia tudo ao GitHub com 1 comando.
   * `windoc symlinks`: audita e restaura os links simbólicos do sistema.
+
+
+13. REMOÇÃO DO ÍCONE E TÍTULO DE APLICATIVOS ABERTOS DA BARRA SUPERIOR
+Data: 13/10/2026. Estado: configurado e validado.
+
+- Removido o widget `atagulalan.omapanel` da seção esquerda (`left`) do layout
+  da barra em `~/.config/omarchy/shell.json` (arquivo versionado em
+  `~/Desktop/windoc/shell/shell.json`).
+- O widget era responsável por exibir o ícone e título das janelas e
+  aplicativos em execução na barra superior. Como a barra inferior (dock) já
+  exibe e gerencia os aplicativos abertos e fixados, a informação foi ocultada
+  da barra superior para despoluir o topo e evitar redundância visual.
