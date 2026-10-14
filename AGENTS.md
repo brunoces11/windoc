@@ -85,3 +85,9 @@ barra inferior. O plano anterior em camadas foi substituído por essa entrega ú
 Não ampliar o escopo com requisitos de versões anteriores da documentação.
 Estado: documentação atualizada; implementação pendente. Esta revisão documental
 não autoriza iniciar a implementação.
+
+O plano contém duas etapas de execução: (1) preparação técnica com entrega
+documental e (2) implementação, refinamento e validação. Cada etapa possui suas
+próprias diretrizes técnicas e visuais. O executor deve registrar a conclusão da
+primeira no plano central e utilizar esse registro como entrada da segunda.
+As regras de validação, histórico, commit e push aplicam-se a cada entrega.

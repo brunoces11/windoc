@@ -353,3 +353,23 @@ Data: 14/10/2026. Estado: documentação revisada; implementação pendente.
   config-sistema.txt. Os requisitos anteriores não devem ser retomados como ativos.
 - Verificação: referências locais e diff revisados; busca de menções residuais
   nos arquivos atuais. Código e configurações de execução não foram alterados.
+
+
+17. SYSTEM ICON TRAY — DIRETRIZES TÉCNICAS E VISUAIS PARA DUAS ETAPAS
+Data: 14/10/2026. Estado: diretrizes documentadas; ambas as etapas pendentes.
+
+- Solicitação: preparar orientações de design, precisão de código e encapsulamento
+  para o agente executor, com duas etapas sequenciais e entregas separáveis.
+- Antes: plano minimalista com uma sequência breve, sem contrato técnico por etapa.
+- Agora: etapa 1 entrega o contrato de integração; etapa 2 implementa, refina e
+  verifica a entrega completa. O plano central contém diretrizes próprias de cada
+  etapa e um registro para passagem de contexto, sem depender do histórico do chat.
+- Base inspecionada: slotSize 42, iconBaseSize 24, DockGlyph com centralização óptica,
+  cor do tema, hover de 120 ms, listas e offsets da dock, Loader transparente que
+  ainda instancia painéis e handlers com fallback de comandos.
+- Recomendada projeção de apresentação com identidade interna, no mesmo índice
+  do clima, sem novas preferências. O contrato prevê chevron para cima e tooltip
+  System Tray, sem ações nesta base. Preservar os dados e serviços do clima.
+- Arquivos afetados: system_icon_tray_plan.md, README.md, AGENTS.md e este histórico.
+  Nenhum código ou configuração ativa alterado. Referências e diff verificados;
+  validação visual/runtime da implementação permanece para a etapa 2.

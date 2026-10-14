@@ -29,8 +29,10 @@ no ícone base da System Icon Tray, em versão minimalista, exatamente na posiç
 atual do ícone de previsão do tempo na barra inferior.
 
 O [plano central](system_icon_tray_plan.md) registra essa entrega única e substitui
-a divisão anterior em camadas. Funcionalidades adicionais dependem de nova
-definição de escopo.
+a divisão anterior em camadas. A execução está organizada em duas etapas:
+**preparação técnica** e **implementação com validação**, cada uma com diretrizes
+visuais e de código baseadas nos componentes existentes. Funcionalidades adicionais
+dependem de nova definição de escopo.
 
 ---
 
