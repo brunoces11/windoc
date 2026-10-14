@@ -114,6 +114,24 @@
 #       - Cor de Fundo: `Color.popups.background`.
 #       - Borda: 1px, `Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.28)`.
 #       - Glow interno: 1px, `Color.composed("popups.highlight", "popups.highlight-alpha", Color.text, 0.08)`.
+#   * Comportamento Interativo e Ciclo de Vida:
+#       1. Persistência de Visibilidade em Cliques Internos:
+#          - Clicar em qualquer ícone do pop-up NÃO fecha a janela. O pop-up continua
+#            visível e ativo como área de atenção, permitindo ao usuário explorar
+#            múltiplos ícones e painéis em uma única passada contínua.
+#       2. Fechamento Automático por Afastamento (Buffer Proximity >= 100px):
+#          - O pop-up não se fecha com um simples mouse-out. Ele permanece aberto
+#            enquanto o cursor permanecer a menos de 100px das bordas do card.
+#          - Se o cursor se afastar 100 pixels ou mais em qualquer direção
+#            (`dx >= 100 || dy >= 100`, esquerda, direita, cima ou baixo), o pop-up
+#            é fechado automaticamente.
+#       3. Fechamento por Clique Fora e Transferência de Clique:
+#          - Clicar intencionalmente em qualquer ponto fora do card fecha imediatamente
+#            o pop-up e transfere/roteia o clique para o elemento subjacente:
+#            a) Na área da Dock/Taskbar: aciona o item clicado (ícones de aplicativos,
+#               widgets fixados, relógio/calendário ou chevron).
+#            b) Na área de trabalho: foca e ativa a janela do aplicativo (Wayland toplevel)
+#               posicionada sob as coordenadas do clique.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)

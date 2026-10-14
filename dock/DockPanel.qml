@@ -897,9 +897,106 @@ Item {
     function toggleTrayOverflow(anchorItem) {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
             root.setSystemTrayAnchor(anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem)
+            trayOverflowPopup.mouseHasBeenNear = true
             trayOverflowPopup.opened = !trayOverflowPopup.opened
             console.log("WinDoc: toggleTrayOverflow() called -> opened is now", trayOverflowPopup.opened)
         }
+    }
+
+    function handleExternalClick(screenX, screenY, button) {
+        var btn = button || Qt.LeftButton
+        var isTop = root.dockScreenPosition === "top"
+        var activeDock = root.dockWindow
+        var dockH = (activeDock && activeDock.contentItem) ? activeDock.height : (root.slotSize + 8)
+        var screenH = (activeDock && activeDock.screen) ? activeDock.screen.height : 864
+        var dockScreenTop = isTop ? 0 : (screenH - dockH)
+
+        var localX = screenX
+        var localY = isTop ? screenY : (screenY - dockScreenTop)
+
+        // 1. Right Widgets (Tray, Desktop button, Clock, etc.)
+        if (root.hasRightWidgets) {
+            var rBase = root.windowsTaskbarMode && !root.isVertical
+                ? (activeDock ? activeDock.width : 1920) - root.rightWidgetsWidth
+                : ((root.hasLeftWidgets ? (root.leftWidgetsWidth + root.leftSeparatorSize) : 0) + root.itemsWidth + root.rightSeparatorSize)
+            if (localX >= rBase && localX <= rBase + root.rightWidgetsWidth) {
+                var relRight = localX - rBase
+                for (var i = 0; i < root.rightWidgetsList.length; i++) {
+                    var wId = root.rightWidgetsList[i]
+                    var wOffset = root.getRightWidgetOffset(i)
+                    var wDim = root.getRightWidgetDimension(wId)
+                    if (relRight >= wOffset && relRight <= wOffset + wDim) {
+                        if (root.isTrayWidget(wId)) {
+                            var trayRel = relRight - wOffset
+                            if (trayRel < 24) {
+                                root.toggleTrayOverflow()
+                            } else {
+                                var pinned = root.systemTrayPinnedWidgets || []
+                                var pIdx = Math.floor((trayRel - 24) / 28)
+                                if (pIdx >= 0 && pIdx < pinned.length) {
+                                    var pId = pinned[pIdx]
+                                    if (btn === Qt.RightButton && pId === "omarchy.audio") {
+                                        Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+                                    } else {
+                                        root.toggleTrayWidget(pId, null, btn)
+                                    }
+                                }
+                            }
+                        } else if (root.isDesktopWidget(wId)) {
+                            Util.execDetached("hyprctl dispatch workspace previous")
+                        } else {
+                            root.activateWidget(wId, null, null, { button: btn })
+                        }
+                        return true
+                    }
+                }
+            }
+        }
+
+        // 2. Left Widgets (Start Menu, Left Clock, etc.)
+        if (root.hasLeftWidgets) {
+            for (var j = 0; j < root.leftWidgetsList.length; j++) {
+                var lwId = root.leftWidgetsList[j]
+                var lwOffset = root.getLeftWidgetOffset(j)
+                var lwDim = (root.isClockWidget(lwId) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                if (localX >= lwOffset && localX <= lwOffset + lwDim) {
+                    root.activateWidget(lwId, null, null, { button: btn })
+                    return true
+                }
+            }
+        }
+
+        // 3. Applications / Pinned Apps
+        var leftMin = root.hasLeftWidgets ? (root.leftWidgetsWidth + root.leftSeparatorSize) : 0
+        var appOffset = leftMin
+        if (root.windowsTaskbarMode && !root.isVertical) {
+            if (root.taskbarAppAlignment === "left") {
+                appOffset = leftMin
+            } else if (root.taskbarAppAlignment === "right") {
+                appOffset = Math.max(leftMin, (activeDock ? activeDock.width : 1920) - root.rightWidgetsWidth - root.rightSeparatorSize - root.itemsWidth)
+            } else {
+                appOffset = Math.max(leftMin, ((activeDock ? activeDock.width : 1920) - root.itemsWidth) / 2)
+            }
+        }
+
+        if (localX >= appOffset && localX < appOffset + root.itemsWidth) {
+            var slot = Math.floor((localX - appOffset) / root.slotSize)
+            if (slot >= 0 && slot < root.dockItems.length) {
+                var item = root.dockItems[slot]
+                if (item) {
+                    if (btn === Qt.RightButton) {
+                        root.minimizeItem(item)
+                    } else if (item.isStack) {
+                        root.toggleStack(item, slot)
+                    } else {
+                        root.restoreOrLaunchItem(item, -1)
+                    }
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     function setSystemTrayAnchor(anchorItem) {

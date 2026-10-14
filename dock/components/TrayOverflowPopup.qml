@@ -19,7 +19,12 @@ PanelWindow {
 
     onOpenedChanged: {
         console.log("WinDoc TrayOverflowPopup: opened ->", opened, "visible ->", visible)
-        if (opened) card.forceActiveFocus()
+        if (opened) {
+            card.forceActiveFocus()
+            mouseHasBeenNear = false
+        } else {
+            mouseHasBeenNear = false
+        }
     }
 
     WlrLayershell.namespace: "omarchy-dock-tray-overflow"
@@ -42,13 +47,107 @@ PanelWindow {
     readonly property real popupAnchorY: dockPanel ? dockPanel.systemTrayPopupAnchorY : 12
     readonly property bool dockAtTop: dockPanel ? dockPanel.dockScreenPosition === "top" : false
 
-    // Close when clicking anywhere outside the card
+    property bool mouseHasBeenNear: false
+
+    function transferClick(clickX, clickY, clickBtn) {
+        var btn = clickBtn || Qt.LeftButton
+        var isTop = dockPanel ? (dockPanel.dockScreenPosition === "top") : false
+        var screenH = overflowWindow.height
+        var dockH = overflowWindow.dockHeight
+
+        var inDock = isTop ? (clickY <= dockH) : (clickY >= (screenH - dockH))
+
+        if (inDock && dockPanel) {
+            if (typeof dockPanel.handleExternalClick === "function") {
+                dockPanel.handleExternalClick(clickX, clickY, btn)
+            }
+            return
+        }
+
+        var toplevels = (typeof Hyprland !== "undefined" && Hyprland.toplevels && Hyprland.toplevels.values)
+            ? Hyprland.toplevels.values
+            : []
+        var currentWsId = (typeof Hyprland !== "undefined" && Hyprland.focusedWorkspace)
+            ? Hyprland.focusedWorkspace.id
+            : -1
+
+        var candidate = null
+        for (var i = 0; i < toplevels.length; i++) {
+            var top = toplevels[i]
+            if (!top) continue
+            var ipc = top.lastIpcObject
+            if (!ipc || ipc.hidden === true || ipc.mapped === false) continue
+            if (ipc.workspace && currentWsId !== -1 && ipc.workspace.id !== currentWsId) continue
+
+            var at = ipc.at
+            var size = ipc.size
+            if (at && size && at.length >= 2 && size.length >= 2) {
+                var wx = at[0]
+                var wy = at[1]
+                var ww = size[0]
+                var wh = size[1]
+                if (clickX >= wx && clickX <= wx + ww && clickY >= wy && clickY <= wy + wh) {
+                    if (!candidate) {
+                        candidate = top
+                    } else if (ipc.floating === true && (!candidate.lastIpcObject || candidate.lastIpcObject.floating !== true)) {
+                        candidate = top
+                    }
+                }
+            }
+        }
+
+        if (candidate) {
+            if (candidate.wayland && typeof candidate.wayland.activate === "function") {
+                try { candidate.wayland.activate() } catch (e) {}
+            } else if (typeof candidate.activate === "function") {
+                try { candidate.activate() } catch (e) {}
+            }
+            if (candidate.address) {
+                var addr = String(candidate.address)
+                if (addr.indexOf("0x") !== 0) addr = "0x" + addr
+                Util.execDetached("hyprctl dispatch focuswindow address:" + addr)
+            }
+        }
+    }
+
+    // Dismissal Area:
+    // 1. Closes automatically if cursor moves >= 100px away from card in any direction.
+    // 2. Closes and forwards/transfers the click if user clicks anywhere outside card.
     MouseArea {
+        id: dismissArea
         anchors.fill: parent
         z: 0
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: {
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+
+        onPositionChanged: function(mouse) {
+            var dx = 0
+            if (mouse.x < card.x) {
+                dx = card.x - mouse.x
+            } else if (mouse.x > card.x + card.width) {
+                dx = mouse.x - (card.x + card.width)
+            }
+
+            var dy = 0
+            if (mouse.y < card.y) {
+                dy = card.y - mouse.y
+            } else if (mouse.y > card.y + card.height) {
+                dy = mouse.y - (card.y + card.height)
+            }
+
+            var isNear = (dx < 100 && dy < 100)
+            if (isNear) {
+                overflowWindow.mouseHasBeenNear = true
+            }
+
+            if (overflowWindow.mouseHasBeenNear && (dx >= 100 || dy >= 100)) {
+                overflowWindow.opened = false
+            }
+        }
+
+        onClicked: function(mouse) {
             overflowWindow.opened = false
+            overflowWindow.transferClick(mouse.x, mouse.y, mouse.button)
         }
     }
 
@@ -68,7 +167,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.audio")
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
@@ -88,7 +186,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.network")
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-launch-floating-terminal-with-presentation nmtui")
@@ -104,7 +201,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle brunoma.agents")
                 }
-                overflowWindow.opened = false
             }
         },
         {
@@ -115,7 +211,6 @@ PanelWindow {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
                     dockPanel.toggleTrayWidget("omarchy.weather", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-notification-send \"$(omarchy-weather-status)\"")
@@ -128,7 +223,6 @@ PanelWindow {
             action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
                     dockPanel.toggleTrayWidget("omarchy.monitor", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
-                overflowWindow.opened = false
             }
         },
         {
@@ -136,7 +230,6 @@ PanelWindow {
             name: "Configurações da Bandeja",
             icon: "󰒓",
             action: function(anchorItem) {
-                overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.openSystemTraySettings === "function") {
                     dockPanel.openSystemTraySettings()
                 }
@@ -216,7 +309,11 @@ PanelWindow {
         // Catch clicks inside card so they don't dismiss the window
         MouseArea {
             anchors.fill: parent
+            hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onEntered: {
+                overflowWindow.mouseHasBeenNear = true
+            }
             onClicked: {}
         }
 
