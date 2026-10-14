@@ -100,15 +100,15 @@
 #         dos ícones fixados na barra de tarefas padrão (`SystemIconTray.qml`).
 #       - Família tipográfica: Style.font.family.
 #   * Espaçamento Entre Ícones (Item Spacing):
-#       - `rowSpacing: 5` e `columnSpacing: 5` (redução de 20% em relação ao padrão
-#         anterior de 6px, mantendo valor inteiro de 5px para máxima nitidez de renderização).
+#       - `rowSpacing: 2` e `columnSpacing: 2` — rigorosamente idêntico ao espaçamento
+#         entre ícones da barra de tarefas padrão (`trayRoot.slotSpacing = 2`).
 #   * Padding Interno do Grid (Card Padding):
-#       - `gridPadding: 8` (redução de 20% em relação ao padding original de 10px,
-#         resultando em 16px totais no eixo horizontal e vertical).
+#       - `gridPadding: 7` (redução de 10% para compacidade extrema, resultando
+#         em 14px totais no eixo horizontal e vertical).
 #   * Dimensões do Slot e Card:
-#       - Slot individual: 44x44 px (`radius: 7`).
-#       - Card acrílico: `width = (gridCols * 44) + ((gridCols - 1) * 5) + 16`
-#                        `height = (gridRows * 44) + ((gridRows - 1) * 5) + 16`
+#       - Slot individual: 40x40 px (`radius: 6`, redução de 10% em relação aos 44px originais).
+#       - Card acrílico: `width = (gridCols * 40) + ((gridCols - 1) * 2) + 14`
+#                        `height = (gridRows * 40) + ((gridRows - 1) * 2) + 14`
 #       - Raio de curvatura do card: 10px (`radius: 10`).
 #   * Superfície e Contorno:
 #       - Cor de Fundo: `Color.popups.background`.

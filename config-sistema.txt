@@ -643,3 +643,25 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+33. EQUALIZAÇÃO DO ESPAÇAMENTO DOS ÍCONES (IDÊNTICO À TASKBAR = 2PX) E COMPACTAÇÃO ADICIONAL DE 10% DO POP-UP
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/components/TrayOverflowPopup.qml`, `DIRETRIZES_DE_DESIGN.txt` e `config-sistema.txt`.
+- Motivação e Objetivos:
+  1. Espaçamento 1:1 com a Barra de Tarefas: o espaçamento entre os ícones dentro do pop-up
+     de overflow foi ajustado para exatamente 2px (`itemSpacing: 2`), tornando o intervalo
+     entre ícones estritamente idêntico ao espaçamento da taskbar (`trayRoot.slotSpacing = 2`).
+  2. Redução de 10% no Tamanho Geral do Pop-up:
+     - Dimensão do slot individual reduzida em 10% de 44x44 px para 40x40 px (`itemSlotSize: 40`, `radius: 6`).
+     - Padding interno perimetral do card reduzido para 7px (`gridPadding: 7`, 14px totais).
+     - Altura do card reduzida exatamente em 10% (de 60px para 54px em 1 linha).
+     - Largura do card compactada para 180px (4 colunas) mantendo proporção e pegada minimalista.
+  3. Preservação de Escala dos Glifos: os ícones mantêm o tamanho unificado de 17px
+     (`iconPixelSize: 17`), preservando a consistência com a barra.
+  4. Atualização de Design: especificações de [COMPONENTE 02] atualizadas em `DIRETRIZES_DE_DESIGN.txt`.
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso e camadas recarregadas.

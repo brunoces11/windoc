@@ -168,11 +168,15 @@ PanelWindow {
     readonly property int gridCols: Math.max(1, Math.min(totalItems, 5))
     readonly property int gridRows: Math.max(1, Math.ceil(totalItems / gridCols))
 
-    // Spacing and sizing tokens (matching standard taskbar size and compacting grid by 20%)
+    // Spacing and sizing tokens
+    // Standard tray icon size matches pinned taskbar glyphs (17px)
     readonly property real iconPixelSize: 17
-    readonly property real itemSpacing: 5
-    readonly property real gridPadding: 8
-    readonly property real itemSlotSize: 44
+    // Spacing between icons matches taskbar slot spacing (2px)
+    readonly property real itemSpacing: 2
+    // Padding inside the card/grid reduced to 7px (total 14px) for a compact 10% smaller pop-up
+    readonly property real gridPadding: 7
+    // Slot size reduced by 10% (44px -> 40px)
+    readonly property real itemSlotSize: 40
 
     // The Floating Acrylic Popup Card
     Rectangle {
@@ -234,7 +238,7 @@ PanelWindow {
                     z: itemMouse.containsMouse ? 100 : 1
                     width: overflowWindow.itemSlotSize
                     height: overflowWindow.itemSlotSize
-                    radius: 7
+                    radius: 6
                     color: itemMouse.containsMouse
                         ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.2)
                         : "transparent"
