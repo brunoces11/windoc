@@ -27,6 +27,7 @@ O projeto adota uma arquitetura onde **todos os arquivos de configuração do si
 ├── terminal/                             <-- Configurações do emulador de terminal Kitty
 │                                             Symlink em: ~/.config/kitty/
 ├── config-sistema.txt                    <-- LOG HISTÓRICO E INCREMENTAL DE MODIFICAÇÕES
+├── DIRETRIZES_DE_DESIGN.txt              <-- CATÁLOGO E PADRÕES DE DESIGN, ESTILOS E ESPAÇAMENTOS
 ├── sync-symlinks.sh                      <-- Script utilitário para validar e restaurar links
 ├── AGENTS.md                             <-- Este arquivo de regras obrigatórias para agentes
 ├── README.md                             <-- Documentação do projeto
@@ -74,7 +75,10 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 ### REGRA 5: Não Duplicação de Pastas e Diretórios (OBRIGATÓRIO)
 > **MUITO IMPORTANTE:** Antes de criar qualquer pasta ou diretório, verifique sempre se já existe uma pasta igual ou equivalente (inclusive variações de maiúsculas/minúsculas) para jamais criar pastas duplicadas ou redundantes.
 
-
+### REGRA 6: Observância e Registro em `DIRETRIZES_DE_DESIGN.txt` (OBRIGATÓRIO)
+> **MUITO IMPORTANTE:** O projeto mantém um catálogo autoritativo de design tokens, medidas, estilos visuais e arquétipos de componentes no arquivo `DIRETRIZES_DE_DESIGN.txt`, localizado na raiz deste projeto.
+* **Consulta Obrigatória**: Toda vez que o usuário solicitar uma alteração visual, de layout, de espaçamento ou fizer referência a um padrão registrado (ex: "espaçamento padrão", "janela X", "janela Y"), o agente DEVE consultar `DIRETRIZES_DE_DESIGN.txt` e aplicar rigorosamente os valores e convenções ali estabelecidos.
+* **Registro de Novos Padrões e Variantes**: Toda vez que o usuário solicitar uma modificação de design e pedir para registrá-la ou acordar um novo padrão (ex: novas dimensões, regras de janela com cores/outlines/paddings específicos, novas variantes), o agente DEVE documentar e atualizar imediatamente o arquivo `DIRETRIZES_DE_DESIGN.txt`.
 
 ## 4. Status vigente: System Icon Tray
 

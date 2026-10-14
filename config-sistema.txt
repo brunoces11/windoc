@@ -491,3 +491,16 @@ Data: 14/10/2026. Estado: implementado, calibrado, testado e validado em runtime
   * Opacidade da borda (outline) fixada em 40%: `border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.40)`.
   * Opacidade do preenchimento escuro em 90% (10% de transparência): aplicado `color: Util.alpha(Color.popups.background, 0.90)`.
 - Validação técnica: reinicialização do shell executada (`omarchy restart shell`) e logs do journalctl do Quickshell verificados sem erros ou advertências.
+
+
+26. CRIAÇÃO DE DIRETRIZES_DE_DESIGN.TXT E FORMALIZAÇÃO DA REGRA 6 NO AGENTS.MD
+Data: 14/10/2026. Estado: criado, formalizado, documentado e sincronizado.
+
+- Criação do Catálogo de Diretrizes de Design (`DIRETRIZES_DE_DESIGN.txt`):
+  * Instituído o arquivo central e autoritativo de design tokens, medidas, estilos visuais e arquétipos de componentes na raiz do projeto (`~/Desktop/windoc/DIRETRIZES_DE_DESIGN.txt`).
+  * Registro da regra de "Espaçamento Padrão": formalizada a distância padrão de 6 pixels entre a face inferior do tooltip e a face superior do seu glifo/elemento interativo de referência (gap vertical = 6px), garantindo zero sobreposição e replicação fiel em qualquer nova interface.
+  * Catalogação dos tokens de Tooltip Padrão: tipografia 10px, padding interno (-20%: 6px nas laterais, 4px topo/base), raio de curvatura 4px, outline com 40% de opacidade e fundo escuro com 90% de opacidade (10% de transparência).
+  * Estruturação de espaço para catalogação de futuros arquétipos de janelas e modais (ex: "Janela X", "Janela Y", variantes de containers, bordas e cores).
+- Atualização das Regras de Negócio (`AGENTS.md`):
+  * Adicionado o arquivo `DIRETRIZES_DE_DESIGN.txt` na árvore oficial da estrutura centralizada de arquivos.
+  * Inserida a "REGRA 6: Observância e Registro em DIRETRIZES_DE_DESIGN.txt (OBRIGATÓRIO)", tornando mandatória a consulta prévia e a catalogação de quaisquer novas diretrizes de design ou variantes de estilos solicitadas pelo usuário.

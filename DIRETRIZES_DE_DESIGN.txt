@@ -1,0 +1,87 @@
+# ==============================================================================
+# DIRETRIZES_DE_DESIGN.txt - CATÁLOGO E PADRÕES DE DESIGN DO PROJETO WINDOC
+# ==============================================================================
+#
+# 1. OBJETIVO E DIRETRIZES DO ARQUIVO
+# ------------------------------------------------------------------------------
+# Este arquivo é o repositório central e autoritativo de design tokens, medidas,
+# espaçamentos espaciais, estilos visuais e arquétipos de componentes (janelas,
+# modais, menus, popups, botões, tooltips) do ecossistema WinDoc.
+#
+# O seu propósito fundamental é garantir:
+#   1. Consistência Visual: toda a interface deve refletir a experiência estética
+#      consagrada do Windows 11 moderna, limpa, refinada e milimetricamente ajustada.
+#   2. Reutilização e Escalabilidade: sempre que um estilo for definido (ex: "Janela X",
+#      "Janela Y", "Espaçamento Padrão"), ele é catalogado aqui com suas especificações
+#      exatas (cores, opacidades de outline, espessura de borda, padding interno,
+#      raio de curvatura e tipografia).
+#   3. Fonte Única de Verdade para Agentes e Desenvolvedores: qualquer menção futura
+#      a termos como "espaçamento padrão", "no estilo da janela X" ou "seguindo a
+#      diretriz de design" deve ter seus parâmetros lidos e aplicados rigorosamente
+#      a partir deste documento.
+#
+# ==============================================================================
+# 2. ESPAÇAMENTOS E MEDIDAS GLOBAIS
+# ==============================================================================
+#
+# ------------------------------------------------------------------------------
+# [PADRÃO 01] ESPAÇAMENTO PADRÃO (DISTÂNCIA PADRÃO TOOLTIP <-> ÍCONE/ELEMENTO)
+# ------------------------------------------------------------------------------
+# DEFINIÇÃO:
+# A "Distância Padrão" corresponde à distância vertical de respiro (gap/clearance)
+# entre a face inferior do balão de dica (Tooltip) e a face superior do glifo/ícone
+# ou elemento interativo ao qual ele se refere.
+#
+# MEDIÇÃO TÉCNICA E VALOR OFICIAL:
+#   * Valor Nominal: 6 PIXELS (gap = 6px).
+#   * Ancoragem na Barra Inferior (Dock/Taskbar):
+#       - Posição Y da âncora popup: `rect.y = 12` (em relação ao topo do dockLayer).
+#       - Borda inferior do tooltip: repousa no nível Y = 12, ficando nivelada com o
+#         topo da caixa de foco do slot (26px) e exatamente a 6px do topo do glifo
+#         visual interno (que se inicia em Y = 18).
+#   * Ancoragem em Menus/Popups Grid (ex: TrayOverflowPopup):
+#       - `anchors.bottomMargin: 6` (6 pixels exatos acima do contêiner do item).
+#   * Aplicação:
+#       Toda vez que uma nova interface, widget ou popup solicitar a inserção de
+#       um tooltip com "espaçamento padrão", deve-se aplicar o gap vertical de 6px
+#       em relação ao seu elemento interativo, garantindo zero sobreposição e
+#       alinhamento harmônico no eixo Y.
+#
+# ==============================================================================
+# 3. CATÁLOGO DE COMPONENTES E DESIGN TOKENS
+# ==============================================================================
+#
+# ------------------------------------------------------------------------------
+# [COMPONENTE 01] TOOLTIP PADRÃO (TASKBAR & POPUPS)
+# ------------------------------------------------------------------------------
+# Estrutura visual compacta para rótulos de dica rápidos e elegantes:
+#   * Tipografia:
+#       - Família: Style.font.family
+#       - Tamanho: 10px (`font.pixelSize: 10`)
+#       - Formato: Text.PlainText
+#       - Cor: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+#   * Dimensões e Padding Interno:
+#       - Largura: `implicitWidth = bubbleLabel.implicitWidth + 12` (6px em cada lateral, redução de -20% em relação ao modelo inicial).
+#       - Altura: `implicitHeight = bubbleLabel.implicitHeight + 8` (4px superior/inferior, redução de -20%).
+#       - Raio de curvatura: 4px (`radius: 4`).
+#   * Superfície e Fundo:
+#       - Fundo Escuro: `color: Util.alpha(Color.popups.background, 0.90)` (90% opacidade / 10% transparência).
+#   * Borda e Contorno (Outline):
+#       - Espessura: 1px (`border.width: 1`).
+#       - Cor e Opacidade: `border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.40)` (Opacidade de 40%).
+#   * Ancoragem e Elevação:
+#       - Superfície: PopupWindow nativa do Quickshell (camada Wayland fora do dockLayer) ou Rectangle elevado com z: 9999.
+#
+# ------------------------------------------------------------------------------
+# [COMPONENTE 02] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)
+# ------------------------------------------------------------------------------
+# Regra de catalogação: quando o usuário definir estilos como "Janela X", "Janela Y",
+# "Painel Modal A", etc., registrar neste bloco as propriedades completas:
+#   - Fundo (Background / Opacity)
+#   - Contorno (Border Width / Color / Alpha)
+#   - Padding e Margins internas
+#   - Raio de Arredondamento (Corner Radius)
+#   - Header / Título / Tipografia
+#   - Comportamento de Foco e Fechamento (ESC / Click Outside)
+#
+# ==============================================================================
