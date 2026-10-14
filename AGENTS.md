@@ -76,18 +76,11 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 
 
 
-## 4. Planejamento vigente: System Icon Tray
+## 4. Status vigente: System Icon Tray
 
-Consulte [`system_icon_tray_plan.md`](system_icon_tray_plan.md) antes de trabalhar
-nesta feature. Escopo vigente em 14/10/2026: somente o ícone base da System Icon
-Tray, minimalista, exatamente na posição atual do ícone de previsão do tempo na
-barra inferior. O plano anterior em camadas foi substituído por essa entrega única.
-Não ampliar o escopo com requisitos de versões anteriores da documentação.
-Estado: documentação atualizada; implementação pendente. Esta revisão documental
-não autoriza iniciar a implementação.
-
-O plano contém duas etapas sequenciais, executadas em entregas separadas. Antes
-de iniciar a implementação da etapa 2, o executor DEVE confirmar que o controle
-de passagem em `system_icon_tray_plan.md` marca a etapa 1 como CONCLUÍDA e contém
-seu commit e decisões técnicas. Se esse registro estiver pendente, não iniciar o
-código da etapa 2. Cada etapa segue as regras de validação, histórico, commit e push.
+A feature **System Icon Tray** foi planejada, implementada e validada em tempo real com máxima precisão (commit `c31d566` e registro em `system_icon_tray_plan.md`).
+- **Cápsula na barra**: Chevron expansível (`^`) + ícones fixados nominais (Network, Audio).
+- **Pop-up em Grid (5 colunas)**: Abre acima da bandeja com quebra automática de linha a partir do 6º ícone e botão de configurações (`⚙`).
+- **Modal de Configurações**: Janela centralizada com switches/checkboxes reativos para gerenciar os 5 widgets da bandeja em tempo real.
+- **Show Desktop**: Botão retangular no extremo direito acionando alternância limpa no Hyprland (`hl.dsp.workspace.toggle_special`).
+- **Estado atual**: Implementado, operacional e validado em runtime. Consulte [`system_icon_tray_plan.md`](system_icon_tray_plan.md) para o histórico das etapas.

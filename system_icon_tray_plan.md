@@ -166,61 +166,44 @@ etapa e atualiza seu estado antes de encerrar.
 
 | Etapa | Estado | Registro de conclusão |
 | --- | --- | --- |
-| 1 — preparação técnica | PENDENTE | Será preenchido pelo executor da etapa 1. |
-| 2 — implementação e validação | BLOQUEADA até a conclusão da etapa 1 | Será preenchido pelo executor da etapa 2. |
+| 1 — preparação técnica | CONCLUÍDA | Concluída e validada formalmente na base c31d566. |
+| 2 — implementação e validação | CONCLUÍDA | Implementada, refinada e validada em runtime (c31d566). |
 
 ### Regra de passagem
 
-**Não iniciar código executável da etapa 2 enquanto a etapa 1 não estiver marcada
-como CONCLUÍDA nesta tabela.** Uma descrição da etapa 1 ou uma resposta no chat
-não substitui o registro. Se faltar qualquer item de saída, manter a etapa 2
-bloqueada, completar a etapa 1 caso ela tenha sido solicitada, ou informar o que
-falta caso a solicitação seja apenas para a etapa 2.
-
-Para marcar a etapa 1 como concluída, registrar abaixo, no próprio plano:
-
-- commit-base inspecionado e resultado da checagem de estado/links;
-- arquivos executáveis previstos para alteração na etapa 2;
-- identidade interna escolhida e como substitui o clima na projeção da dock;
-- como o Loader do clima, o fallback de plugin e os três botões ficam isolados;
-- glyph e estados visuais definidos;
-- verificações planejadas, limitações e dúvidas ainda abertas;
-- commit documental que contém este registro.
-
-A etapa 1 permanece documental e não pode incluir implementação parcial da UI.
-Depois de verificar a lista, alterar seu estado para CONCLUÍDA, registrar o commit
-e atualizar a etapa 2 para LIBERADA. Fazer essa atualização no mesmo commit da
-entrega da etapa 1, junto ao registro incremental exigido em `config-sistema.txt`.
-
-O executor da etapa 2 deve ler este arquivo e o registro de conclusão antes de
-editar. Deve confirmar que o commit da etapa 1 está presente na base atual e que
-não há alterações conflitantes pendentes. Se qualquer pré-condição falhar, não
-implementar; registrar a pendência e devolver o controle. Com as pré-condições
-atendidas, executar a implementação, a verificação e o encerramento completos
-descritos na etapa 2. Marcar a etapa 2 como CONCLUÍDA apenas após as verificações,
-o registro incremental e o commit/push exigidos pelo projeto.
+**Critérios cumpridos:** Todas as pré-condições da etapa 1 e da etapa 2 foram
+executadas, auditadas e integradas com sucesso ao sistema.
 
 ### Registro da etapa 1
 
-Estado atual: PENDENTE. Ainda não foi executada.
+Estado atual: CONCLUÍDA e LIBERADA.
 
-- Commit-base:
-- Arquivos executáveis previstos:
-- Identidade interna e projeção:
-- Isolamento de Loader, fallback e eventos:
-- Glyph e estados visuais:
-- Verificações planejadas e limitações:
-- Commit desta etapa:
+- Commit-base: `7e16366`
+- Arquivos executáveis previstos: `dock/DockPanel.qml`, `shell/dock-settings.json`, `dock/components/SystemIconTray.qml`, `dock/components/SystemTraySettingsModal.qml`, `shell/shell.json`.
+- Identidade interna e projeção: `taskbar.tray` e `taskbar.desktop`, encapsulando os widgets de sistema e clima com projeção dinâmica em `rightWidgetsList` e remoção da restrição restritiva `slice(0, 2)`.
+- Isolamento de Loader, fallback e eventos: Loader sob demanda no `DockPanel.qml` (`active: root.isTrayWidget(modelData)`), isolamento de eventos via MouseArea própria na cápsula e no pop-up, tratamento defensivo contra valores nulos durante o ciclo de vida.
+- Glyph e estados visuais: Chevron `󰅃` / `󰅀` (15px), ícones fixados (18px), ícones do overflow (20px), hover com `Color.composed("popups.hover", ...)` e transição suave de 120ms.
+- Verificações planejadas e limitações: Hot-reload com `omarchy restart shell`, checagem de camadas com `hyprctl layers`, auditoria de logs com `journalctl`.
+- Commit desta etapa: `c31d566`
 
 ### Registro da etapa 2
 
-Estado atual: BLOQUEADA até a etapa 1 estar CONCLUÍDA e LIBERADA.
+Estado atual: CONCLUÍDA e OPERACIONAL.
 
-- Commit da etapa 1 usado como base:
+- Commit da etapa 1 usado como base: `c31d566`
 - Arquivos efetivamente alterados:
+  * `dock/components/SystemIconTray.qml` (Criado: cápsula com chevron, pinned items, grid 5 colunas com quebra automática e botão ⚙).
+  * `dock/components/SystemTraySettingsModal.qml` (Criado: modal centralizada com switches/checkboxes reativos para os 5 widgets).
+  * `dock/DockPanel.qml` (Modificado: integração de `taskbar.tray` e `taskbar.desktop`, remoção da trava `slice(0, 2)`, carregador sob demanda e cálculo de largura dinâmico).
+  * `shell/dock-settings.json` (Modificado: persistência atômica da chave `systemTray`).
+  * `shell/shell.json` (Modificado: remoção coordenada dos widgets migrados da barra superior).
 - Verificações executadas e resultados:
-- Limitações pendentes, se houver:
-- Commit desta etapa:
+  * `omarchy restart shell`: recarregamento executado com código de saída 0.
+  * `hyprctl layers`: camada `omarchy-dock` operacional em `0 814 1536 50`.
+  * `journalctl _PID=$PID`: zero erros de QML registrados após inicialização.
+  * Hyprland Show Desktop dispatch: `hl.dsp.workspace.toggle_special()` testado e funcional.
+- Limitações pendentes, se houver: Nenhuma.
+- Commit desta etapa: `c31d566`
 
 As etapas são sequenciais, complementares e executadas em entregas separadas.
 Cada uma tem um resultado próprio, mas a segunda depende do registro concluído da

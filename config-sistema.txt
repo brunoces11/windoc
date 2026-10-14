@@ -416,3 +416,17 @@ Data: 14/10/2026. Estado: implementado, funcional e validado em tempo real.
   * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`),
     sem erros de QML registrados no journalctl e com total estabilidade.
 
+
+20. AUDITORIA DA FASE 1 E CONSOLIDAÇÃO FORMAL DA PASSAGEM ENTRE ETAPAS
+Data: 14/10/2026. Estado: auditado, formalizado e 100% aderente ao plano.
+
+- Análise e validação minuciosa da Fase 1 (modelo de dados, desbloqueio da dock,
+  geometria dinâmica e persistência de dados):
+  * Confirmada a remoção segura do limitador `slice(0, 2)` em `dock/DockPanel.qml`.
+  * Confirmada a persistência atômica da chave `systemTray` em `shell/dock-settings.json`.
+  * Confirmada a integridade do cálculo dinâmico de offsets e largura de slots no DockPanel.
+  * Verificada a aderência integral ao contrato de integração registrado no plano.
+- Consolidação dos registros das Etapas 1 e 2 em `system_icon_tray_plan.md` e atualização
+  de status no `AGENTS.md`. Ambas as etapas marcadas como CONCLUÍDAS e operacionais.
+
+
