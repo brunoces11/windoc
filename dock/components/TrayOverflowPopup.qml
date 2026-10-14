@@ -58,15 +58,15 @@ PanelWindow {
             id: "omarchy.audio",
             name: "Volume e Áudio",
             icon: "󰕾",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.audio", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("omarchy.audio", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.audio")
                 }
+                overflowWindow.opened = false
             },
-            rightAction: function() {
+            rightAction: function(anchorItem) {
                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
             },
             scrollAction: function(delta) {
@@ -78,15 +78,15 @@ PanelWindow {
             id: "omarchy.network",
             name: "Rede e Conexões",
             icon: "󰖩",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.network", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("omarchy.network", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.network")
                 }
+                overflowWindow.opened = false
             },
-            rightAction: function() {
+            rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-launch-floating-terminal-with-presentation nmtui")
             }
         },
@@ -94,43 +94,44 @@ PanelWindow {
             id: "brunoma.agents",
             name: "Consumo de Agentes IA",
             icon: "󰚩",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("brunoma.agents", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("brunoma.agents", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle brunoma.agents")
                 }
+                overflowWindow.opened = false
             }
         },
         {
             id: "io.github.rawritude.floating-mode",
             name: "Modo Janela / Desktop",
             icon: "󰍹",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
                 }
+                overflowWindow.opened = false
             },
-            rightAction: function() {
+            rightAction: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
-                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", dockPanel.systemTrayAnchorItem, Qt.RightButton)
+                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", anchorItem || dockPanel.systemTrayAnchorItem, Qt.RightButton)
+                overflowWindow.opened = false
             }
         },
         {
             id: "omarchy.weather",
             name: "Previsão do Tempo",
             icon: "󰖐",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.weather", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("omarchy.weather", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 }
+                overflowWindow.opened = false
             },
-            rightAction: function() {
+            rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-notification-send \"$(omarchy-weather-status)\"")
             }
         },
@@ -138,17 +139,17 @@ PanelWindow {
             id: "omarchy.monitor",
             name: "Telas e Display",
             icon: "󰍹",
-            action: function() {
-                overflowWindow.opened = false
+            action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
-                    dockPanel.toggleTrayWidget("omarchy.monitor", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                    dockPanel.toggleTrayWidget("omarchy.monitor", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
+                overflowWindow.opened = false
             }
         },
         {
             id: "tray.settings",
             name: "Configurações da Bandeja",
             icon: "󰒓",
-            action: function() {
+            action: function(anchorItem) {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.openSystemTraySettings === "function") {
                     dockPanel.openSystemTraySettings()
@@ -258,9 +259,9 @@ PanelWindow {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: function(mouse) {
                             if (mouse.button === Qt.RightButton && typeof modelData.rightAction === "function") {
-                                modelData.rightAction()
+                                modelData.rightAction(itemSlot)
                             } else if (typeof modelData.action === "function") {
-                                modelData.action()
+                                modelData.action(itemSlot)
                             }
                         }
                         onWheel: function(wheel) {

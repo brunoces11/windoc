@@ -73,7 +73,9 @@ Item {
     readonly property real systemTrayPopupGap: root.dockScreenPosition === "top"
         ? root.systemTrayPopupAnchorY - (root.slotSize + 8)
         : -root.systemTrayPopupAnchorY
+    property real currentTrayAnchorGap: root.systemTrayPopupGap
     property real systemTrayAnchorX: -1
+    property real systemTrayAnchorY: -1
     property var systemTrayChevronAnchorItem: null
 
     // Live 1D Rail Displacement for Main Dock Bar
@@ -903,11 +905,51 @@ Item {
 
     function setSystemTrayAnchor(anchorItem) {
         if (!anchorItem) return
-        root.systemTrayAnchorItem = anchorItem
-        var anchorWindow = anchorItem.QsWindow ? anchorItem.QsWindow.window : root.dockWindow
-        if (anchorWindow && anchorWindow.contentItem) {
-            var point = anchorWindow.contentItem.mapFromItem(anchorItem, anchorItem.width / 2, 0)
-            root.systemTrayAnchorX = point.x
+        var activeDock = root.dockWindow
+        var win = anchorItem.QsWindow ? anchorItem.QsWindow.window : activeDock
+        var dockH = (activeDock && activeDock.contentItem) ? activeDock.height : (root.slotSize + 8)
+        var screenH = (activeDock && activeDock.screen) ? activeDock.screen.height : 864
+        var isTop = root.dockScreenPosition === "top"
+        var dockScreenTop = isTop ? 0 : (screenH - dockH)
+
+        var screenX = 0
+        var screenY = 0
+        var itemW = anchorItem.width || 24
+        var itemH = anchorItem.height || 24
+        var isInsideOverflow = (win && win.namespace === "omarchy-dock-tray-overflow")
+
+        if (isInsideOverflow) {
+            var pt = anchorItem.mapToItem(win.contentItem, 0, 0)
+            screenX = pt.x
+            screenY = pt.y
+        } else if (win && win.contentItem) {
+            var pt = win.contentItem.mapFromItem(anchorItem, 0, 0)
+            screenX = pt.x
+            screenY = dockScreenTop + pt.y
+        }
+
+        root.systemTrayAnchorX = screenX + itemW / 2
+        root.systemTrayAnchorY = screenY
+
+        if (isInsideOverflow) {
+            // Relative standard spacing for items inside the overflow popup:
+            // Aligns with itemTooltip (anchors.bottom: parent.top; margin: 6).
+            var targetBaselineY = isTop ? (screenY + itemH + 6) : (screenY - 6)
+            root.currentTrayAnchorGap = isTop ? (targetBaselineY - dockH) : (dockScreenTop - targetBaselineY)
+
+            if (activeDock && activeDock.dynamicTrayAnchorProxy) {
+                var proxy = activeDock.dynamicTrayAnchorProxy
+                proxy.x = screenX
+                proxy.y = isTop ? screenY : (screenY - dockScreenTop)
+                proxy.width = itemW
+                proxy.height = itemH
+                root.systemTrayAnchorItem = proxy
+            } else {
+                root.systemTrayAnchorItem = anchorItem
+            }
+        } else {
+            root.currentTrayAnchorGap = isTop ? (root.systemTrayPopupAnchorY - dockH) : -root.systemTrayPopupAnchorY
+            root.systemTrayAnchorItem = anchorItem
         }
     }
 
@@ -1455,8 +1497,8 @@ Item {
                 p.anchorItem = anchorItem || (root.dockWindow ? root.dockWindow.contentItem : null)
             }
             if (trayHosted) {
-                if ("gap" in p) p.gap = root.systemTrayPopupGap
-                else if ("margin" in p) p.margin = root.systemTrayPopupGap
+                if ("gap" in p) p.gap = root.currentTrayAnchorGap
+                else if ("margin" in p) p.margin = root.currentTrayAnchorGap
             }
             if ("opened" in p && p.openedChanged) {
                 p.openedChanged.connect(function() {
@@ -3132,6 +3174,17 @@ Item {
                     ? 0
                     : (root.isVertical ? (root.slotSize + 8) : Math.max(root.slotSize + 8, root.totalDockDimension + 14))
                 implicitHeight: root.isVertical ? Math.max(root.slotSize + 8, root.totalDockDimension + 14) : (root.slotSize + 8)
+
+                Item {
+                    id: dynamicTrayAnchorProxy
+                    objectName: "dynamicTrayAnchorProxy"
+                    visible: false
+                    x: 0
+                    y: 0
+                    width: 24
+                    height: 24
+                }
+                property alias dynamicTrayAnchorProxy: dynamicTrayAnchorProxy
 
                 HoverHandler {
                     id: dockHoverHandler

@@ -8,21 +8,18 @@
 > abaixo explicam decisões anteriores, mas não são instruções de execução atuais.
 >
 > **Integração vigente:** `DockPanel.qml` carrega sob demanda um painel nativo por
-> vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` no slot acionador. A
-> borda próxima do popup coincide com a linha do tooltip (12 px a partir do topo
-> da dock); o overflow também se centra horizontalmente na setinha. O display
-> está disponível na lista e no overflow e pode ser fixado pelo modal. O ícone
-> de modo de janela mantém a ação de alternar
-> no clique esquerdo e abre suas configurações no clique direito.
+> vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` na coordenada exata do item
+> clicado. O espaçamento padrão é estritamente relativo: para itens na barra da dock,
+> a borda do popup repousa na linha do tooltip da barra (Y local = 12); para itens
+> dentro da janela pop-up (`TrayOverflowPopup`), as coordenadas de tela do elemento no
+> grid são capturadas e a janela de configuração abre centralizada sobre ele e com sua
+> borda inferior a 6px do item (onde o tooltip do grid estava), mantendo a ilusão contínua
+> de expansão do tooltip sem prender as janelas à barra inferior. O display está disponível
+> na lista e no overflow e pode ser fixado pelo modal.
 >
-> **Validação desta revisão:** shell reiniciado sem erros QML; popup de overflow
-> abriu e fechou via IPC e foi capturado visualmente. A borda inferior do card
-> ficou na linha local y=12 da dock, conforme o tooltip. O modal também abriu e
-> fechou via IPC. Os caminhos dos painéis foram auditados contra as APIs nativas;
-> a sessão não oferece ferramenta de clique de ponteiro para testar cada painel
-> individualmente por mouse. Nesta última reinicialização, a dock demorou mais
-> que o limite de prontidão do helper para reaparecer, mas o processo permaneceu
-> ativo e a camada voltou antes da verificação do overflow.
+> **Validação desta revisão:** shell reiniciado sem erros QML (`omarchy restart shell`);
+> popup de overflow abriu e fechou via IPC; cálculo de coordenadas relativas e gap
+> dinâmico (`currentTrayAnchorGap`) implementados em runtime. Working tree sincronizado.
 
 Atualizado em 14/10/2026. Estado: implementação funcional e correções de posição
 em andamento; os registros de etapas seguintes a este cabeçalho são históricos.

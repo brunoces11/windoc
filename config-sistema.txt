@@ -565,3 +565,33 @@ Data: 14/10/2026. Estado: implementado; overflow validado visualmente.
   o processo Quickshell continuou ativo, e a camada da dock apareceu após a
   inicialização tardia. A abertura/fechamento do overflow e a captura foram
   feitas depois que a camada ficou ativa.
+
+
+30. ESPAÇAMENTO PADRÃO DINÂMICO E RELATIVO AO ELEMENTO CLICADO (BARRA VS. OVERFLOW)
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`,
+  `DIRETRIZES_DE_DESIGN.txt`, `config-sistema.txt` e `system_icon_tray_plan.md`.
+- Correção de Conceito Arquitetural:
+  * O Espaçamento Padrão é estritamente relativo à posição geométrica do elemento
+    interativo clicado, e jamais uma coordenada absoluta fixa na tela.
+  * Antes: todas as janelas que abriam (mesmo quando o ícone era clicado dentro
+    do pop-up de overflow) eram forçadas a ancorar na cota fixa inferior da dock bar.
+  * Depois:
+    1. Para ícones clicados na barra inferior (Chevron, ícones fixados da bandeja),
+       o pop-up/janela abre com o espaçamento padrão relativo à barra (alinhado à linha
+       do tooltip em Y local = 12), centrado no ícone clicado.
+    2. Para ícones clicados dentro do pop-up de overflow (`TrayOverflowPopup`), o
+       elemento interativo possui coordenadas próprias no grid (`screenX`, `screenY`).
+       O `itemSlot` é repassado para `toggleTrayWidget`, suas coordenadas de tela são
+       capturadas dinamicamente e atribuídas a um proxy na dock (`dynamicTrayAnchorProxy`),
+       calculando `currentTrayAnchorGap` dinâmico para que a janela de configuração
+       (áudio, rede, monitores, agentes, clima, etc.) abra perfeitamente centralizada
+       no ícone do grid e com sua borda inferior a 6px de distância (onde o tooltip
+       daquele item repousava), preservando a ilusão de expansão visual sem ficar presa
+       à barra inferior.
+- Validação técnica:
+  * `git diff --check` aprovado sem erros;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso (código 0, PID ativo, zero erros QML);
+  * Camada `omarchy-dock` e pop-up de overflow abertos e fechados via IPC com confirmação em `hyprctl layers`.

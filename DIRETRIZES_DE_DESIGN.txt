@@ -46,16 +46,25 @@
 #       um tooltip com "espaçamento padrão", deve-se aplicar o gap vertical de 6px
 #       em relação ao seu elemento interativo, garantindo zero sobreposição e
 #       alinhamento harmônico no eixo Y.
-#   * Popups acionados pela System Icon Tray:
-#       O limite mais próximo da dock deve coincidir com a linha inferior do
-#       tooltip: Y local = 12px a partir do topo da janela da dock. Para a dock
-#       inferior, aplicar `KeyboardPanel.gap: -12`; para a superior, usar
-#       `gap: 12 - barH`. Em `PopupCard`, usar o mesmo deslocamento em `margin`.
-#       O overflow usa o mesmo alinhamento (borda inferior em dock.y + 12, ou
-#       borda superior em dock.y + 12 na dock superior) e centraliza seu card
-#       horizontalmente sobre a setinha. Painéis de itens fixados continuam
-#       centralizados sobre o ícone que os abriu. Esse padrão especial substitui
-#       `Style.gapsOut` apenas para popups acionados pela System Tray.
+#   * Popups e Janelas acionados por Ícones (Regra de Relatividade Estrita):
+#       O Espaçamento Padrão é sempre relativo à posição geométrica do elemento
+#       interativo clicado, e NUNCA uma coordenada absoluta global fixa:
+#       1. Ícone na Barra Inferior (Dock/Taskbar):
+#          - O tooltip do elemento abre nivelado na linha local Y = 12.
+#          - O pop-up ou janela de configuração (ex: overflow na setinha, ou
+#            painel de áudio/rede fixado) abre com sua borda inferior repousando
+#            exatamente nessa mesma linha (gap: -12), centrado no ícone clicado.
+#       2. Ícone dentro da Janela Pop-up (ex: Grid do TrayOverflowPopup):
+#          - O elemento possui coordenadas próprias na tela (`screenX`, `screenY`).
+#          - O tooltip daquele item repousa a 6px acima do contêiner (`bottomMargin: 6`).
+#          - A janela de configuração correspondente (áudio, rede, monitor, agentes,
+#            clima) deve abrir ancorada A ESSE ELEMENTO ESPECÍFICO, mantendo o mesmo
+#            espaçamento padrão relativo (borda inferior em `screenY - 6`, centrada
+#            horizontalmente no ícone do grid), e JAMAIS lá embaixo na barra dock.
+#       3. Princípio de Ilusão de Expansão:
+#          Em qualquer local da interface, o pop-up deve surgir na mesma cota de
+#          afastamento do tooltip ativo para aquele item, criando a sensação contínua
+#          de que o tooltip se expandiu na janela do aplicativo.
 #
 # ==============================================================================
 # 3. CATÁLOGO DE COMPONENTES E DESIGN TOKENS
