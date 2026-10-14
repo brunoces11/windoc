@@ -858,7 +858,7 @@ Item {
     readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "io.github.rawritude.floating-mode", "omarchy.weather"]
 
     property bool systemTrayEnabled: true
-    property var systemTrayPinnedWidgets: ["omarchy.network", "omarchy.audio"]
+    property var systemTrayPinnedWidgets: []
     property bool showDesktopButtonEnabled: true
 
     function isTrayWidget(widgetId) {
@@ -871,8 +871,30 @@ Item {
 
     readonly property real desktopSlotWidth: 10
     readonly property real traySlotWidth: {
-        var count = (root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets)) ? root.systemTrayPinnedWidgets.length : 2
-        return 20 + (count * 28) + (count * 2) + 4
+        var pinned = (root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets)) ? root.systemTrayPinnedWidgets : []
+        if (pinned.length === 0) return 24
+        return 24 + (pinned.length * 26) + (pinned.length * 2)
+    }
+
+    readonly property bool trayOverflowOpened: (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) ? trayOverflowPopup.opened : false
+
+    function toggleTrayOverflow() {
+        if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
+            trayOverflowPopup.opened = !trayOverflowPopup.opened
+        }
+    }
+
+    function toggleTrayWidget(widgetId) {
+        if (widgetId === "io.github.rawritude.floating-mode") {
+            Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
+            return true
+        }
+        if (widgetId === "omarchy.weather") {
+            Util.execDetached("omarchy-notification-weather")
+            return true
+        }
+        Util.execDetached("omarchy-shell shell toggle " + widgetId)
+        return true
     }
 
     function toggleSystemTrayPin(widgetId) {
@@ -3689,6 +3711,13 @@ Item {
     // 6. Windows Taskbar System Tray Settings Modal
     SystemTraySettingsModal {
         id: systemTraySettingsModal
+        root: root
+        dockWindow: root ? root.dockWindow : null
+    }
+
+    // 7. Windows Taskbar System Tray Overflow Popup
+    TrayOverflowPopup {
+        id: trayOverflowPopup
         root: root
         dockWindow: root ? root.dockWindow : null
     }

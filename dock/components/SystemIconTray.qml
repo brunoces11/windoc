@@ -13,51 +13,45 @@ Item {
     property var root: null
     property var dockWindow: null
 
-    readonly property var pinnedWidgets: (root && root.systemTrayPinnedWidgets) ? root.systemTrayPinnedWidgets : ["omarchy.network", "omarchy.audio"]
-    readonly property var allWidgets: (root && root.allSystemTrayWidgets) ? root.allSystemTrayWidgets : []
-    readonly property var overflowWidgets: {
-        var res = []
-        for (var i = 0; i < allWidgets.length; i++) {
-            var item = allWidgets[i]
-            if (pinnedWidgets.indexOf(item.id) === -1) {
-                res.push(item)
-            }
-        }
-        return res
-    }
+    readonly property var pinnedWidgets: (root && root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets))
+        ? root.systemTrayPinnedWidgets
+        : []
 
     readonly property real baseIconSize: root ? root.iconBaseSize : 22
-    readonly property real itemSlotWidth: 28
-    readonly property real chevronWidth: 20
+    readonly property real chevronWidth: 22
+    readonly property real itemSlotWidth: 26
     readonly property real slotSpacing: 2
 
-    implicitWidth: chevronWidth + (pinnedWidgets.length * itemSlotWidth) + ((pinnedWidgets.length) * slotSpacing) + 4
+    implicitWidth: chevronWidth + (pinnedWidgets.length * itemSlotWidth) + (pinnedWidgets.length > 0 ? (pinnedWidgets.length * slotSpacing) : 0)
     implicitHeight: parent ? parent.height : (root ? root.slotSize : 32)
 
-    // 1. Live Bar Capsule
     Row {
-        anchors.centerIn: parent
+        anchors.right: parent.right
+        anchors.rightMargin: 1
+        anchors.verticalCenter: parent.verticalCenter
         spacing: trayRoot.slotSpacing
 
-        // Chevron expand button (^)
+        // 1. Chevron expand button (^) — on the left
         Rectangle {
             id: chevronBtn
             width: trayRoot.chevronWidth
             height: trayRoot.baseIconSize + 6
             anchors.verticalCenter: parent.verticalCenter
             radius: 4
-            color: chevronMouse.containsMouse || overflowWindow.opened
+            color: chevronMouse.containsMouse || (root && root.trayOverflowOpened)
                 ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.18)
                 : "transparent"
             Behavior on color { ColorAnimation { duration: 120 } }
 
-            DockGlyph {
+            Text {
                 anchors.centerIn: parent
-                text: overflowWindow.opened ? "󰅀" : "󰅃"
-                fontSize: 15
-                color: chevronMouse.containsMouse || overflowWindow.opened
+                textFormat: Text.PlainText
+                text: (root && root.trayOverflowOpened) ? "󰅀" : "󰅃"
+                font.pixelSize: 14
+                font.family: Style.font.family
+                color: chevronMouse.containsMouse || (root && root.trayOverflowOpened)
                     ? Color.accent
-                    : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.85)
+                    : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.88)
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
 
@@ -67,12 +61,20 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    overflowWindow.opened = !overflowWindow.opened
+                    if (root && typeof root.toggleTrayOverflow === "function") {
+                        root.toggleTrayOverflow()
+                    }
                 }
+            }
+
+            PanelToolTip {
+                visible: chevronMouse.containsMouse && !(root && root.trayOverflowOpened)
+                text: "Mostrar ícones ocultos"
+                fontFamily: Style.font.family
             }
         }
 
-        // Pinned Widgets
+        // 2. Pinned Widgets (if any selected by user) — sit between chevron and clock
         Repeater {
             model: trayRoot.pinnedWidgets
 
@@ -93,36 +95,31 @@ Item {
                         : "transparent"
                     Behavior on color { ColorAnimation { duration: 120 } }
 
-                    DockGlyph {
+                    Text {
                         id: pinnedGlyph
                         anchors.centerIn: parent
-                        width: trayRoot.baseIconSize
-                        height: trayRoot.baseIconSize
+                        textFormat: Text.PlainText
                         text: {
-                            var _rev = root ? root.widgetIconRevision : 0
-                            var _v = root ? root.pipewireSinkVolume : 0
-                            var _m = root ? root.pipewireSinkMuted : false
-                            var it = pinnedLoader.item
-                            return root ? root.getWidgetIcon(modelData, it) : ""
+                            if (modelData === "omarchy.audio") {
+                                if (root && root.pipewireSinkMuted) return "󰝟"
+                                var vol = root ? root.pipewireSinkVolume : 0.5
+                                if (vol <= 0.01) return "󰝟"
+                                if (vol < 0.33) return "󰕿"
+                                if (vol < 0.66) return "󰖀"
+                                return "󰕾"
+                            }
+                            if (modelData === "omarchy.network") return "󰖩"
+                            if (modelData === "brunoma.agents") return "󰚩"
+                            if (modelData === "io.github.rawritude.floating-mode") return "󰍹"
+                            if (modelData === "omarchy.weather") return "󰖐"
+                            return root ? root.getWidgetIcon(modelData, null) : "󰒓"
                         }
-                        fontSize: 18
+                        font.pixelSize: 17
+                        font.family: Style.font.family
                         color: pinnedMouse.containsMouse
                             ? Color.accent
                             : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
                         Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-
-                    Loader {
-                        id: pinnedLoader
-                        anchors.fill: parent
-                        opacity: 0.0
-                        asynchronous: false
-                        source: root ? root.getWidgetSource(modelData) : ""
-                        onLoaded: {
-                            if (item && root) {
-                                root.configureHostedWidget(item, modelData, pinnedSlot)
-                            }
-                        }
                     }
 
                     MouseArea {
@@ -132,189 +129,36 @@ Item {
                         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         cursorShape: Qt.PointingHandCursor
                         onClicked: function(mouse) {
-                            if (root) {
-                                root.activateWidget(modelData, pinnedLoader.item, pinnedSlot, mouse)
+                            if (mouse.button === Qt.RightButton && modelData === "omarchy.audio") {
+                                Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+                                return
+                            }
+                            if (root && typeof root.toggleTrayWidget === "function") {
+                                root.toggleTrayWidget(modelData)
+                            } else {
+                                Util.execDetached("omarchy-shell shell toggle " + modelData)
                             }
                         }
                         onWheel: function(wheel) {
                             if (modelData === "omarchy.audio") {
                                 var delta = wheel.angleDelta.y
-                                if (delta > 0) {
-                                    Util.execDetached("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%+")
-                                } else if (delta < 0) {
-                                    Util.execDetached("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-")
-                                }
+                                if (delta > 0) Util.execDetached("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%+")
+                                else if (delta < 0) Util.execDetached("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-")
                             }
                         }
                     }
-                }
-            }
-        }
-    }
 
-    // 2. Expandable Overflow Pop-up
-    PanelWindow {
-        id: overflowWindow
-        property bool opened: false
-
-        screen: trayRoot.dockWindow ? trayRoot.dockWindow.screen : (Quickshell.screens && Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
-        visible: opened && root && root.dockRevealed
-
-        WlrLayershell.namespace: "omarchy-dock-tray-overflow"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        exclusionMode: ExclusionMode.Ignore
-        color: "transparent"
-
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-
-        // Click outside to dismiss
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onClicked: overflowWindow.opened = false
-        }
-
-        readonly property int totalItems: trayRoot.overflowWidgets.length + 1
-        readonly property int gridCols: Math.min(totalItems, 5)
-
-        // Overflow Card
-        Rectangle {
-            id: overflowCard
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: {
-                var dockH = (root && root.windowsTaskbarMode && !root.isVertical && trayRoot.dockWindow)
-                    ? trayRoot.dockWindow.height
-                    : ((root ? root.slotSize : 42) + 8)
-                return dockH + (Style.gapsOut || 5) + 4
-            }
-            anchors.right: parent.right
-            anchors.rightMargin: {
-                var cWidth = (root && root.clockSlotWidth) ? root.clockSlotWidth : 80
-                var dWidth = (root && root.showDesktopButtonEnabled && root.desktopSlotWidth) ? root.desktopSlotWidth : 10
-                return cWidth + dWidth + (Style.gapsOut || 5) + 6
-            }
-
-            width: (overflowWindow.gridCols * 40) + ((overflowWindow.gridCols - 1) * 6) + 20
-            height: (Math.ceil(overflowWindow.totalItems / 5) * 40) + ((Math.ceil(overflowWindow.totalItems / 5) - 1) * 6) + 20
-            radius: 10
-            color: Color.popups.background
-            border.width: 1
-            border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.28)
-
-            Behavior on opacity { NumberAnimation { duration: 140 } }
-            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-
-            // Consume clicks inside card
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {}
-            }
-
-            Grid {
-                id: overflowGrid
-                anchors.centerIn: parent
-                columns: overflowWindow.gridCols
-                spacing: 6
-
-                // Overflow item icons
-                Repeater {
-                    model: trayRoot.overflowWidgets
-
-                    Rectangle {
-                        id: overSlot
-                        required property var modelData
-                        required property int index
-
-                        width: 40
-                        height: 40
-                        radius: 6
-                        color: overMouse.containsMouse
-                            ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.2)
-                            : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-
-                        DockGlyph {
-                            id: overGlyph
-                            anchors.centerIn: parent
-                            text: {
-                                var _rev = root ? root.widgetIconRevision : 0
-                                var it = overLoader.item
-                                return root ? root.getWidgetIcon(modelData.id, it) : ""
-                            }
-                            fontSize: 20
-                            color: overMouse.containsMouse
-                                ? Color.accent
-                                : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
-                            Behavior on color { ColorAnimation { duration: 120 } }
+                    PanelToolTip {
+                        visible: pinnedMouse.containsMouse
+                        text: {
+                            if (modelData === "omarchy.audio") return "Volume e Áudio"
+                            if (modelData === "omarchy.network") return "Rede e Conexões"
+                            if (modelData === "brunoma.agents") return "Agentes de IA"
+                            if (modelData === "io.github.rawritude.floating-mode") return "Modo Janela / Desktop"
+                            if (modelData === "omarchy.weather") return "Previsão do Tempo"
+                            return modelData
                         }
-
-                        Loader {
-                            id: overLoader
-                            anchors.fill: parent
-                            opacity: 0.0
-                            asynchronous: false
-                            source: root ? root.getWidgetSource(modelData.id) : ""
-                            onLoaded: {
-                                if (item && root) {
-                                    root.configureHostedWidget(item, modelData.id, overSlot)
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            id: overMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: function(mouse) {
-                                overflowWindow.opened = false
-                                if (root) {
-                                    root.activateWidget(modelData.id, overLoader.item, overSlot, mouse)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Dedicated Settings Gear (⚙) Button
-                Rectangle {
-                    id: settingsSlot
-                    width: 40
-                    height: 40
-                    radius: 6
-                    color: settingsMouse.containsMouse
-                        ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.2)
-                        : "transparent"
-                    Behavior on color { ColorAnimation { duration: 120 } }
-
-                    DockGlyph {
-                        anchors.centerIn: parent
-                        text: "󰒓"
-                        fontSize: 20
-                        color: settingsMouse.containsMouse
-                            ? Color.accent
-                            : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.85)
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-
-                    MouseArea {
-                        id: settingsMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            overflowWindow.opened = false
-                            if (root && typeof root.openSystemTraySettings === "function") {
-                                root.openSystemTraySettings()
-                            }
-                        }
+                        fontFamily: Style.font.family
                     }
                 }
             }

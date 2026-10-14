@@ -430,3 +430,15 @@ Data: 14/10/2026. Estado: auditado, formalizado e 100% aderente ao plano.
   de status no `AGENTS.md`. Ambas as etapas marcadas como CONCLUÍDAS e operacionais.
 
 
+21. CORREÇÃO DO SYSTEM ICON TRAY: POPUP FLUTUANTE DE OVERFLOW, ALINHAMENTO CONTÍGUO AO RELÓGIO E AÇÕES DOS WIDGETS
+Data: 14/10/2026. Estado: corrigido, implementado, testado e validado em tempo real.
+
+- Resolução do problema de abertura do popup e alinhamento do ícone chevron (^):
+  * Instanciação de nível superior: o componente `TrayOverflowPopup` foi declarado no topo de `dock/DockPanel.qml` como `PanelWindow` independente na camada Overlay, garantindo que o clique na setinha abra o popup de forma imediata e reativa.
+  * Alinhamento contíguo ao relógio: o cálculo de largura do slot (`traySlotWidth`) foi reduzido para 24px quando não há itens fixados, e o layout interno de `SystemIconTray.qml` foi ajustado com ancoragem à direita (`anchors.right: parent.right`) e ordem canônica do Windows (chevron à esquerda e ícones fixados à direita adjacentes ao relógio), eliminando qualquer lacuna ou afastamento vazio do relógio.
+  * Popup em Grid de 5 colunas: `TrayOverflowPopup.qml` exibe os 5 widgets do sistema (Áudio/Volume, Rede, Consumo de Agentes IA, Modo Janela/Desktop, Previsão do Tempo) na primeira linha e quebra na segunda linha para a engrenagem de Configurações da Bandeja (⚙), posicionado perfeitamente sobre a bandeja do sistema.
+  * Disparo de ações dos widgets: implementado `toggleTrayWidget` com suporte a alternância direta de modo flutuante (`floating-mode toggle`), controle de áudio (clique direito para mutar, rolagem do scroll para ajustar volume via `wpctl`), abertura do `nmtui` para rede e notificação rica de clima (`omarchy-notification-weather`).
+  * Estabilização de fontes e glifos: substituição de cálculos complexos de caixas delimitadoras de fontes por elementos `Text` com renderização limpa do `Style.font.family` em `SystemIconTray.qml`, `TrayOverflowPopup.qml` e `SystemTraySettingsModal.qml`.
+  * Atualização de `dock-settings.json`: inicialização com `"pinnedWidgets": []`, mantendo todos os widgets recolhidos dentro do menu da setinha por padrão.
+  * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`), verificação de IPC com `quickshell ipc call rosakodu.dock ping` (retorno "ok") e zero erros no log do sistema.
+

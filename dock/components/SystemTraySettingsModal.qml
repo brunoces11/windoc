@@ -113,10 +113,12 @@ PanelWindow {
                     color: closeMouse.containsMouse ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.2) : "transparent"
                     Behavior on color { ColorAnimation { duration: 120 } }
 
-                    DockGlyph {
+                    Text {
                         anchors.centerIn: parent
+                        textFormat: Text.PlainText
                         text: "󰅖"
-                        fontSize: 16
+                        font.pixelSize: 16
+                        font.family: Style.font.family
                         color: closeMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.8)
                     }
 
@@ -173,10 +175,12 @@ PanelWindow {
                                 radius: 8
                                 color: Color.composed("popups.icon-bg", "popups.icon-bg-alpha", Color.outline, 0.15)
 
-                                DockGlyph {
+                                Text {
                                     anchors.centerIn: parent
+                                    textFormat: Text.PlainText
                                     text: modelData.icon || "󰒓"
-                                    fontSize: 18
+                                    font.pixelSize: 18
+                                    font.family: Style.font.family
                                     color: isPinned ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.85)
                                 }
                             }

@@ -10,17 +10,13 @@
   "appMenuPosition": "left",
   "widgetPosition": "right",
   "dockWidgets": [
-    "omarchy.apps",
-    "omarchy.weather"
+    "omarchy.apps"
   ],
   "windowsTaskbarMode": true,
   "taskbarAppAlignment": "center",
   "systemTray": {
     "enabled": true,
-    "pinnedWidgets": [
-      "omarchy.network",
-      "omarchy.audio"
-    ],
+    "pinnedWidgets": [],
     "showDesktopButton": true
   }
 }
