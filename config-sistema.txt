@@ -311,3 +311,18 @@ Data: 13/10/2026. Estado: configurado e validado.
   aplicativos em execução na barra superior. Como a barra inferior (dock) já
   exibe e gerencia os aplicativos abertos e fixados, a informação foi ocultada
   da barra superior para despoluir o topo e evitar redundância visual.
+
+
+14. INICIALIZAÇÃO DO TERMINAL NA PASTA DESKTOP
+Data: 13/10/2026. Estado: configurado e validado.
+
+- Centralização do arquivo `~/.bashrc` dentro do projeto WinDoc em
+  `~/Desktop/windoc/terminal/bashrc` e criação do respectivo link simbólico
+  (`~/.bashrc -> ~/Desktop/windoc/terminal/bashrc`), conforme a Regra 1.
+- Adicionada verificação inteligente no final do `bashrc` para que sessões
+  interativas iniciadas na pasta do usuário (`$HOME`) naveguem automaticamente
+  para `$HOME/Desktop`.
+- Terminais abertos com caminho explícito (ex: abrir terminal em pasta pelo
+  gerenciador de arquivos) preservam o diretório pretendido. Sessões não-interativas
+  (scripts, SCP, Git) permanecem inalteradas.
+- Atualizado o script `sync-symlinks.sh` com o novo atalho do `~/.bashrc`.

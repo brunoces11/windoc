@@ -40,6 +40,10 @@ for f in kitty.conf open-actions.conf tab_bar.py; do
     echo "  [OK] Terminal: $f"
   fi
 done
+if [ -f "$PROJECT_DIR/terminal/bashrc" ]; then
+  ln -sfn "$PROJECT_DIR/terminal/bashrc" "$HOME/.bashrc"
+  echo "  [OK] Shell RC: ~/.bashrc"
+fi
 
 # 5. Desktop (única pasta oficial: windoc)
 # Nenhuma pasta ou atalho duplicado é criado no Desktop.

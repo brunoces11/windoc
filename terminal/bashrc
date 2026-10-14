@@ -1,0 +1,61 @@
+# Omarchy environment (OMARCHY_PATH + PATH), needed even for non-interactive shells
+[[ -r /usr/share/omarchy/default/bash/env-bootstrap ]] && source /usr/share/omarchy/default/bash/env-bootstrap
+
+# Claude Code CLI configuration
+export ANTHROPIC_BASE_URL="https://api-router.opustokens.workers.dev"
+export ANTHROPIC_AUTH_TOKEN="sk-I5Q8LHArqYpjfFOb0Yf8bvGryhtM8459rLUNZ8KB4P2oeRk4"
+
+# If not running interactively, don't do anything else (leave this above the rc source)
+[[ $- != *i* ]] && return
+
+# All the default Omarchy aliases and functions
+# (don't mess with these directly, just overwrite them here!)
+source "$OMARCHY_PATH/default/bash/rc"
+
+# Add your own exports, aliases, and functions here.
+#
+# Make an alias for invoking commands you use constantly
+# alias p='python'
+
+# >>> Codex installer >>>
+export PATH="/home/brunoma/.local/bin:$PATH"
+# <<< Codex installer <<<
+
+# Antigravity CLI Full Access Mode
+
+
+
+
+# Antigravity Wrapper (Adiciona 'agy r' com DB Nativo)
+agy() {
+  if [[ "$1" == "r" ]]; then
+    local db_path="$HOME/Desktop/SESSION/S_ANTIGRAVITY/antigravity-cli/conversation_summaries.db"
+    local selected
+
+    if [[ ! -f "$db_path" ]]; then
+      echo "Erro: Banco de dados de sessões não encontrado em: $db_path" >&2
+      return 1
+    fi
+
+    local query="SELECT conversation_id, strftime('%d/%m %H:%M', datetime(substr(last_modified_time, 1, 19), 'localtime')), title FROM conversation_summaries ORDER BY last_modified_time DESC LIMIT 50"
+    
+    selected=$(
+      sqlite3 -list -separator '|' "$db_path" "$query" 2>/dev/null | \
+      awk -F '|' '{printf "%s|\033[33m%s\033[0m| %s\n", $1, $2, $3}' | \
+      fzf --ansi --delimiter="|" --with-nth=2,3 --prompt="AgY Sessões > " | \
+      awk -F '|' '{print $1}'
+    )
+
+    if [[ -n "$selected" ]]; then
+      echo "Retomando sessão..."
+      command agy --conversation "$selected" --dangerously-skip-permissions
+    fi
+  else
+    command agy --dangerously-skip-permissions "$@"
+  fi
+}
+
+# Iniciar o terminal interativo diretamente no Desktop (se iniciado na Home)
+if [[ "$PWD" == "$HOME" ]]; then
+  cd "$HOME/Desktop"
+fi
