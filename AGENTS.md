@@ -28,7 +28,7 @@ O projeto adota uma arquitetura onde **todos os arquivos de configuração do si
 │                                             Symlink em: ~/.config/kitty/
 ├── config-sistema.txt                    <-- LOG HISTÓRICO E INCREMENTAL DE MODIFICAÇÕES
 ├── sync-symlinks.sh                      <-- Script utilitário para validar e restaurar links
-├── Agents.md                             <-- Este arquivo de regras obrigatórias para agentes
+├── AGENTS.md                             <-- Este arquivo de regras obrigatórias para agentes
 ├── README.md                             <-- Documentação do projeto
 └── .gitignore                            <-- Filtros para manter o repositório limpo
 ```
@@ -62,3 +62,7 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 ### REGRA 4: Hot-Reload e Validação no Omarchy/Hyprland
 * Ao alterar configurações do Hyprland: validar sempre com `hyprctl reload` e verificar se há erros com `hyprctl configerrors`.
 * Ao alterar componentes QML/JS da Dock ou `shell.json`: o Quickshell atualiza em tempo real; caso necessário, forçar atualização com `omarchy restart shell` ou `omarchy refresh shell`.
+
+### REGRA 5: Não Duplicação de Pastas e Diretórios (OBRIGATÓRIO)
+> **MUITO IMPORTANTE:** Antes de criar qualquer pasta ou diretório, verifique sempre se já existe uma pasta igual ou equivalente (inclusive variações de maiúsculas/minúsculas) para jamais criar pastas duplicadas ou redundantes.
+

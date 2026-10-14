@@ -41,11 +41,7 @@ for f in kitty.conf open-actions.conf tab_bar.py; do
   fi
 done
 
-# 5. Desktop shortcuts
-mkdir -p "$HOME/Desktop"
-ln -sfn "$PROJECT_DIR" "$HOME/Desktop/WINDOC"
-ln -sfn "$PROJECT_DIR" "$HOME/Desktop/WinDoc"
-ln -sfn "$PROJECT_DIR/config-sistema.txt" "$HOME/Desktop/config-sistema.txt"
-echo "  [OK] Desktop shortcuts (WINDOC, WinDoc, config-sistema.txt)"
+# 5. Desktop (única pasta oficial: windoc)
+# Nenhuma pasta ou atalho duplicado é criado no Desktop.
 
 echo "==> Todos os symlinks foram validados com sucesso!"
