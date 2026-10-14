@@ -1,0 +1,18 @@
+{
+  "dockEnabled": true,
+  "visibilityMode": "always",
+  "overlayMode": false,
+  "visibleWorkspace": "all",
+  "showFolderTitles": true,
+  "showBadges": true,
+  "glassmorphism": false,
+  "widgetsEnabled": true,
+  "appMenuPosition": "left",
+  "widgetPosition": "right",
+  "dockWidgets": [
+    "omarchy.apps",
+    "omarchy.weather"
+  ],
+  "windowsTaskbarMode": true,
+  "taskbarAppAlignment": "center"
+}

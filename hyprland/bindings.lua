@@ -1,0 +1,52 @@
+-- Keep only your personal keybinding overrides here. Add new bindings or
+-- unbind defaults before replacing them.
+
+-- See current bindings and descriptions:
+--   omarchy menu keybindings --print
+
+-- To disable every Omarchy default binding, set this in
+-- ~/.config/hypr/hyprland.lua before require("default.hypr.omarchy"), then add
+-- only the bindings you want below:
+--   omarchy_default_bindings = false
+
+-- To disable all preinstalled app/webapp bindings, set:
+--   omarchy_preinstalled_bindings = false
+
+-- Add a new binding.
+-- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
+
+-- Change an existing binding by unbinding it first, then binding the key again.
+-- This example changes SUPER+SPACE from the launcher to the Omarchy root menu.
+-- hl.unbind("SUPER + SPACE")
+-- o.bind("SUPER + SPACE", "Omarchy menu", "omarchy-menu toggle root")
+
+-- Disable a default binding without replacing it.
+-- hl.unbind("SUPER + SHIFT + B")
+
+-- Logitech MX Keys examples:
+-- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")
+-- o.bind("SUPER + H", nil, "voxtype record toggle")
+o.bind("SCROLL_LOCK", "Voxtype: start/stop recording", "voxtype record toggle")
+-- o.bind("SUPER + PERIOD", nil, "omarchy-shell shell toggle omarchy.emojis")
+
+-- Use Dolphin instead of the default Nautilus file manager.
+hl.unbind("SUPER + SHIFT + F")
+hl.unbind("SUPER + ALT + SHIFT + F")
+o.bind("SUPER + SHIFT + F", "File manager (Dolphin)", "setsid uwsm-app -- dolphin")
+o.bind("SUPER + ALT + SHIFT + F", "File manager (Dolphin, cwd)", "setsid uwsm-app -- dolphin \"$(omarchy-cmd-terminal-cwd)\"")
+o.bind("SUPER + V", "Pre-select Vertical Split (Side-by-side)", "hyprctl dispatch layoutmsg preselect r")
+o.bind("SUPER + H", "Pre-select Horizontal Split (Top/Bottom)", "hyprctl dispatch layoutmsg preselect d")
+
+-- Group tabs: replace workspace cycling and group focus shortcuts.
+-- Workspace cycling remains available on SUPER + mouse wheel / number keys.
+hl.unbind("SUPER + TAB")
+hl.unbind("SUPER + SHIFT + TAB")
+hl.unbind("SUPER + CTRL + LEFT")
+hl.unbind("SUPER + CTRL + RIGHT")
+o.bind("SUPER + TAB", "Proxima aba do grupo", hl.dsp.group.next())
+o.bind("SUPER + SHIFT + TAB", "Aba anterior do grupo", hl.dsp.group.prev())
+o.bind("SUPER + CTRL + LEFT", "Mover aba para esquerda no grupo", hl.dsp.group.move_window({ forward = false }))
+o.bind("SUPER + CTRL + RIGHT", "Mover aba para direita no grupo", hl.dsp.group.move_window({ forward = true }))
+-- Keep native shortcuts: SUPER+G toggles grouping, SUPER+ALT+G detaches,
+-- SUPER+ALT+arrows moves into a neighboring group, SUPER+W closes one window.
+-- SUPER+RETURN opens a terminal in the focused unlocked group (auto_group).

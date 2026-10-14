@@ -1,0 +1,17 @@
+# Backups manuais e automáticos
+*.bak*
+*.orig
+*~
+*.swp
+*.swo
+
+# Caches
+__pycache__/
+*.pyc
+
+# Logs temporários
+*.log
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db

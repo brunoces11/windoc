@@ -1,0 +1,286 @@
+REGISTRO DE CONFIGURAÇÕES E CUSTOMIZAÇÕES DO SISTEMA
+====================================================
+
+PROPÓSITO
+Este arquivo mantém um histórico claro das personalizações feitas neste
+computador: interface, comportamento do sistema, aplicativos e plugins. Ele
+servirá de inventário para, futuramente, selecionar, documentar e empacotar as
+configurações que possam ser reproduzidas em outras máquinas.
+
+Como manter este registro:
+- Acrescentar cada alteração confirmada com data, descrição, estado e caminhos.
+- Distinguir configurações persistentes de estado temporário da sessão.
+- Marcar como pendente o que foi solicitado ou tentado, mas não está funcional.
+- Não registrar senhas, tokens, conteúdo de chaves privadas ou outros segredos.
+
+ESCOPO DESTA REVISÃO
+Verifiquei os arquivos de configuração atuais, os aplicativos e plugins
+instalados, os estados expostos pelo Omarchy/Quickshell e o arquivo local de
+histórico do Codex: 37 sessões arquivadas entre 6 e 12 de outubro de 2026.
+Este histórico cobre o arquivo local disponível; conversas de outros
+aplicativos ou sessões que não estejam nesse arquivo podem não estar incluídas.
+Data desta revisão: 12/10/2026.
+
+AMBIENTE
+- Arch Linux com Omarchy, Hyprland e Wayland.
+- Barra e widgets gerenciados pelo Omarchy Shell/Quickshell.
+
+1. HYPRLAND: ENTRADA E COMPORTAMENTO DE JANELAS
+Estado: configurado nos arquivos do usuário.
+
+- Teclado brasileiro: layout `br`, modelo `abnt2`; o Hyprland reporta
+  “Portuguese (Brazil)” nos dispositivos conectados.
+  Arquivo: `~/.config/hypr/input.lua`.
+- Divisão de janelas Dwindle ajustada para divisão inteligente (`smart_split`)
+  e direção automática (`force_split = 0`).
+  Arquivo: `~/.config/hypr/looknfeel.lua`.
+- Atalhos de pré-seleção de divisão: Super+V para dividir lado a lado e
+  Super+H para dividir acima/abaixo.
+  Arquivo: `~/.config/hypr/bindings.lua`.
+- Atalhos de navegação e reordenação de janelas agrupadas: Super+Tab,
+  Super+Shift+Tab e Super+Ctrl+Seta esquerda/direita.
+  Arquivo: `~/.config/hypr/bindings.lua`.
+- Super+Shift+F abre Dolphin; Super+Alt+Shift+F abre Dolphin no diretório
+  atual do terminal. Dolphin está instalado.
+  Arquivos: `~/.config/hypr/bindings.lua`, `~/.config/hypr/hyprland.lua`.
+- Scroll Lock alterna gravação do Voxtype; Voxtype está instalado.
+  Arquivo: `~/.config/hypr/bindings.lua`.
+- Janelas Kitty cujo título identifica Brunote/Windows recebem borda amarela,
+  para destacar sessões remotas.
+  Arquivo: `~/.config/hypr/hyprland.lua`.
+- Hypridle desliga o monitor após 15 minutos e o reativa ao detectar atividade.
+  Arquivo: `~/.config/hypr/hypridle.conf`.
+- O perfil atual do Hyprsunset usa identidade de cor (sem tonalidade noturna
+  automática configurada).
+  Arquivo: `~/.config/hypr/hyprsunset.conf`.
+
+2. OMARCHY SHELL, BARRA E WORKSPACES
+Estado: configuração persistente em `~/.config/omarchy/shell.json`.
+
+- Barra superior personalizada: menu e indicadores à esquerda, widgets de
+  workspaces e OmaPanel; Floating Mode e agentes à direita, junto dos
+  indicadores de sistema. O relógio não consta no layout superior atual.
+- O widget original `omarchy.agents` está desativado e o clone de usuário
+  `brunoma.agents` está habilitado.
+- Clone `brunoma.workspaces` do widget de workspaces, com implementação de
+  reordenação por arraste e auxiliar
+  `~/.config/omarchy/scripts/reorder-workspaces.py`.
+- OmaPanel (`atagulalan.omapanel`) está instalado, habilitado e incluído na
+  barra superior.
+- Valores de inatividade do shell: `lock` e `screensaver` estão em 864000
+  segundos (10 dias), conforme a configuração atual.
+
+3. PAINEL DE USO DE AGENTES DE IA
+Estado: implementação de usuário persistente; atualização real verificada.
+
+- Clone do painel em `~/.config/omarchy/plugins/brunoma.agents/`.
+- Os limites são exibidos como percentual disponível. A cor de alerta é usada
+  quando restam 10% ou menos.
+- O plugin chama explicitamente `~/.local/bin/omarchy-agent-usage-update`,
+  evitando que o `PATH` do Quickshell selecione o atualizador empacotado do
+  sistema.
+- O atualizador local seleciona os coletores de usuário para Codex e
+  Antigravity, aceita filtros de agente e preserva a atualização atômica dos
+  registros.
+- Coletor do Codex: `~/.local/bin/omarchy-agent-usage-codex`. Ignora
+  notificações RPC assíncronas, correlaciona respostas por ID, inverte
+  `usedPercent` para crédito disponível e mantém os últimos limites válidos em
+  falhas ou respostas parciais.
+- Coletor do Antigravity: `~/.local/bin/omarchy-agent-usage-antigravity`, que
+  lê os limites do comando `agy` e grava a fração restante.
+- Registros dinâmicos em `~/.local/state/omarchy/agents/usage/`; os percentuais
+  atuais mudam conforme o uso e não são configurações fixas.
+
+4. TERMINAL, ÁREA DE TRANSFERÊNCIA E APLICATIVOS
+Estado: aplicativos instalados e configurações de usuário verificadas.
+
+- O terminal padrão é Kitty (`kitty.desktop`, versão 0.48.2), definido em
+  `~/.config/xdg-terminals.list`. Ghostty também está instalado.
+- Atalhos Ctrl configurados diretamente no Kitty, em
+  `~/.config/kitty/kitty.conf`: Ctrl+C usa `copy_or_interrupt` (copia a seleção;
+  sem seleção, envia SIGINT) e Ctrl+V cola o conteúdo da área de transferência.
+  Essa é a intervenção local confirmada para usar Ctrl+C/Ctrl+V no terminal
+  padrão. Aplicativos gráficos já tratam Ctrl+C/Ctrl+V nativamente; esta regra
+  do Kitty não altera outros emuladores de terminal.
+- Ctrl+Shift+V no Kitty encaminha Ctrl+V ao programa em primeiro plano
+  (`send_text all \x16`). No Codex TUI, esse encaminhamento permite ao próprio
+  Codex tratar conteúdo colado da área de transferência, inclusive imagem e
+  conteúdo rico compatível. Esse comportamento vem da configuração do Kitty e
+  do suporte do aplicativo receptor; não é um atalho global do Hyprland.
+- Super+C/Super+V do Omarchy são uma alternativa universal de copiar/colar:
+  em aplicativos comuns encaminham Ctrl+C/Ctrl+V; em terminais encaminham
+  Ctrl+Insert/Shift+Insert. Esse é o propósito deles — acomodar as diferenças
+  entre aplicativos e terminais — mas o usuário precisa apertar Super. Eles
+  não remapeiam Ctrl+C/Ctrl+V globalmente e não são a configuração do Kitty.
+- Há uma colisão independente a revisar: `~/.config/hypr/bindings.lua` também
+  atribui Super+V à pré-seleção de divisão lado a lado; `hyprctl binds -j`
+  lista as duas ações. Esta duplicidade é separada dos atalhos Ctrl do Kitty.
+- O navegador padrão é Chromium (`chromium.desktop`), confirmado em
+  `~/.config/mimeapps.list` e por `xdg-settings`; o lançador do Omarchy usa
+  essa associação. O executável disponível é `/usr/bin/chromium`.
+- Kitty: Ctrl+Shift+P seguido de P/O ativa seleção de caminhos; caminhos de
+  arquivos podem abrir no `$EDITOR` em overlay. Há atalhos de abas e barra
+  superior personalizada.
+  Arquivos: `~/.config/kitty/kitty.conf`, `open-actions.conf`, `tab_bar.py`.
+- Sublime Text, Visual Studio Code, Kitty, Ghostty, GitHub CLI, CMake,
+  Dolphin e Voxtype constam instalados no sistema.
+- Sublime Text, VS Code, Orca IDE, Nautilus, Telegram, WhatsApp e um atalho
+  PWA do Chrome aparecem na lista salva de aplicativos fixados do dock.
+  Arquivo: `~/.config/omarchy/dock-pinned.json`.
+- Extensões presentes no VS Code: Remote - SSH, Remote - SSH Edit, OpenAI
+  ChatGPT e Codex Audio.
+- O comando local `agy` está disponível para o Antigravity CLI.
+
+5. CONEXÃO SSH E CONFIGURAÇÃO DO CODEX
+Estado: configuração local verificada. Segredos não são copiados para este
+registro.
+
+- Aliases SSH `brunote` e `brunout` definidos para o PC Windows na rede local.
+  Configuração: `~/.ssh/config`; identidade privada fica fora deste registro.
+- Codex CLI configurado com `sandbox_mode = "danger-full-access"` e
+  `approval_policy = "never"`.
+  Configuração: `~/.codex/config.toml`.
+- Regra sudoers presente e validada: `brunoma` pode executar
+  `/usr/bin/pacman` como root sem senha. Arquivo: `/etc/sudoers.d/99-codex-pacman`.
+  Essa regra amplia privilégios administrativos e deve ser avaliada antes de
+  copiá-la para outra máquina.
+
+6. INSTALADO OU CONFIGURADO, MAS NÃO CONFIRMADO COMO FUNCIONAL/ATIVO
+
+- Plugins de terceiros encontrados no registro atual do Omarchy:
+  - `brunoma.agents`: habilitado; clone do widget Agents. Coleta Codex,
+    Antigravity e Fireworks (provedores padrão habilitados; atualização a cada
+    900 s; sincronização entre máquinas desligada); código em
+    `~/.config/omarchy/plugins/brunoma.agents/` e utilitários em `~/.local/bin/`.
+  - `brunoma.workspaces`: habilitado; clone do widget Workspaces, com
+    reordenação por arraste via `~/.config/omarchy/scripts/reorder-workspaces.py`.
+  - `atagulalan.omapanel` (OmaPanel): habilitado e presente na barra; mostra
+    janelas abertas. A configuração atual tem `pinnedApps = []` (nenhum app
+    fixado) e usa a opção padrão de mostrar janelas em execução. Configuração em
+    `~/.config/omarchy/shell.json` e no plugin.
+  - `io.github.rawritude.floating-mode`: habilitado e listado na barra, mas
+    integração Lua incompleta/ausente e nenhum módulo correspondente aparece
+    em `hyprctl plugins list`; não registrar o modo como funcional.
+  - `rosakodu.dock`: desabilitado no registro (`enabled = false`). Há código e
+    arquivos de opções/pins (`dock-settings.json`, `dock-pinned.json`), mas
+    eles não ativam o plugin.
+- Os plugins de persistência de sessão/layout mencionados na conversa
+  (Hypertile, Omarchy Desktop Preset e Omarchy Workspace Layout) não aparecem
+  como instalados ou habilitados nesta máquina.
+- Foi discutida a persistência automática de janelas, agrupamentos e layout de
+  workspaces após reiniciar. Não encontrei uma implementação dessa restauração
+  nas configurações atuais.
+- O firmware UEFI mostra uma entrada “Windows Boot Manager”. Não confirmei um
+  item de Windows na configuração de menu do Limine; não registrar como uma
+  personalização concluída do menu de boot.
+
+ARQUIVOS PRINCIPAIS PARA UMA FUTURA REPLICAÇÃO
+- Hyprland: `~/.config/hypr/`.
+- Omarchy Shell e plugins: `~/.config/omarchy/`.
+- Kitty e terminal padrão: `~/.config/kitty/`, `~/.config/xdg-terminals.list`.
+- Coletores e comandos pessoais: `~/.local/bin/`.
+- Configuração Codex: `~/.codex/config.toml`.
+- SSH: `~/.ssh/config` e uma cópia segura da chave privada, transferida por
+  procedimento separado. Nunca incluir a chave neste arquivo.
+- Regra sudoers: `/etc/sudoers.d/99-codex-pacman` (revisar antes de replicar).
+
+
+7. APLICAÇÃO PADRÃO PARA ARQUIVOS DE TEXTO
+Data: 12/10/2026. Estado: configurado e validado.
+
+- O Sublime Text (`sublime_text.desktop`) foi definido como aplicativo padrão
+  para o tipo MIME `text/plain`, pela associação de aplicativos do usuário.
+- Testes com arquivos `.txt` e `.md` confirmaram que ambos são classificados
+  como `text/plain` e abrem por padrão com Sublime Text; `xdg-mime` e `gio`
+  retornaram `sublime_text.desktop`.
+- A associação fica salva em `~/.config/mimeapps.list` e permanece após
+  reiniciar a sessão. Como ambas as extensões usam `text/plain` neste sistema,
+  outros arquivos classificados como texto simples também terão Sublime como
+  padrão.
+
+8. CTRL+C/CTRL+V, NAVEGADOR E ESTADO DOS PLUGINS — REVISÃO
+Data: 12/10/2026. Verificados os arquivos locais, `hyprctl binds -j`,
+`xdg-settings` e `omarchy plugin list --json`.
+
+- A intervenção verificada para usar Ctrl+C/Ctrl+V diretamente no terminal
+  está em `~/.config/kitty/kitty.conf`: Ctrl+C copia a seleção ou interrompe o
+  comando se não houver seleção; Ctrl+V cola texto da área de transferência.
+  Ela vale para o Kitty, que é o terminal padrão; não foi encontrada uma
+  configuração equivalente de Ctrl+C/Ctrl+V para Ghostty.
+- Ctrl+Shift+V no Kitty envia Ctrl+V ao aplicativo em primeiro plano. No Codex
+  TUI, isso permite que o Codex interprete o conteúdo da área de transferência,
+  como imagem ou conteúdo formatado compatível, e o incorpore à conversa.
+  O resultado depende do suporte do aplicativo receptor.
+- Em aplicativos gráficos, Ctrl+C/Ctrl+V são tratados pelo próprio aplicativo.
+  Não há remapeamento global do Hyprland para Ctrl+C/Ctrl+V. Super+C/V do
+  Omarchy são outra camada: encaminham Ctrl+C/V a apps gráficos e Ctrl+Insert/
+  Shift+Insert a terminais, como alternativa que uniformiza o gesto Super.
+- Nota separada: Super+V aparece associado tanto à colagem universal do
+  Omarchy quanto à pré-seleção de divisão pessoal. O conflito não corresponde
+  ao ajuste Ctrl+C/Ctrl+V no Kitty.
+- Navegador padrão: Chromium (`chromium.desktop`). Terminal padrão: Kitty
+  0.48.2 (`kitty.desktop`). Ghostty permanece instalado como alternativa.
+- Plugins de terceiros habilitados: Agents (`brunoma.agents`; provedores
+  padrão Codex/Antigravity/Claude/Fireworks, atualização a cada 900 s,
+  sincronização desligada), Workspaces (`brunoma.workspaces`; reordenação de
+  workspaces por arraste), OmaPanel (`atagulalan.omapanel`; sem apps fixados,
+  lista janelas abertas) e Floating Window Mode
+  (`io.github.rawritude.floating-mode`; integração Lua incompleta).
+  Rosakodu Dock (`rosakodu.dock`) está desabilitado, apesar de existirem
+  arquivos com preferências e apps fixados. Agents, Workspaces e OmaPanel já
+  estavam descritos nas seções 2/3; esta seção consolida estado e configuração.
+- Hypertile, Omarchy Desktop Preset e Omarchy Workspace Layout foram citados
+  como opções, mas não estão instalados/habilitados nesta máquina. Não há
+  autosave ou restauração de sessão configurados atualmente.
+
+FIM DA REVISÃO INICIAL
+
+9. POSICIONAMENTO DO WAVEFORM SPEECH TO TEXT (VOXTYPE)
+Data: 13/10/2026. Estado: corrigido e validado.
+
+- Ao gravar com o atalho Scroll Lock, o preview do waveform é exibido pelo OSD
+  GTK4 do Voxtype. O OSD usa dimensões e margem definidas em pixels (`400x48`
+  px e `24` px); a coordenada final do layer também é reportada em pixels
+  lógicos pelo Hyprland. Com `top_margin = 0.85`, o layer ficou em `y=758` de
+  864 px lógicos, perto do limite inferior. Mudanças de escala/resolução
+  alteram a área e a conversão de coordenadas, podendo deixar o waveform fora
+  da área visível.
+- Correção persistente em `~/.config/voxtype/config.toml`: posição `top-center`
+  e `top_margin = 0.12`. Após reiniciar `voxtype.service`, um teste confirmou
+  o layer centralizado em `y=127`, abaixo da barra superior.
+- A gravação de teste foi cancelada sem transcrição; Voxtype permaneceu ativo.
+
+10. CHROMIUM FIXADO NA BARRA INFERIOR
+Data: 13/10/2026. Estado: configurado e validado.
+
+- A barra inferior do Rosakodu Dock estava carregada; ela mostra aplicativos
+  fixados. O Chromium aparecia como janela aberta na barra superior do OmaPanel,
+  mas não estava na lista persistente de aplicativos fixados do dock.
+- Adicionado o ID `chromium` a `~/.config/omarchy/dock-pinned.json`. O dock foi
+  atualizado e uma captura da tela confirmou o ícone do Chromium na barra
+  inferior, com o navegador aberto.
+
+
+11. ESTRUTURAÇÃO DO PROJETO WINDOC E ARQUITETURA DE SYMLINKS
+Data: 13/10/2026. Estado: configurado e validado.
+
+- Criação da pasta centralizada do projeto em `~/Desktop/windoc/` (com atalhos
+  no Desktop `WinDoc` e `WINDOC`), servindo como repositório Git conectado ao
+  GitHub (`brunoces11/windoc`).
+- Centralização e linkagem simbólica de todos os arquivos de configuração
+  responsáveis pelo comportamento visual e de interface do sistema:
+  * Dock / Plugin: `~/.config/omarchy/plugins/rosakodu.dock` e `brunoma.windoc`
+    apontam para `~/Desktop/windoc/dock/` (incluindo `DockPanel.qml`,
+    `components/DockCalendarPopup.qml` e `CalendarModel.js`).
+  * Hyprland: `~/.config/hypr/{bindings.lua, looknfeel.lua, hyprland.lua, input.lua,
+    monitors.lua, autostart.lua, hypridle.conf, hyprsunset.conf}` apontam para
+    `~/Desktop/windoc/hyprland/`.
+  * Omarchy Shell: `~/.config/omarchy/{shell.json, dock-settings.json, dock-pinned.json}`
+    apontam para `~/Desktop/windoc/shell/`.
+  * Terminal: `~/.config/kitty/{kitty.conf, open-actions.conf, tab_bar.py}`
+    apontam para `~/Desktop/windoc/terminal/`.
+- Mudança do arquivo `config-sistema.txt` para a raiz do repositório WinDoc,
+  com symlink no Desktop para acesso direto.
+- Criação do script `sync-symlinks.sh` para auditoria e restauração dos links.
+- Criação das diretrizes `Agents.md` definindo a política obrigatória de symlinks
+  prévios e registro incremental contínuo em `config-sistema.txt`.

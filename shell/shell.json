@@ -1,0 +1,71 @@
+{
+  "bar": {
+    "centerAnchor": "",
+    "layout": {
+      "center": [
+        {
+          "id": "omarchy.keyboard-layout"
+        },
+        {
+          "id": "omarchy.system-update"
+        }
+      ],
+      "left": [
+        {
+          "id": "omarchy.menu"
+        },
+        {
+          "id": "omarchy.indicators"
+        },
+        {
+          "id": "brunoma.workspaces"
+        },
+        {
+          "id": "atagulalan.omapanel",
+          "pinnedApps": "[]"
+        }
+      ],
+      "right": [
+        {
+          "id": "omarchy.tray"
+        },
+        {
+          "id": "io.github.rawritude.floating-mode"
+        },
+        {
+          "id": "brunoma.agents"
+        },
+        {
+          "id": "omarchy.bluetooth"
+        },
+        {
+          "id": "omarchy.network"
+        },
+        {
+          "id": "omarchy.audio"
+        },
+        {
+          "id": "omarchy.monitor"
+        },
+        {
+          "id": "omarchy.power"
+        }
+      ]
+    },
+    "position": "top",
+    "transparent": false
+  },
+  "idle": {
+    "lock": 864000,
+    "screensaver": 864000
+  },
+  "plugins": [
+    {
+      "id": "rosakodu.dock"
+    }
+  ],
+  "version": 1,
+  "disabledPlugins": [
+    "omarchy.agents"
+  ]
+}

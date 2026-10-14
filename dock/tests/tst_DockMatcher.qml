@@ -1,0 +1,667 @@
+import QtQuick
+import QtTest
+import "../DockMatcher.js" as DockMatcher
+
+TestCase {
+    name: "DockMatcher"
+
+    function test_stripDesktop() {
+        compare(DockMatcher.stripDesktop("google-chrome.desktop"), "google-chrome")
+        compare(DockMatcher.stripDesktop("Photoshop.exe"), "Photoshop")
+        compare(DockMatcher.stripDesktop("code"), "code")
+        compare(DockMatcher.stripDesktop(""), "")
+    }
+
+    function test_toCanonical_keepsWebAppsApart() {
+        // Each Chromium web app keys on its own site, so a count in one app's
+        // title does not badge every other web app.
+        compare(DockMatcher.toCanonical("chrome-youtube.com__-Default"), "youtube")
+        compare(DockMatcher.toCanonical("chrome-maps.google.com__-Default"), "maps")
+        compare(DockMatcher.toCanonical("chrome-web.whatsapp.com__-Default"), "whatsapp")
+        compare(DockMatcher.toCanonical("chrome-www.example.org__-Profile_1"), "example")
+        // The browser itself still folds to "chrome".
+        compare(DockMatcher.toCanonical("google-chrome"), "chrome")
+        compare(DockMatcher.toCanonical("chromium"), "chrome")
+    }
+
+    function test_desktopEntryIndex_fastLookup() {
+        var mockEntries = [
+            { id: "google-chrome.desktop", name: "Google Chrome", exec: "/usr/bin/google-chrome-stable", icon: "google-chrome" },
+            { id: "org.kde.dolphin.desktop", name: "Dolphin", exec: "dolphin %u", icon: "system-file-manager" },
+            { id: "com.mitchellh.ghostty.desktop", name: "Ghostty", exec: "ghostty", icon: "com.mitchellh.ghostty" }
+        ]
+
+        var index = DockMatcher.createDesktopEntryIndex(mockEntries)
+        verify(index != null)
+
+        // Exact ID lookup O(1)
+        var chromeEntry = DockMatcher.findEntryFast(index, "google-chrome")
+        verify(chromeEntry != null)
+        compare(chromeEntry.name, "Google Chrome")
+
+        // Exact Name lookup O(1)
+        var dolphinEntry = DockMatcher.findEntryFast(index, "dolphin")
+        verify(dolphinEntry != null)
+        compare(dolphinEntry.id, "org.kde.dolphin.desktop")
+
+        // Exec binary lookup O(1)
+        var ghosttyEntry = DockMatcher.findEntryFast(index, "ghostty")
+        verify(ghosttyEntry != null)
+        compare(ghosttyEntry.name, "Ghostty")
+    }
+
+    function test_collectMatchingToplevels_activeAndMinimized() {
+        var top1 = { appId: "google-chrome", title: "GitHub - Omarchy Dock" }
+        var top2 = { appId: "google-chrome", title: "YouTube" }
+        var toplevels = [top1, top2]
+        var assigned = {}
+
+        // Mock min check: top1 is not min, top2 is min
+        var isMin = function(top) { return top === top2 }
+
+        var res = DockMatcher.collectMatchingToplevels(
+            "google-chrome",
+            { id: "google-chrome.desktop", name: "Google Chrome", icon: "google-chrome" },
+            [],
+            toplevels,
+            assigned,
+            null,
+            top1, // active top
+            isMin,
+            null
+        )
+
+        compare(res.windowCount, 2)
+        compare(res.isActive, true)
+        compare(res.isMinimized, false)
+        compare(res.activeTopIndex, 0)
+
+        // All minimized scenario
+        var assigned2 = {}
+        var isAllMin = function(top) { return true }
+        var resAllMin = DockMatcher.collectMatchingToplevels(
+            "google-chrome",
+            { id: "google-chrome.desktop", name: "Google Chrome", icon: "google-chrome" },
+            [],
+            toplevels,
+            assigned2,
+            null,
+            top1,
+            isAllMin,
+            null
+        )
+
+        compare(resAllMin.windowCount, 2)
+        compare(resAllMin.isActive, false) // Minimized cannot be active
+        compare(resAllMin.isMinimized, true)
+    }
+
+    function test_braveBrowserMatching() {
+        var braveTop = { appId: "brave-browser", title: "New Tab - Brave" }
+        var toplevels = [braveTop]
+        var assigned = {}
+        var isMin = function(top) { return false }
+
+        var res = DockMatcher.collectMatchingToplevels(
+            "brave-browser",
+            { id: "brave-browser.desktop", name: "Brave", icon: "brave-desktop" },
+            [],
+            toplevels,
+            assigned,
+            null,
+            braveTop,
+            isMin,
+            null
+        )
+
+        compare(res.windowCount, 1)
+        compare(res.isActive, true)
+        compare(res.matching.length, 1)
+        compare(res.matching[0], braveTop)
+    }
+
+    function test_transmissionMatching() {
+        var transTop = { appId: "com.transmissionbt.transmission_54_620133", title: "Transmission" }
+        var transEntry = { id: "transmission-gtk.desktop", name: "Transmission", icon: "transmission-gtk", exec: "transmission-gtk %U" }
+        var toplevels = [transTop]
+        var assigned = {}
+        var isMin = function(top) { return false }
+
+        // 1. Matching dynamic Wayland app ID against pinned transmission-gtk
+        var res = DockMatcher.collectMatchingToplevels(
+            "transmission-gtk",
+            transEntry,
+            [transEntry],
+            toplevels,
+            assigned,
+            null,
+            transTop,
+            isMin,
+            null
+        )
+        compare(res.windowCount, 1)
+        compare(res.isActive, true)
+        compare(res.matching.length, 1)
+        compare(res.matching[0], transTop)
+
+        // 2. findEntryFast resolves dynamic app ID to transmission-gtk entry
+        var index = DockMatcher.createDesktopEntryIndex([transEntry])
+        var foundEntry = DockMatcher.findEntryFast(index, "com.transmissionbt.transmission_54_620133")
+        verify(foundEntry !== null)
+        compare(foundEntry.id, "transmission-gtk.desktop")
+
+        // 3. buildDockItems with unpinned Transmission window
+        var unpinnedItems = DockMatcher.buildDockItems(
+            [],
+            [transTop],
+            transTop,
+            [transEntry],
+            null,
+            {},
+            {},
+            0,
+            []
+        )
+        compare(unpinnedItems.length, 1)
+        compare(unpinnedItems[0].appId, "transmission-gtk")
+        compare(unpinnedItems[0].name, "Transmission")
+        compare(unpinnedItems[0].isRunning, true)
+        compare(unpinnedItems[0].isActive, true)
+    }
+
+    function test_steamGameMatching() {
+        var arxTop = { appId: "steam_app_1700", title: "Arx Fatalis" }
+        var arxEntry = { id: "Arx Fatalis.desktop", name: "Arx Fatalis", icon: "steam_icon_1700", exec: "steam steam://rungameid/1700" }
+        var steamEntry = { id: "steam.desktop", name: "Steam", icon: "steam", exec: "steam %U" }
+        var toplevels = [arxTop]
+        var assigned = {}
+        var isMin = function(top) { return false }
+
+        // 1. Generic Steam dock item should NOT swallow Steam game window
+        var steamRes = DockMatcher.collectMatchingToplevels(
+            "steam",
+            steamEntry,
+            [steamEntry, arxEntry],
+            toplevels,
+            assigned,
+            null,
+            arxTop,
+            isMin,
+            null
+        )
+        compare(steamRes.windowCount, 0)
+        compare(steamRes.isActive, false)
+
+        // 2. Matching steam_app_1700 against pinned game desktop entry
+        var gameRes = DockMatcher.collectMatchingToplevels(
+            "Arx Fatalis",
+            arxEntry,
+            [steamEntry, arxEntry],
+            toplevels,
+            assigned,
+            null,
+            arxTop,
+            isMin,
+            null
+        )
+        compare(gameRes.windowCount, 1)
+        compare(gameRes.isActive, true)
+        compare(gameRes.matching[0], arxTop)
+
+        // 3. findEntryFast resolves steam_app_1700 to Arx Fatalis desktop entry
+        var index = DockMatcher.createDesktopEntryIndex([steamEntry, arxEntry])
+        var found = DockMatcher.findEntryFast(index, "steam_app_1700")
+        verify(found !== null)
+        compare(found.name, "Arx Fatalis")
+
+        // 4. buildDockItems with unpinned Steam game window
+        var unpinned = DockMatcher.buildDockItems(
+            [],
+            [arxTop],
+            arxTop,
+            [steamEntry, arxEntry],
+            null,
+            {},
+            {},
+            0,
+            []
+        )
+        compare(unpinned.length, 1)
+        compare(unpinned[0].appId, "Arx Fatalis")
+        compare(unpinned[0].name, "Arx Fatalis")
+    }
+
+    function test_yandexBrowserMatching() {
+        var yandexTop = { appId: "yandex-browser", title: "Яндекс — быстрый поиск в интернете" }
+        var yandexEntry = { id: "yandex-browser.desktop", name: "Yandex Browser", icon: "yandex-browser", exec: "/usr/bin/yandex-browser-stable %U" }
+        var toplevels = [yandexTop]
+        var assigned = {}
+        var isMin = function(top) { return false }
+
+        var res = DockMatcher.collectMatchingToplevels(
+            "yandex-browser",
+            yandexEntry,
+            [yandexEntry],
+            toplevels,
+            assigned,
+            null,
+            yandexTop,
+            isMin,
+            null
+        )
+        compare(res.windowCount, 1)
+        compare(res.isActive, true)
+        compare(res.matching.length, 1)
+        compare(res.matching[0], yandexTop)
+    }
+
+    // A dock icon numbers its windows in its own sticky creation order, but the
+    // helper script resolves a window against Hyprland's client list, whose
+    // order changes on its own — a lock screen, a workspace move or a restore
+    // from the scratchpad is enough. Passing a position therefore aims at
+    // whichever window happens to sit there now; an address names one window.
+    function test_hyprAddressForFindsTheWindowByIdentity() {
+        var firstWayland = { title: "first" }
+        var secondWayland = { title: "second" }
+        var hyprToplevels = [
+            { address: "0xaaa111", wayland: firstWayland },
+            { address: "0xbbb222", wayland: secondWayland }
+        ]
+        compare(DockMatcher.hyprAddressFor(secondWayland, hyprToplevels), "0xbbb222")
+        compare(DockMatcher.hyprAddressFor(firstWayland, hyprToplevels), "0xaaa111")
+    }
+
+    function test_hyprAddressForPrefixesABareHexAddress() {
+        // The script recognises an address only by its 0x prefix, so a bare
+        // address from Hyprland has to grow one before it is passed along.
+        var wayland = { title: "first" }
+        compare(DockMatcher.hyprAddressFor(wayland, [{ address: "ccc333", wayland: wayland }]), "0xccc333")
+    }
+
+    function test_hyprAddressForIgnoresPositionAndOrder() {
+        // The same window keeps its address after Hyprland reshuffles its list.
+        var wayland = { title: "first" }
+        var before = [{ address: "0xaaa111", wayland: wayland }, { address: "0xbbb222", wayland: {} }]
+        var after = [{ address: "0xbbb222", wayland: {} }, { address: "0xaaa111", wayland: wayland }]
+        compare(DockMatcher.hyprAddressFor(wayland, before), DockMatcher.hyprAddressFor(wayland, after))
+    }
+
+    function test_hyprAddressForReturnsNothingForAnUnknownWindow() {
+        // A window that closed between the click and the lookup has no address,
+        // and the caller falls back rather than aiming at a stranger.
+        compare(DockMatcher.hyprAddressFor({ title: "gone" }, [{ address: "0xaaa111", wayland: {} }]), "")
+    }
+
+    function test_hyprAddressForHandlesMissingOperands() {
+        compare(DockMatcher.hyprAddressFor(null, [{ address: "0xaaa111", wayland: {} }]), "")
+        compare(DockMatcher.hyprAddressFor({ title: "first" }, null), "")
+        compare(DockMatcher.hyprAddressFor(null, null), "")
+    }
+
+    function test_hyprAddressForFallsBackToTitleAndClass() {
+        var waylandWindow = { title: "Editor - main.js", appId: "code" }
+        // Different wayland object identity, but matching title and class
+        var hyprToplevels = [
+            { address: "0x111222", title: "Terminal", class: "foot", wayland: {} },
+            { address: "0x333444", title: "Editor - main.js", class: "code", wayland: {} }
+        ]
+        compare(DockMatcher.hyprAddressFor(waylandWindow, hyprToplevels), "0x333444")
+    }
+
+    function test_cleanWindowAppId() {
+        compare(DockMatcher.cleanWindowAppId("SyncTERM 1.8 - Wayland"), "SyncTERM")
+        compare(DockMatcher.cleanWindowAppId("SyncTERM 1.8"), "SyncTERM")
+        compare(DockMatcher.cleanWindowAppId("SyncTERM (Wayland)"), "SyncTERM")
+        compare(DockMatcher.cleanWindowAppId("SyncTERM - X11"), "SyncTERM")
+        compare(DockMatcher.cleanWindowAppId("Dolphin 5.0"), "Dolphin")
+        compare(DockMatcher.cleanWindowAppId("Claude Desktop"), "Claude Desktop")
+        compare(DockMatcher.cleanWindowAppId(""), "")
+    }
+
+    function test_syncTermMatching() {
+        var synctermEntry = { id: "syncterm.desktop", name: "SyncTERM", exec: "syncterm %u", icon: "syncterm" }
+        var entries = [synctermEntry]
+        var index = DockMatcher.createDesktopEntryIndex(entries)
+
+        // 1. Fast lookup from Wayland app_id with version and backend suffix
+        var entryFromWayland = DockMatcher.findEntryFast(index, "SyncTERM 1.8 - Wayland")
+        verify(entryFromWayland != null)
+        compare(entryFromWayland.id, "syncterm.desktop")
+
+        // 2. Fast lookup from mixed-case appId
+        var entryFromMixedCase = DockMatcher.findEntryFast(index, "SyncTERM")
+        verify(entryFromMixedCase != null)
+        compare(entryFromMixedCase.id, "syncterm.desktop")
+
+        // 3. Toplevel window matching
+        var top = { appId: "SyncTERM 1.8 - Wayland", title: "SyncTERM 1.8" }
+        compare(DockMatcher.matchToplevel(top, "syncterm", synctermEntry, entries), true)
+
+        // 4. buildDockItems with running unpinned SyncTERM window:
+        // Must normalize rAppId to "syncterm" (so pinning and launching work seamlessly)
+        var items = DockMatcher.buildDockItems([], [top], top, entries, null, {}, {}, 0, [])
+        compare(items.length, 1)
+        compare(items[0].appId, "syncterm")
+        compare(items[0].id, "syncterm")
+        compare(items[0].desktopId, "syncterm.desktop")
+        compare(items[0].rawIcon, "syncterm")
+        compare(items[0].isRunning, true)
+        compare(items[0].isActive, true)
+
+        // 5. buildDockItems with pinned legacy "SyncTERM" and running window:
+        // Must resolve to syncterm.desktop and match the running window
+        var pinnedItems = DockMatcher.buildDockItems(["SyncTERM"], [top], top, entries, null, {}, {}, 0, [])
+        compare(pinnedItems.length, 1)
+        compare(pinnedItems[0].desktopId, "syncterm.desktop")
+        compare(pinnedItems[0].isRunning, true)
+        compare(pinnedItems[0].isActive, true)
+    }
+
+    function test_claudeDesktopMatching() {
+        var claudeEntry = { id: "claude-desktop.desktop", name: "Claude", exec: "claude-desktop", icon: "claude-desktop" }
+        var entries = [claudeEntry]
+        var index = DockMatcher.createDesktopEntryIndex(entries)
+
+        var found = DockMatcher.findEntryFast(index, "Claude Desktop")
+        verify(found != null)
+        compare(found.id, "claude-desktop.desktop")
+
+        var top = { appId: "Claude Desktop", title: "Claude" }
+        compare(DockMatcher.matchToplevel(top, "claude-desktop", claudeEntry, entries), true)
+    }
+
+    function test_extractCliApp_ignoresDesktopEntryName() {
+        var entries = [
+            { id: "com.anthropic.Claude.desktop", name: "Claude", exec: "claude-desktop %U", icon: "claude-desktop" },
+            { id: "foot.desktop", name: "foot", exec: "foot", categories: ["TerminalEmulator"] }
+        ]
+
+        // Claude Code running in a terminal sets titles like these. The token "claude"
+        // equals the Claude Desktop entry's Name, but that must not identify the window.
+        compare(DockMatcher.extractCliApp("\u2733 Claude Code", entries), "")
+        compare(DockMatcher.extractCliApp("claude", entries), "")
+        compare(DockMatcher.extractCliApp("\u25d0 Dock icon display issue", entries), "")
+
+        // A terminal running Claude Code must stay a terminal, not become Claude Desktop
+        var top = { appId: "foot", title: "\u2733 Claude Code" }
+        var items = DockMatcher.buildDockItems([], [top], top, entries, null, {}, {}, 0, [])
+        compare(items.length, 1)
+        compare(items[0].appId, "foot")
+
+        // Matching on exec binary or entry id still works
+        var btopEntries = [{ id: "btop.desktop", name: "System Monitor", exec: "btop", icon: "btop" }]
+        compare(DockMatcher.extractCliApp("btop", btopEntries), "btop")
+        var idEntries = [{ id: "lazyapp.desktop", name: "Lazy App", exec: "/opt/lazy/run", icon: "lazyapp" }]
+        compare(DockMatcher.extractCliApp("lazyapp - session", idEntries), "lazyapp")
+    }
+
+    function test_getCandidates_caseAndVariants() {
+        var cands1 = DockMatcher.getCandidates("SyncTERM", "", "SyncTERM")
+        verify(cands1.indexOf("syncterm") !== -1)
+
+        var cands2 = DockMatcher.getCandidates("", "", "SyncTERM 1.8 - Wayland")
+        verify(cands2.indexOf("syncterm") !== -1)
+
+        var cands3 = DockMatcher.getCandidates("", "", "Claude Desktop")
+        verify(cands3.indexOf("claude-desktop") !== -1)
+        verify(cands3.indexOf("claude") !== -1)
+    }
+
+    function test_chromeWebAppMatching() {
+        var outlookEntry = {
+            id: "outlook.desktop",
+            name: "Microsoft Outlook",
+            exec: 'google-chrome-stable --profile-directory="Profile 1" --app="https://outlook.office.com/mail/"',
+            icon: "outlook"
+        }
+        var entries = [outlookEntry]
+        var top = { appId: "chrome-outlook.office.com__mail_-Profile_1", title: "Outlook" }
+
+        // 1. matchToplevel: Top should match outlook entry
+        compare(DockMatcher.matchToplevel(top, "outlook", outlookEntry, entries), true)
+
+        // 2. buildDockItems: Unpinned item should match, resolve desktop ID, and preserve appClass
+        var unpinnedItems = DockMatcher.buildDockItems([], [top], top, entries, null, {}, {}, 0, [])
+        compare(unpinnedItems.length, 1)
+        compare(unpinnedItems[0].desktopId, "outlook.desktop")
+        compare(unpinnedItems[0].appId, "outlook")
+        compare(unpinnedItems[0].appClass, "chrome-outlook.office.com__mail_-Profile_1")
+        compare(unpinnedItems[0].isRunning, true)
+        compare(unpinnedItems[0].isActive, true)
+
+        // 3. buildDockItems: Pinned item should match running window and preserve appClass
+        var pinnedItems = DockMatcher.buildDockItems(["outlook"], [top], top, entries, null, {}, {}, 0, [])
+        compare(pinnedItems.length, 1)
+        compare(pinnedItems[0].desktopId, "outlook.desktop")
+        compare(pinnedItems[0].appClass, "chrome-outlook.office.com__mail_-Profile_1")
+        compare(pinnedItems[0].isRunning, true)
+        compare(pinnedItems[0].isActive, true)
+    }
+
+    function test_edgeWebAppPrefix() {
+        // Microsoft Edge names its web app windows "msedge-<site>__-<profile>"
+        compare(DockMatcher.extractChromeDomain("msedge-youtube.com__-Default"), "youtube.com")
+        compare(DockMatcher.extractChromeDomain("msedge-web.whatsapp.com__-Default"), "web.whatsapp.com")
+        compare(DockMatcher.extractChromeDomain("microsoft-edge"), "")
+
+        // Without the prefix only the raw window class was tried, so the icon fell back to Omarchy
+        var candidates = DockMatcher.getCandidates("", "", "msedge-x.com__-Default")
+        verify(candidates.indexOf("x") !== -1)
+    }
+
+    function test_omarchyAgentIcon() {
+        // Without a default agent the window keeps the generic Omarchy candidates
+        DockMatcher.setDefaultAgent("", "")
+        var plain = DockMatcher.getCandidates("", "", "org.omarchy.agent")
+        verify(plain.indexOf("claude") === -1)
+        verify(plain.indexOf("omarchy") !== -1)
+
+        // The default agent's theme icons come before the bundled mark, and both before the Omarchy logo
+        var asset = "file:///usr/share/omarchy/shell/plugins/agents/assets/claude.svg"
+        DockMatcher.setDefaultAgent("claude", asset)
+        var cands = DockMatcher.getCandidates("", "", "org.omarchy.agent")
+        verify(cands.indexOf("claude") !== -1)
+        verify(cands.indexOf("claude") < cands.indexOf(asset))
+        verify(cands.indexOf(asset) < cands.indexOf("omarchy"))
+
+        // Other windows are untouched
+        verify(DockMatcher.getCandidates("", "", "org.omarchy.cliamp").indexOf("claude") === -1)
+        DockMatcher.setDefaultAgent("", "")
+    }
+
+    function test_braveOriginWebAppMatching() {
+        var braveOriginEntry = { id: "brave-origin.desktop", name: "Brave Origin", exec: "brave-origin %U", icon: "brave-origin" }
+        var whatsappEntry = { id: "WhatsApp.desktop", name: "WhatsApp", exec: "omarchy-launch-webapp https://web.whatsapp.com/", icon: "whatsapp" }
+        var entries = [braveOriginEntry, whatsappEntry]
+        var browserTop = { appId: "brave-origin", title: "New Tab - Brave Origin" }
+        var webAppTop = { appId: "brave-web.whatsapp.com__-Default", title: "WhatsApp" }
+
+        // 1. Brave Origin is a browser, not a web app for a site called "origin"
+        compare(DockMatcher.isBrowserApp("brave-origin"), true)
+        compare(DockMatcher.extractChromeDomain("brave-origin"), "")
+
+        // 2. The Brave Origin item keeps its own window but leaves web app windows alone
+        compare(DockMatcher.matchToplevel(browserTop, "brave-origin", braveOriginEntry, entries), true)
+        compare(DockMatcher.matchToplevel(webAppTop, "brave-origin", braveOriginEntry, entries), false)
+
+        // 3. buildDockItems: the browser window listed first must not absorb the web app window
+        var items = DockMatcher.buildDockItems([], [browserTop, webAppTop], browserTop, entries, null, {}, {}, 0, [])
+        compare(items.length, 2)
+        compare(items[0].desktopId, "brave-origin.desktop")
+        compare(items[0].windowCount, 1)
+        compare(items[1].desktopId, "WhatsApp.desktop")
+        compare(items[1].windowCount, 1)
+    }
+
+    function test_diskIconLookup() {
+        DockMatcher.setDiskIcons({
+            "omanta": "/usr/share/icons/hicolor/scalable/apps/omanta.svg",
+            "omashow": "/usr/share/icons/hicolor/scalable/apps/omashow.svg",
+            "org.gnome.nautilus": "/usr/share/icons/hicolor/scalable/apps/org.gnome.Nautilus.svg"
+        })
+
+        // Exact match
+        compare(DockMatcher.getDiskIcon("omanta"), "file:///usr/share/icons/hicolor/scalable/apps/omanta.svg")
+        compare(DockMatcher.getDiskIcon("omashow"), "file:///usr/share/icons/hicolor/scalable/apps/omashow.svg")
+
+        // Case insensitivity
+        compare(DockMatcher.getDiskIcon("Omanta"), "file:///usr/share/icons/hicolor/scalable/apps/omanta.svg")
+        compare(DockMatcher.getDiskIcon("OMASHOW"), "file:///usr/share/icons/hicolor/scalable/apps/omashow.svg")
+
+        // Desktop suffix stripping
+        compare(DockMatcher.getDiskIcon("omanta.desktop"), "file:///usr/share/icons/hicolor/scalable/apps/omanta.svg")
+
+        // Reverse-DNS fallback
+        compare(DockMatcher.getDiskIcon("nautilus"), "file:///usr/share/icons/hicolor/scalable/apps/org.gnome.Nautilus.svg")
+
+        // resolveIcon integration
+        var resolved = DockMatcher.resolveIcon(null, "omanta", null)
+        compare(resolved, "file:///usr/share/icons/hicolor/scalable/apps/omanta.svg")
+
+        var resolvedShow = DockMatcher.resolveIcon({ icon: "omashow" }, "omashow", null)
+        compare(resolvedShow, "file:///usr/share/icons/hicolor/scalable/apps/omashow.svg")
+    }
+
+    function test_quickshellDesktopEntryExecString() {
+        // Quickshell's DesktopEntry objects expose `execString`, not `exec`.
+        // Issue #26: Verify that entries using execString resolve correctly in all paths.
+        var amazonEntry = {
+            id: "Amazon - Personal",
+            name: "Amazon - Personal",
+            icon: "amazon",
+            execString: "/home/user/chrome-app personal --app=\"https://www.amazon.ca/\""
+        }
+        var steamEntry = {
+            id: "steam_game_1700",
+            name: "Arx Fatalis",
+            icon: "steam_icon_1700",
+            execString: "steam steam://rungameid/1700"
+        }
+        var entries = [amazonEntry, steamEntry]
+
+        // 1. findEntry for Chrome Web App with subdomain (www.amazon.ca) via execString
+        var foundAmazon = DockMatcher.findEntry(entries, "chrome-www.amazon.ca__-Profile_3")
+        verify(foundAmazon !== null)
+        compare(foundAmazon.id, "Amazon - Personal")
+        compare(foundAmazon.icon, "amazon")
+
+        // 2. findEntry for Steam Game via execString
+        var foundSteam = DockMatcher.findEntry(entries, "steam_app_1700")
+        verify(foundSteam !== null)
+        compare(foundSteam.id, "steam_game_1700")
+
+        // 3. createDesktopEntryIndex byExec indexing via execString
+        var index = DockMatcher.createDesktopEntryIndex(entries)
+        verify(index.byExec["chrome-app"] !== undefined)
+        compare(index.byExec["chrome-app"].id, "Amazon - Personal")
+
+        // 4. buildDockItems: verify item.exec preserves execString
+        var top = {
+            appId: "chrome-www.amazon.ca__-Profile_3",
+            title: "Amazon.ca: Low Prices",
+            address: "0xdeadbeef"
+        }
+        var items = DockMatcher.buildDockItems([], [top], top, entries, null, {}, {}, 0, [])
+        compare(items.length, 1)
+        compare(items[0].desktopId, "Amazon - Personal")
+        compare(items[0].exec, "/home/user/chrome-app personal --app=\"https://www.amazon.ca/\"")
+    }
+
+    function test_browserNeverSwallowedByWebAppLauncher() {
+        var xEntry = {
+            id: "X.desktop",
+            name: "X",
+            exec: "omarchy-launch-webapp https://x.com/",
+            icon: "x"
+        }
+        var yandexEntry = {
+            id: "yandex-browser.desktop",
+            name: "Yandex Browser",
+            exec: "/usr/bin/yandex-browser-stable %U",
+            icon: "yandex-browser"
+        }
+        var chromeEntry = {
+            id: "google-chrome.desktop",
+            name: "Google Chrome",
+            exec: "/usr/bin/google-chrome-stable",
+            icon: "google-chrome"
+        }
+        var antigravityEntry = {
+            id: "antigravity.desktop",
+            name: "Antigravity",
+            exec: "antigravity",
+            icon: "antigravity"
+        }
+
+        var entries = [xEntry, yandexEntry, chromeEntry, antigravityEntry]
+
+        var yandexTop = {
+            appId: "yandex-browser",
+            title: "(3) Нашел замену ThinkPad это... - YouTube — Yandex Browser",
+            address: "0x653d29fbe5a0"
+        }
+        var chromeTop = {
+            appId: "google-chrome",
+            title: "Releases · xXJSONDeruloXx/decky-lsfg-vk - Google Chrome",
+            address: "0x653d29f01360"
+        }
+        var antigravityTop = {
+            appId: "antigravity",
+            title: "Dock - Dock - Antigravity",
+            address: "0x653d29f50030"
+        }
+
+        // 1. Direct matching: X webapp item must NEVER match yandex-browser or google-chrome windows
+        compare(DockMatcher.matchToplevel(yandexTop, "chrome-x.com__-Default", xEntry, entries), false)
+        compare(DockMatcher.matchToplevel(chromeTop, "chrome-x.com__-Default", xEntry, entries), false)
+
+        // 2. Browser items match their own windows
+        compare(DockMatcher.matchToplevel(yandexTop, "yandex-browser", yandexEntry, entries), true)
+        compare(DockMatcher.matchToplevel(chromeTop, "google-chrome", chromeEntry, entries), true)
+
+        // 3. Full buildDockItems test with pinned items matching user environment
+        var pinned = [
+            "foot",
+            "io.github.lgse.Strata",
+            "google-chrome",
+            "antigravity",
+            "chrome-x.com__-Default",
+            "chrome-discord.com__channels_@me-Default",
+            "org.kde.krita",
+            "steam"
+        ]
+
+        var toplevels = [chromeTop, antigravityTop, yandexTop]
+        var items = DockMatcher.buildDockItems(pinned, toplevels, antigravityTop, entries, null, {}, {}, 0, [])
+
+        // 8 pinned + 1 unpinned (yandex-browser) = 9 items
+        compare(items.length, 9)
+
+        // Pinned chrome-x.com__-Default must NOT be running
+        var xItem = items[4]
+        compare(xItem.id, "chrome-x.com__-Default")
+        compare(xItem.isRunning, false)
+        compare(xItem.windowCount, 0)
+
+        // Pinned google-chrome must be running
+        var chromeItem = items[2]
+        compare(chromeItem.id, "google-chrome")
+        compare(chromeItem.isRunning, true)
+        compare(chromeItem.windowCount, 1)
+
+        // Pinned antigravity must be running
+        var antiItem = items[3]
+        compare(antiItem.id, "antigravity")
+        compare(antiItem.isRunning, true)
+        compare(antiItem.windowCount, 1)
+
+        // Unpinned item for yandex-browser must exist and be running
+        var yandexItem = items[8]
+        compare(yandexItem.id, "yandex-browser")
+        compare(yandexItem.isPinned, false)
+        compare(yandexItem.isRunning, true)
+        compare(yandexItem.windowCount, 1)
+    }
+}
+
+
