@@ -35,4 +35,4 @@ Para verificar ou restaurar todos os links a qualquer momento:
 
 ## 🤖 Diretrizes para Agentes de IA
 
-Consulte o arquivo [`Agents.md`](Agents.md) para as regras de negócio mandatórias sobre adição de novos arquivos ao projeto, criação prévia de symlinks e registro incremental em `config-sistema.txt`.
+Consulte o arquivo [`AGENTS.md`](AGENTS.md) para as regras de negócio mandatórias sobre adição de novos arquivos ao projeto, criação prévia de symlinks e registro incremental em `config-sistema.txt`.

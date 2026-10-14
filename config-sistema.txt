@@ -282,5 +282,5 @@ Data: 13/10/2026. Estado: configurado e validado.
 - Mudança do arquivo `config-sistema.txt` para a raiz do repositório WinDoc,
   com symlink no Desktop para acesso direto.
 - Criação do script `sync-symlinks.sh` para auditoria e restauração dos links.
-- Criação das diretrizes `Agents.md` definindo a política obrigatória de symlinks
+- Criação das diretrizes `AGENTS.md` definindo a política obrigatória de symlinks
   prévios e registro incremental contínuo em `config-sistema.txt`.
