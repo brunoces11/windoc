@@ -478,4 +478,16 @@ Data: 14/10/2026. Estado: unificado, corrigido, testado e validado em tempo real
   * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`), verificação IPC de resposta imediata e logs limpos sem advertências.
 
 
+25. AJUSTE DE ALTURA E ESTILO DOS TOOLTIPS DO CANTO INFERIOR DIREITO (DESLOCAMENTO DE 50PX PARA BAIXO, TIPOGRAFIA, PADDING E OPACIDADES)
+Data: 14/10/2026. Estado: implementado, calibrado, testado e validado em runtime.
 
+- Calibração de posicionamento vertical (Eixo Y):
+  * Rebaixamento de 50 pixels: ajustada a ancoragem vertical do `rightTooltipPopup` em `dock/DockPanel.qml` (`rect.y = 12` e remoção do padding vazio artificial de 35px), rebaixando o balão em ~50 pixels em relação à posição flutuante anterior e posicionando-o rente à margem superior dos botões/ícones da barra (Chevron, ícones fixados de Áudio e Rede, Relógio e Show Desktop), sem flutuar distante no ar e sem cobrir os glifos interativos.
+  * Alinhamento vertical estrito: todos os elementos da extremidade direita mantêm rigorosamente a mesma cota de altura no eixo Y.
+  * Calibração no popup de overflow: em `dock/components/TrayOverflowPopup.qml`, a margem inferior do `itemTooltip` foi ajustada para 6 pixels (`anchors.bottomMargin: 6`), posicionando a dica elegantemente acima dos ícones do grid de 5 colunas.
+- Refinamento visual e tipográfico:
+  * Redução da fonte em 1 ponto: o tamanho da fonte dos rótulos de tooltip (`bubbleLabel` e `tipLabel`) foi reduzido de 11px para 10px (`font.pixelSize: 10`), tornando a apresentação mais discreta e refinada.
+  * Redução de 20% no padding interno: dimensões dos contêineres reduzidas para `bubbleLabel.implicitWidth + 12` e `bubbleLabel.implicitHeight + 8` no painel principal, e `tipLabel.implicitWidth + 11` e `tipLabel.implicitHeight + 6` no popup de overflow, com raio de borda suavizado para 4px.
+  * Opacidade da borda (outline) fixada em 40%: `border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.40)`.
+  * Opacidade do preenchimento escuro em 90% (10% de transparência): aplicado `color: Util.alpha(Color.popups.background, 0.90)`.
+- Validação técnica: reinicialização do shell executada (`omarchy restart shell`) e logs do journalctl do Quickshell verificados sem erros ou advertências.

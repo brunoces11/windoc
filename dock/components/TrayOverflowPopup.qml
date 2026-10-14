@@ -262,14 +262,14 @@ PanelWindow {
                         visible: itemMouse.containsMouse
                         z: 9999
                         anchors.bottom: parent.top
-                        anchors.bottomMargin: 35
+                        anchors.bottomMargin: 6
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: tipLabel.implicitWidth + 14
-                        height: tipLabel.implicitHeight + 8
-                        radius: 5
-                        color: Color.popups.background
+                        width: tipLabel.implicitWidth + 11
+                        height: tipLabel.implicitHeight + 6
+                        radius: 4
+                        color: Util.alpha(Color.popups.background, 0.90)
                         border.width: 1
-                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.4)
+                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.40)
 
                         Text {
                             id: tipLabel
@@ -277,7 +277,7 @@ PanelWindow {
                             textFormat: Text.PlainText
                             text: modelData.name
                             font.family: Style.font.family
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
                         }
                     }

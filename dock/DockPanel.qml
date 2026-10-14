@@ -3700,7 +3700,7 @@ Item {
                     visible: root.activeRightTooltipTarget !== null && root.activeRightTooltipText !== "" && !root.trayOverflowOpened && !calendarPopup.opened
                     color: "transparent"
                     implicitWidth: Math.ceil(bubble.implicitWidth)
-                    implicitHeight: Math.ceil(bubble.implicitHeight) + 35
+                    implicitHeight: Math.ceil(bubble.implicitHeight)
 
                     function updatePosition() {
                         var target = root.activeRightTooltipTarget
@@ -3712,7 +3712,7 @@ Item {
                         if (rx + popupW > dockLayer.width - 6) rx = dockLayer.width - popupW - 6
                         if (rx < 6) rx = 6
                         rightTooltipAnchor.rect.x = Math.round(rx)
-                        rightTooltipAnchor.rect.y = 0
+                        rightTooltipAnchor.rect.y = 12
                     }
 
                     Connections {
@@ -3743,12 +3743,12 @@ Item {
                         id: bubble
                         anchors.top: parent.top
                         anchors.horizontalCenter: parent.horizontalCenter
-                        implicitWidth: bubbleLabel.implicitWidth + 16
-                        implicitHeight: bubbleLabel.implicitHeight + 10
-                        radius: 5
-                        color: Color.popups.background
+                        implicitWidth: bubbleLabel.implicitWidth + 12
+                        implicitHeight: bubbleLabel.implicitHeight + 8
+                        radius: 4
+                        color: Util.alpha(Color.popups.background, 0.90)
                         border.width: 1
-                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.4)
+                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.40)
 
                         Text {
                             id: bubbleLabel
@@ -3756,7 +3756,7 @@ Item {
                             textFormat: Text.PlainText
                             text: root.activeRightTooltipText
                             font.family: Style.font.family
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
                         }
                     }
