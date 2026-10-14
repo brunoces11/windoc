@@ -126,6 +126,8 @@ Item {
         function setShowFolderTitles(val: string): string { root.showFolderTitles = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
         function setShowBadges(val: string): string { root.showBadges = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
         function setOverlayMode(val: string): string { root.overlayMode = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
+        function toggleTray(): string { root.toggleTrayOverflow(); return "ok" }
+        function openTraySettings(): string { root.openSystemTraySettings(); return "ok" }
         function ping(): string { return "ok" }
     }
 
@@ -881,6 +883,7 @@ Item {
     function toggleTrayOverflow() {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
             trayOverflowPopup.opened = !trayOverflowPopup.opened
+            console.log("WinDoc: toggleTrayOverflow() called -> opened is now", trayOverflowPopup.opened)
         }
     }
 
@@ -3490,15 +3493,12 @@ Item {
                         z: 1
 
                         // 1. System Icon Tray (Windows Notification Area & Chevron Flyout)
-                        Loader {
-                            id: systemIconTrayLoader
-                            active: root.isTrayWidget(modelData)
-                            visible: active
+                        SystemIconTray {
+                            id: systemIconTrayItem
+                            visible: root.isTrayWidget(modelData)
                             anchors.fill: parent
-                            sourceComponent: SystemIconTray {
-                                root: root
-                                dockWindow: root ? root.dockWindow : null
-                            }
+                            dockPanel: root
+                            dockWindow: root ? root.dockWindow : null
                         }
 
                         // 2. Windows Show Desktop Button (Far Right Corner Sliver)
@@ -3718,7 +3718,7 @@ Item {
     // 7. Windows Taskbar System Tray Overflow Popup
     TrayOverflowPopup {
         id: trayOverflowPopup
-        root: root
+        dockPanel: root
         dockWindow: root ? root.dockWindow : null
     }
 

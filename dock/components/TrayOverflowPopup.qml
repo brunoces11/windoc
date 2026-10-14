@@ -10,16 +10,21 @@ import ".."
 PanelWindow {
     id: overflowWindow
 
-    property var root: null
+    property var dockPanel: null
     property var dockWindow: null
     property bool opened: false
 
     screen: overflowWindow.dockWindow ? overflowWindow.dockWindow.screen : (Quickshell.screens && Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
-    visible: opened && root && root.dockRevealed
+    visible: opened
+
+    onOpenedChanged: {
+        console.log("WinDoc TrayOverflowPopup: opened ->", opened, "visible ->", visible)
+        if (opened) card.forceActiveFocus()
+    }
 
     WlrLayershell.namespace: "omarchy-dock-tray-overflow"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: overflowWindow.opened ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
 
@@ -30,10 +35,10 @@ PanelWindow {
         right: true
     }
 
-    readonly property bool isOverlay: root ? (root.overlayMode === true) : false
-    readonly property int dockHeight: (root && root.windowsTaskbarMode && !root.isVertical && overflowWindow.dockWindow)
+    readonly property bool isOverlay: dockPanel ? (dockPanel.overlayMode === true) : false
+    readonly property int dockHeight: (dockPanel && dockPanel.windowsTaskbarMode && !dockPanel.isVertical && overflowWindow.dockWindow)
         ? overflowWindow.dockWindow.height
-        : (root ? (root.slotSize + 8) : 50)
+        : (dockPanel ? (dockPanel.slotSize + 8) : 50)
     readonly property int dockGap: (Style.gapsOut || 5)
     readonly property int dockOffset: isOverlay ? (dockGap + dockHeight + dockGap) : (dockHeight + dockGap)
 
@@ -55,8 +60,8 @@ PanelWindow {
             icon: "󰕾",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.toggleTrayWidget === "function") {
-                    root.toggleTrayWidget("omarchy.audio")
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
+                    dockPanel.toggleTrayWidget("omarchy.audio")
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.audio")
                 }
@@ -75,8 +80,8 @@ PanelWindow {
             icon: "󰖩",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.toggleTrayWidget === "function") {
-                    root.toggleTrayWidget("omarchy.network")
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
+                    dockPanel.toggleTrayWidget("omarchy.network")
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.network")
                 }
@@ -91,8 +96,8 @@ PanelWindow {
             icon: "󰚩",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.toggleTrayWidget === "function") {
-                    root.toggleTrayWidget("brunoma.agents")
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
+                    dockPanel.toggleTrayWidget("brunoma.agents")
                 } else {
                     Util.execDetached("omarchy-shell shell toggle brunoma.agents")
                 }
@@ -104,8 +109,8 @@ PanelWindow {
             icon: "󰍹",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.toggleTrayWidget === "function") {
-                    root.toggleTrayWidget("io.github.rawritude.floating-mode")
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
+                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode")
                 } else {
                     Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
                 }
@@ -117,8 +122,8 @@ PanelWindow {
             icon: "󰖐",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.toggleTrayWidget === "function") {
-                    root.toggleTrayWidget("omarchy.weather")
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
+                    dockPanel.toggleTrayWidget("omarchy.weather")
                 } else {
                     Util.execDetached("omarchy-notification-weather")
                 }
@@ -133,8 +138,8 @@ PanelWindow {
             icon: "󰒓",
             action: function() {
                 overflowWindow.opened = false
-                if (root && typeof root.openSystemTraySettings === "function") {
-                    root.openSystemTraySettings()
+                if (dockPanel && typeof dockPanel.openSystemTraySettings === "function") {
+                    dockPanel.openSystemTraySettings()
                 }
             }
         }
@@ -148,12 +153,17 @@ PanelWindow {
     Rectangle {
         id: card
         z: 1
+        focus: true
+        Keys.onEscapePressed: function(event) {
+            event.accepted = true
+            overflowWindow.opened = false
+        }
         anchors.bottom: parent.bottom
         anchors.bottomMargin: overflowWindow.dockOffset + 2
         anchors.right: parent.right
         anchors.rightMargin: {
-            var clockW = (root && root.clockSlotWidth) ? root.clockSlotWidth : 76
-            var deskW = (root && root.showDesktopButtonEnabled && root.desktopSlotWidth) ? root.desktopSlotWidth : 10
+            var clockW = (dockPanel && dockPanel.clockSlotWidth) ? dockPanel.clockSlotWidth : 76
+            var deskW = (dockPanel && dockPanel.showDesktopButtonEnabled && dockPanel.desktopSlotWidth) ? dockPanel.desktopSlotWidth : 10
             return clockW + deskW + (Style.gapsOut || 5)
         }
 
@@ -209,8 +219,8 @@ PanelWindow {
                         textFormat: Text.PlainText
                         text: {
                             if (modelData.id === "omarchy.audio") {
-                                if (root && root.pipewireSinkMuted) return "󰝟"
-                                var vol = root ? root.pipewireSinkVolume : 0.5
+                                if (dockPanel && dockPanel.pipewireSinkMuted) return "󰝟"
+                                var vol = dockPanel ? dockPanel.pipewireSinkVolume : 0.5
                                 if (vol <= 0.01) return "󰝟"
                                 if (vol < 0.33) return "󰕿"
                                 if (vol < 0.66) return "󰖀"
@@ -250,6 +260,8 @@ PanelWindow {
                         visible: itemMouse.containsMouse
                         text: modelData.name
                         fontFamily: Style.font.family
+                        y: -implicitHeight - 12
+                        x: Math.round((parent.width - implicitWidth) / 2)
                     }
                 }
             }

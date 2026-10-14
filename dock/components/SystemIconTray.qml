@@ -10,20 +10,20 @@ import ".."
 Item {
     id: trayRoot
 
-    property var root: null
+    property var dockPanel: null
     property var dockWindow: null
 
-    readonly property var pinnedWidgets: (root && root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets))
-        ? root.systemTrayPinnedWidgets
+    readonly property var pinnedWidgets: (dockPanel && dockPanel.systemTrayPinnedWidgets && Array.isArray(dockPanel.systemTrayPinnedWidgets))
+        ? dockPanel.systemTrayPinnedWidgets
         : []
 
-    readonly property real baseIconSize: root ? root.iconBaseSize : 22
+    readonly property real baseIconSize: dockPanel ? dockPanel.iconBaseSize : 22
     readonly property real chevronWidth: 22
     readonly property real itemSlotWidth: 26
     readonly property real slotSpacing: 2
 
     implicitWidth: chevronWidth + (pinnedWidgets.length * itemSlotWidth) + (pinnedWidgets.length > 0 ? (pinnedWidgets.length * slotSpacing) : 0)
-    implicitHeight: parent ? parent.height : (root ? root.slotSize : 32)
+    implicitHeight: parent ? parent.height : (dockPanel ? dockPanel.slotSize : 32)
 
     Row {
         anchors.right: parent.right
@@ -34,11 +34,11 @@ Item {
         // 1. Chevron expand button (^) — on the left
         Rectangle {
             id: chevronBtn
-            width: trayRoot.chevronWidth
+            width: (trayRoot.pinnedWidgets.length === 0) ? Math.max(trayRoot.width, trayRoot.chevronWidth) : trayRoot.chevronWidth
             height: trayRoot.baseIconSize + 6
             anchors.verticalCenter: parent.verticalCenter
             radius: 4
-            color: chevronMouse.containsMouse || (root && root.trayOverflowOpened)
+            color: chevronMouse.containsMouse || (dockPanel && dockPanel.trayOverflowOpened)
                 ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.18)
                 : "transparent"
             Behavior on color { ColorAnimation { duration: 120 } }
@@ -46,10 +46,10 @@ Item {
             Text {
                 anchors.centerIn: parent
                 textFormat: Text.PlainText
-                text: (root && root.trayOverflowOpened) ? "󰅀" : "󰅃"
+                text: (dockPanel && dockPanel.trayOverflowOpened) ? "󰅀" : "󰅃"
                 font.pixelSize: 14
                 font.family: Style.font.family
-                color: chevronMouse.containsMouse || (root && root.trayOverflowOpened)
+                color: chevronMouse.containsMouse || (dockPanel && dockPanel.trayOverflowOpened)
                     ? Color.accent
                     : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.88)
                 Behavior on color { ColorAnimation { duration: 120 } }
@@ -61,16 +61,18 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    if (root && typeof root.toggleTrayOverflow === "function") {
-                        root.toggleTrayOverflow()
+                    if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayOverflow === "function") {
+                        trayRoot.dockPanel.toggleTrayOverflow()
                     }
                 }
             }
 
             PanelToolTip {
-                visible: chevronMouse.containsMouse && !(root && root.trayOverflowOpened)
+                visible: chevronMouse.containsMouse && !(trayRoot.dockPanel && trayRoot.dockPanel.trayOverflowOpened)
                 text: "Mostrar ícones ocultos"
                 fontFamily: Style.font.family
+                y: -implicitHeight - 25
+                x: Math.round((parent.width - implicitWidth) / 2)
             }
         }
 
@@ -101,8 +103,8 @@ Item {
                         textFormat: Text.PlainText
                         text: {
                             if (modelData === "omarchy.audio") {
-                                if (root && root.pipewireSinkMuted) return "󰝟"
-                                var vol = root ? root.pipewireSinkVolume : 0.5
+                                if (dockPanel && dockPanel.pipewireSinkMuted) return "󰝟"
+                                var vol = dockPanel ? dockPanel.pipewireSinkVolume : 0.5
                                 if (vol <= 0.01) return "󰝟"
                                 if (vol < 0.33) return "󰕿"
                                 if (vol < 0.66) return "󰖀"
@@ -112,7 +114,7 @@ Item {
                             if (modelData === "brunoma.agents") return "󰚩"
                             if (modelData === "io.github.rawritude.floating-mode") return "󰍹"
                             if (modelData === "omarchy.weather") return "󰖐"
-                            return root ? root.getWidgetIcon(modelData, null) : "󰒓"
+                            return dockPanel ? dockPanel.getWidgetIcon(modelData, null) : "󰒓"
                         }
                         font.pixelSize: 17
                         font.family: Style.font.family
@@ -133,8 +135,8 @@ Item {
                                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
                                 return
                             }
-                            if (root && typeof root.toggleTrayWidget === "function") {
-                                root.toggleTrayWidget(modelData)
+                            if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayWidget === "function") {
+                                trayRoot.dockPanel.toggleTrayWidget(modelData)
                             } else {
                                 Util.execDetached("omarchy-shell shell toggle " + modelData)
                             }
@@ -159,6 +161,8 @@ Item {
                             return modelData
                         }
                         fontFamily: Style.font.family
+                        y: -implicitHeight - 25
+                        x: Math.round((parent.width - implicitWidth) / 2)
                     }
                 }
             }

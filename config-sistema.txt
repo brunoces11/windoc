@@ -442,3 +442,15 @@ Data: 14/10/2026. Estado: corrigido, implementado, testado e validado em tempo r
   * Atualização de `dock-settings.json`: inicialização com `"pinnedWidgets": []`, mantendo todos os widgets recolhidos dentro do menu da setinha por padrão.
   * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`), verificação de IPC com `quickshell ipc call rosakodu.dock ping` (retorno "ok") e zero erros no log do sistema.
 
+22. CORREÇÃO DE ESCOPO DO POPUP DO SYSTEM TRAY E OFFSET VERTICAL DE 25PX NO TOOLTIP
+Data: 14/10/2026. Estado: corrigido, validado e funcional.
+
+- Resolução do bloqueio de abertura do pop-up e ajuste de posicionamento do tooltip:
+  * Eliminação de sombreamento de escopo: removida a propriedade `property var root` interna de `SystemIconTray.qml` e `TrayOverflowPopup.qml`, padronizando o acesso direto via `dockPanel`, sanando o conflito onde a chamada `root.toggleTrayOverflow()` resolvia para `null`.
+  * Instanciação direta: substituído o `Loader` de `SystemIconTray` no `DockPanel.qml` por instanciação declarativa direta, eliminando erros de avaliação de tipo (`isTrayWidget of undefined`).
+  * Offset vertical de 25px no ToolTip: adicionada a propriedade `y: -implicitHeight - 25` e centralização horizontal `x: Math.round((parent.width - implicitWidth) / 2)` ao `PanelToolTip` do chevron e dos slots fixados, posicionando o balão de ajuda 25 pixels acima da barra de tarefas para nunca sobrepor o ícone ou texto.
+  * Correção do manipulador de teclas ESC: movido o evento `Keys.onEscapePressed` de `PanelWindow` para o elemento `Rectangle` (`card`) com `card.forceActiveFocus()`, garantindo fechamento limpo com a tecla ESC e eliminando advertências do Qt Quick.
+  * Expansão da área de clique do chevron: quando não há ícones fixados, a largura do botão é expandida para cobrir todo o slot de 24px, assegurando que o clique seja detectado com máxima facilidade.
+  * Métodos IPC adicionados: integrados `toggleTray()` e `openTraySettings()` no `IpcHandler` do dock para acionamento e diagnóstico via linha de comando.
+  * Validação técnica: shell reinicializado (`omarchy restart shell`), log limpo sem advertências e camadas validadas via `hyprctl layers` comprovando a criação e destruição reativa da superfície overlay `omarchy-dock-tray-overflow`.
+
