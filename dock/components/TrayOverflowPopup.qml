@@ -61,7 +61,7 @@ PanelWindow {
             action: function() {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.audio")
+                    dockPanel.toggleTrayWidget("omarchy.audio", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.audio")
                 }
@@ -81,7 +81,7 @@ PanelWindow {
             action: function() {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.network")
+                    dockPanel.toggleTrayWidget("omarchy.network", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.network")
                 }
@@ -97,7 +97,7 @@ PanelWindow {
             action: function() {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("brunoma.agents")
+                    dockPanel.toggleTrayWidget("brunoma.agents", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached("omarchy-shell shell toggle brunoma.agents")
                 }
@@ -110,10 +110,14 @@ PanelWindow {
             action: function() {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode")
+                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 } else {
                     Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
                 }
+            },
+            rightAction: function() {
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
+                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", dockPanel.systemTrayAnchorItem, Qt.RightButton)
             }
         },
         {
@@ -123,13 +127,21 @@ PanelWindow {
             action: function() {
                 overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("omarchy.weather")
-                } else {
-                    Util.execDetached("omarchy-notification-weather")
+                    dockPanel.toggleTrayWidget("omarchy.weather", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 }
             },
             rightAction: function() {
                 Util.execDetached("omarchy-notification-send \"$(omarchy-weather-status)\"")
+            }
+        },
+        {
+            id: "omarchy.monitor",
+            name: "Telas e Display",
+            icon: "󰍹",
+            action: function() {
+                overflowWindow.opened = false
+                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
+                    dockPanel.toggleTrayWidget("omarchy.monitor", dockPanel.systemTrayAnchorItem, Qt.LeftButton)
             }
         },
         {
@@ -241,7 +253,7 @@ PanelWindow {
                         id: itemMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
                         onClicked: function(mouse) {
                             if (mouse.button === Qt.RightButton && typeof modelData.rightAction === "function") {

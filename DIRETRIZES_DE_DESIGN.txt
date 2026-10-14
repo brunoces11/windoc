@@ -46,6 +46,10 @@
 #       um tooltip com "espaçamento padrão", deve-se aplicar o gap vertical de 6px
 #       em relação ao seu elemento interativo, garantindo zero sobreposição e
 #       alinhamento harmônico no eixo Y.
+#   * Painéis nativos de widgets:
+#       Ao ancorar um painel `KeyboardPanel` à bandeja, preservar `anchorItem` e
+#       o valor nativo `gap: Style.gapsOut`. Não substituir por offsets próprios;
+#       os 6px acima são o padrão de tooltip e não sobrescrevem o gap do painel.
 #
 # ==============================================================================
 # 3. CATÁLOGO DE COMPONENTES E DESIGN TOKENS

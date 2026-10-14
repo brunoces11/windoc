@@ -19,6 +19,7 @@ Item {
         if (widgetId === "brunoma.agents") return "Agentes de IA"
         if (widgetId === "io.github.rawritude.floating-mode") return "Modo Janela / Desktop"
         if (widgetId === "omarchy.weather") return "Previsão do Tempo"
+        if (widgetId === "omarchy.monitor") return "Telas e Display"
         return widgetId
     }
 
@@ -86,6 +87,7 @@ Item {
                         trayRoot.dockPanel.hideRightTooltip(chevronBtn)
                     }
                     if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayOverflow === "function") {
+                        trayRoot.dockPanel.systemTrayAnchorItem = trayRoot.parent || chevronBtn
                         trayRoot.dockPanel.toggleTrayOverflow()
                     }
                 }
@@ -130,6 +132,7 @@ Item {
                             if (modelData === "brunoma.agents") return "󰚩"
                             if (modelData === "io.github.rawritude.floating-mode") return "󰍹"
                             if (modelData === "omarchy.weather") return "󰖐"
+                            if (modelData === "omarchy.monitor") return "󰍹"
                             return dockPanel ? dockPanel.getWidgetIcon(modelData, null) : "󰒓"
                         }
                         font.pixelSize: 17
@@ -144,7 +147,7 @@ Item {
                         id: pinnedMouse
                         anchors.fill: parent
                         hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
                         onEntered: {
                             if (trayRoot.dockPanel && typeof trayRoot.dockPanel.showRightTooltip === "function") {
@@ -165,7 +168,7 @@ Item {
                                 return
                             }
                             if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayWidget === "function") {
-                                trayRoot.dockPanel.toggleTrayWidget(modelData)
+                                trayRoot.dockPanel.toggleTrayWidget(modelData, pinnedSlot, mouse.button)
                             } else {
                                 Util.execDetached("omarchy-shell shell toggle " + modelData)
                             }

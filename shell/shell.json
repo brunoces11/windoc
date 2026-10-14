@@ -29,9 +29,6 @@
           "id": "omarchy.bluetooth"
         },
         {
-          "id": "omarchy.monitor"
-        },
-        {
           "id": "omarchy.power"
         }
       ]

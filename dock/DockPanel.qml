@@ -855,9 +855,14 @@ Item {
         { id: "omarchy.network", name: "Rede e Conexões", icon: "󰖩", desc: "Wi-Fi, Ethernet e configurações de rede" },
         { id: "brunoma.agents", name: "Agentes de IA", icon: "󰚩", desc: "Consumo de créditos e limites dos modelos de IA" },
         { id: "io.github.rawritude.floating-mode", name: "Modo Janela / Desktop", icon: "󰍹", desc: "Alterna entre janelas flutuantes e ladrilhadas" },
-        { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" }
+        { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" },
+        { id: "omarchy.monitor", name: "Telas e Display", icon: "󰍹", desc: "Brilho, escala e configurações dos monitores" }
     ]
-    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "io.github.rawritude.floating-mode", "omarchy.weather"]
+    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "io.github.rawritude.floating-mode", "omarchy.weather", "omarchy.monitor"]
+    property string activeTrayPanelId: ""
+    property string pendingTrayPanelId: ""
+    property bool pendingFloatingSettings: false
+    property var systemTrayAnchorItem: null
 
     property bool systemTrayEnabled: true
     property var systemTrayPinnedWidgets: []
@@ -887,17 +892,59 @@ Item {
         }
     }
 
-    function toggleTrayWidget(widgetId) {
+    function closeActiveTrayPanel() {
+        var item = systemTrayPanelLoader.item
+        if (!item) return
+        if (typeof item.close === "function") item.close()
+        else if (item.panel && typeof item.panel.close === "function") item.panel.close()
+    }
+
+    function toggleTrayWidget(widgetId, anchorItem, button) {
         if (widgetId === "io.github.rawritude.floating-mode") {
+            if (button === Qt.RightButton) {
+                root.systemTrayAnchorItem = anchorItem || root.systemTrayAnchorItem
+                root.pendingFloatingSettings = true
+                floatingModeTrayLoader.active = true
+                floatingModeTrayLoader.source = root.getWidgetSource(widgetId)
+                if (floatingModeTrayLoader.item) {
+                    root.configureHostedWidget(floatingModeTrayLoader.item, widgetId, root.systemTrayAnchorItem)
+                    floatingModeTrayLoader.item.settingsOpen = true
+                    root.pendingFloatingSettings = false
+                }
+                return true
+            }
             Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
             return true
         }
-        if (widgetId === "omarchy.weather") {
-            Util.execDetached("omarchy-notification-weather")
+        if (!widgetId || widgetId === "tray.settings") return false
+        var anchor = anchorItem || root.systemTrayAnchorItem
+        if (anchor) root.systemTrayAnchorItem = anchor
+        if (root.activeTrayPanelId === widgetId && systemTrayPanelLoader.item) {
+            root.activateWidget(widgetId, systemTrayPanelLoader.item, anchor, { button: button || Qt.LeftButton })
             return true
         }
-        Util.execDetached("omarchy-shell shell toggle " + widgetId)
+        root.closeActiveTrayPanel()
+        root.activeTrayPanelId = ""
+        root.pendingTrayPanelId = widgetId
+        var comp = root.getWidgetComponent(widgetId)
+        if (comp) {
+            systemTrayPanelLoader.source = ""
+            systemTrayPanelLoader.sourceComponent = comp
+        } else {
+            systemTrayPanelLoader.sourceComponent = null
+            systemTrayPanelLoader.source = root.getWidgetSource(widgetId)
+        }
+        systemTrayPanelLoader.active = true
         return true
+    }
+
+    function activatePendingTrayPanel() {
+        var item = systemTrayPanelLoader.item
+        var widgetId = root.pendingTrayPanelId
+        if (!item || !widgetId) return
+        root.activeTrayPanelId = widgetId
+        root.pendingTrayPanelId = ""
+        root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton })
     }
 
     function toggleSystemTrayPin(widgetId) {
@@ -3807,6 +3854,28 @@ Item {
         id: trayOverflowPopup
         dockPanel: root
         dockWindow: root ? root.dockWindow : null
+    }
+
+    Loader {
+        id: systemTrayPanelLoader
+        active: false
+        onLoaded: root.activatePendingTrayPanel()
+    }
+
+    Loader {
+        id: floatingModeTrayLoader
+        active: false
+        opacity: 0
+        x: root.systemTrayAnchorItem ? root.systemTrayAnchorItem.mapToItem(root, 0, 0).x : 0
+        y: root.systemTrayAnchorItem ? root.systemTrayAnchorItem.mapToItem(root, 0, 0).y : 0
+        width: root.systemTrayAnchorItem ? root.systemTrayAnchorItem.width : root.slotSize
+        height: root.systemTrayAnchorItem ? root.systemTrayAnchorItem.height : root.slotSize
+        onLoaded: {
+            if (!item) return
+            root.configureHostedWidget(item, "io.github.rawritude.floating-mode", root.systemTrayAnchorItem)
+            if (root.pendingFloatingSettings && "settingsOpen" in item) item.settingsOpen = true
+            root.pendingFloatingSettings = false
+        }
     }
 
     // 5. Autohide Edge Trigger — thin invisible strip at screen edge, activates dock reveal

@@ -1,9 +1,9 @@
 # Omarchy Dock
 
-> **WinDoc — planejamento:** a próxima entrega é somente o ícone base da System
-> Icon Tray, minimalista, na posição atual do ícone de previsão do tempo.
-> Implementação pendente; consulte o [plano central](../system_icon_tray_plan.md).
-> A documentação abaixo descreve a base do plugin.
+> **WinDoc:** o plugin inclui uma System Icon Tray na barra de tarefas inferior.
+> Ela reúne os widgets de sistema selecionados e abre seus painéis nativos a partir
+> do slot da bandeja. Consulte o [plano central](../system_icon_tray_plan.md) para
+> o estado atualizado e as decisões de integração.
 
 ![Omarchy Dock](./preview.png)
 

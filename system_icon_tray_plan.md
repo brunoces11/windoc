@@ -1,4 +1,24 @@
-# System Icon Tray — base minimalista em duas etapas
+# System Icon Tray — plano e histórico de implementação
+
+> **Estado atual (14/10/2026):** o escopo minimalista e as instruções de suas
+> etapas abaixo foram supersedidos pela implementação funcional. O pedido mais
+> recente exige retirar `omarchy.monitor` da barra superior e abrir os painéis
+> nativos dos ícones da bandeja. A bandeja de apps de terceiros (`omarchy.tray`)
+> permanece separada. Use este bloco como estado vigente; os registros antigos
+> abaixo explicam decisões anteriores, mas não são instruções de execução atuais.
+>
+> **Integração vigente:** `DockPanel.qml` carrega sob demanda um painel nativo por
+> vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` no slot da bandeja. O
+> espaçamento do painel continua sendo o nativo `Style.gapsOut`; o tooltip mantém
+> seu próprio padrão de 6px. O display está disponível na lista e no overflow e
+> pode ser fixado pelo modal. O ícone de modo de janela mantém a ação de alternar
+> no clique esquerdo e abre suas configurações no clique direito.
+>
+> **Validação desta revisão:** shell reiniciado sem erros QML; popup de overflow
+> e modal abriram e fecharam via IPC, e as camadas foram confirmadas em runtime.
+> Os caminhos de acionamento dos painéis foram auditados contra suas APIs nativas;
+> a sessão não oferece ferramenta de clique de ponteiro para testar cada ícone
+> visualmente. Essa limitação não substitui a validação manual dos cliques.
 
 Atualizado em 14/10/2026. Estado: diretrizes documentadas; etapas 1 e 2 pendentes.
 Referência única para o agente executor. Esta revisão é exclusivamente documental.

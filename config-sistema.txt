@@ -514,3 +514,30 @@ Data: 14/10/2026. Estado: formalizado, documentado e sincronizado.
   * Nomenclatura em Caixa Alta: o nome do arquivo deve ser integralmente em letras MAIÚSCULAS (UPPERCASE).
   * Separador Exclusivo: proibição de espaços e hífens (`-`), exigindo o sublinhado/underline (`_`) como separador exclusivo entre palavras.
   * Extensão Padrão: formato `.txt` por padrão, com admissão de `.md` quando justificado contextualmente, ou qualquer outra extensão técnica expressamente indicada pelo usuário (ex: `.json`, `.qml`, `.sh`).
+
+
+28. CORREÇÃO DE CLIQUES E MIGRAÇÃO DO DISPLAY PARA A SYSTEM ICON TRAY
+Data: 14/10/2026. Estado: implementado; shell e popups validados em runtime.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/SystemIconTray.qml`,
+  `dock/components/TrayOverflowPopup.qml`, `shell/shell.json`, `README.md`,
+  `dock/README.md`, `system_icon_tray_plan.md` e `DIRETRIZES_DE_DESIGN.txt`.
+- Antes: `omarchy.monitor` permanecia na barra superior; cliques da bandeja
+  chamavam `omarchy-shell shell toggle`, que não encontra painéis removidos do
+  layout da barra. Clima também abria notificação em vez do painel de previsão.
+- Depois: display removido da barra superior e incluído no catálogo, overflow e
+  modal de fixação. Os painéis de áudio, rede, agentes, clima e display passam a
+  ser carregados sob demanda e acionados pelo slot da bandeja, preservando a
+  âncora nativa e `KeyboardPanel.gap` padrão. Floating Mode mantém o comando real
+  de alternância no clique esquerdo e usa o painel de configurações no direito.
+- Outros comportamentos: clique direito de áudio mantém mute; ações rápidas
+  próprias do overflow são preservadas. A bandeja `omarchy.tray` de aplicativos
+  externos não foi alterada.
+- Verificações: `shell.json` parseado como JSON válido; `git diff --check`
+  aprovado; `omarchy restart shell` retornou 0; a camada `omarchy-dock` permaneceu
+  ativa; overflow e modal abriram/fecharam via IPC e foram confirmados em
+  `hyprctl layers`. Logs da nova instância sem erros QML. Os APIs `toggle()` dos
+  painéis nativos e o `KeyboardPanel.gap` padrão foram conferidos no código.
+- Limitação: não há ferramenta de clique de ponteiro nesta sessão; os cliques
+  individuais não foram exercitados por mouse sintético e ainda podem ser
+  conferidos visualmente pelo usuário.

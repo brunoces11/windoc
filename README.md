@@ -22,17 +22,19 @@ Um "Windows slim e turbinado", construído sobre o Omarchy.
 
 ---
 
-## Próxima evolução: System Icon Tray
+## System Icon Tray
 
-Escopo revisado em 14/10/2026; implementação pendente. A entrega consiste apenas
-no ícone base da System Icon Tray, em versão minimalista, exatamente na posição
-atual do ícone de previsão do tempo na barra inferior.
+A bandeja fica na barra inferior, no espaço reservado à direita junto ao relógio.
+Ela agrupa os widgets de áudio, rede, consumo de agentes, modo de janela, clima e
+display. Os itens fixados aparecem na barra; os demais ficam no overflow em grade,
+com configurações acessíveis pelo ícone de engrenagem. Os painéis nativos são
+abertos a partir da bandeja com sua âncora no slot inferior e o espaçamento padrão
+do componente `KeyboardPanel`.
 
-O [plano central](system_icon_tray_plan.md) registra essa entrega única e substitui
-a divisão anterior em camadas. A execução está organizada em duas etapas:
-**preparação técnica** e **implementação com validação**, cada uma com diretrizes
-visuais e de código baseadas nos componentes existentes. Funcionalidades adicionais
-dependem de nova definição de escopo.
+O ícone `omarchy.monitor` não deve permanecer na barra superior. A bandeja de
+aplicativos de terceiros (`omarchy.tray`) permanece independente. Consulte o
+[plano central](system_icon_tray_plan.md) para o estado atualizado e as decisões
+de integração.
 
 ---
 
