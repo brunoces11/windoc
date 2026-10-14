@@ -864,11 +864,10 @@ Item {
         { id: "omarchy.audio", name: "Volume e Áudio", icon: "󰕾", desc: "Dispositivos de áudio e controle de volume" },
         { id: "omarchy.network", name: "Rede e Conexões", icon: "󰖩", desc: "Wi-Fi, Ethernet e configurações de rede" },
         { id: "brunoma.agents", name: "Agentes de IA", icon: "󰚩", desc: "Consumo de créditos e limites dos modelos de IA" },
-        { id: "io.github.rawritude.floating-mode", name: "Modo Janela / Desktop", icon: "󰍹", desc: "Alterna entre janelas flutuantes e ladrilhadas" },
         { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" },
         { id: "omarchy.monitor", name: "Telas e Display", icon: "󰍹", desc: "Brilho, escala e configurações dos monitores" }
     ]
-    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "io.github.rawritude.floating-mode", "omarchy.weather", "omarchy.monitor"]
+    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "omarchy.weather", "omarchy.monitor"]
     property string activeTrayPanelId: ""
     property string pendingTrayPanelId: ""
     property bool pendingFloatingSettings: false
@@ -1009,6 +1008,7 @@ Item {
     }
 
     function toggleSystemTrayPin(widgetId) {
+        if (!widgetId || root.allSystemTrayWidgetIds.indexOf(widgetId) === -1) return
         var current = (root.systemTrayPinnedWidgets || []).slice()
         var idx = current.indexOf(widgetId)
         if (idx !== -1) {
@@ -1273,7 +1273,17 @@ Item {
                 if (s.systemTray !== undefined && typeof s.systemTray === "object") {
                     if (s.systemTray.enabled !== undefined) root.systemTrayEnabled = (s.systemTray.enabled === true)
                     if (s.systemTray.pinnedWidgets !== undefined && Array.isArray(s.systemTray.pinnedWidgets)) {
-                        root.systemTrayPinnedWidgets = s.systemTray.pinnedWidgets.slice()
+                        var rawPinned = s.systemTray.pinnedWidgets.slice()
+                        var validPinned = []
+                        var seenPinned = {}
+                        for (var p = 0; p < rawPinned.length; p++) {
+                            var pid = rawPinned[p]
+                            if (pid && root.allSystemTrayWidgetIds.indexOf(pid) !== -1 && !seenPinned[pid]) {
+                                seenPinned[pid] = true
+                                validPinned.push(pid)
+                            }
+                        }
+                        root.systemTrayPinnedWidgets = validPinned
                     }
                     if (s.systemTray.showDesktopButton !== undefined) {
                         root.showDesktopButtonEnabled = (s.systemTray.showDesktopButton === true)

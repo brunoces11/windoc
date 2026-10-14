@@ -52,8 +52,12 @@ PanelWindow {
         }
     }
 
-    // List of Tray Items: All available system widgets + Settings Gear
-    readonly property var trayItems: [
+    readonly property var pinnedWidgets: (dockPanel && dockPanel.systemTrayPinnedWidgets && Array.isArray(dockPanel.systemTrayPinnedWidgets))
+        ? dockPanel.systemTrayPinnedWidgets
+        : []
+
+    // Full catalog of available tray items (Display widget is omarchy.monitor; settings is tray.settings)
+    readonly property var allTrayItems: [
         {
             id: "omarchy.audio",
             name: "Volume e Áudio",
@@ -104,24 +108,6 @@ PanelWindow {
             }
         },
         {
-            id: "io.github.rawritude.floating-mode",
-            name: "Modo Janela / Desktop",
-            icon: "󰍹",
-            action: function(anchorItem) {
-                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
-                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
-                } else {
-                    Util.execDetached(Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/bin/floating-mode toggle")
-                }
-                overflowWindow.opened = false
-            },
-            rightAction: function(anchorItem) {
-                if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
-                    dockPanel.toggleTrayWidget("io.github.rawritude.floating-mode", anchorItem || dockPanel.systemTrayAnchorItem, Qt.RightButton)
-                overflowWindow.opened = false
-            }
-        },
-        {
             id: "omarchy.weather",
             name: "Previsão do Tempo",
             icon: "󰖐",
@@ -158,9 +144,29 @@ PanelWindow {
         }
     ]
 
+    // Mutual Exclusion & Deduplication Rule:
+    // Any widget pinned/visible on the taskbar is strictly excluded from the overflow popup.
+    // In addition, duplicate item IDs are deterministically ignored.
+    readonly property var trayItems: {
+        var list = []
+        var seen = {}
+        var pinned = pinnedWidgets || []
+        for (var i = 0; i < allTrayItems.length; i++) {
+            var item = allTrayItems[i]
+            if (!item || !item.id) continue
+            if (seen[item.id]) continue
+            seen[item.id] = true
+            if (item.id !== "tray.settings" && pinned.indexOf(item.id) !== -1) {
+                continue
+            }
+            list.push(item)
+        }
+        return list
+    }
+
     readonly property int totalItems: trayItems.length
-    readonly property int gridCols: Math.min(totalItems, 5)
-    readonly property int gridRows: Math.ceil(totalItems / 5)
+    readonly property int gridCols: Math.max(1, Math.min(totalItems, 5))
+    readonly property int gridRows: Math.max(1, Math.ceil(totalItems / gridCols))
 
     // The Floating Acrylic Popup Card
     Rectangle {

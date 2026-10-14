@@ -595,3 +595,29 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso (código 0, PID ativo, zero erros QML);
   * Camada `omarchy-dock` e pop-up de overflow abertos e fechados via IPC com confirmação em `hyprctl layers`.
+
+
+31. EXCLUSÃO MÚTUA TASKBAR VS. OVERFLOW POP-UP E DESDUPLICAÇÃO DE ÍCONES DA BANDEJA
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`,
+  `dock/components/SystemIconTray.qml`, `AGENTS.md` e `config-sistema.txt`.
+- Motivação e Objetivos:
+  1. Eliminar redundância visual: ícones fixados/visíveis na barra de tarefas (taskbar)
+     não devem aparecer duplicados dentro do pop-up de overflow (^). O pop-up passa
+     a exibir estritamente os ícones ocultos, mais o atalho de configurações da bandeja.
+  2. Remoção do ícone duplicado de monitor: eliminada a duplicação entre o modo
+     desktop/janela (`io.github.rawritude.floating-mode`) e a tela de configuração
+     de display/resolução/texto (`omarchy.monitor`), mantendo exclusivamente o
+     widget nativo oficial de monitores (`omarchy.monitor`).
+  3. Regra Determinística de Não Duplicação: garantia em código de que nenhum ícone
+     possa ser renderizado em duplicidade (verificação `seen[item.id]` e filtro
+     estrito de `pinnedWidgets`). Se fixado na barra, é omitido do pop-up; se desfixado,
+     reaparece automaticamente no overflow.
+  4. Nova Diretiva Mandatória: inclusão da REGRA 8 no `AGENTS.md` para proibir
+     terminantemente a duplicidade de ícones e assegurar exclusão mútua em
+     quaisquer futuras extensões da bandeja.
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso e camadas recarregadas.

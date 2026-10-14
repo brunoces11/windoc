@@ -88,11 +88,14 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 4. **Extensão Padrão**: O formato e extensão padrão oficial é `.txt`. Caso aplicável ou justificado pelo contexto, poderá ser `.md`, ou qualquer outra extensão técnica expressamente requisitada pelo usuário (ex: `.json`, `.qml`, `.sh`).
 *(Exemplos de conformidade: `DIRETRIZES_DE_DESIGN.txt`, `MAPA_DE_ENTIDADES.txt`, `REGRAS_DE_ESTILO.md`).*
 
+### REGRA 8: Exclusão Mútua e Não Duplicação de Ícones da System Tray (OBRIGATÓRIO)
+> **MUITO IMPORTANTE:** É terminantemente proibida a duplicação de ícones na interface: qualquer ícone fixado ou exposto na barra de tarefas (taskbar) deve ser automaticamente omitido do pop-up de overflow (^), exibindo na pop-up exclusivamente os ícones não visíveis na barra, mantendo unicidade funcional e visual absoluta no sistema.
+
 ## 4. Status vigente: System Icon Tray
 
-A feature **System Icon Tray** foi planejada, implementada e validada em tempo real com máxima precisão (commit `c31d566` e registro em `system_icon_tray_plan.md`).
-- **Cápsula na barra**: Chevron expansível (`^`) + ícones fixados nominais (Network, Audio).
-- **Pop-up em Grid (5 colunas)**: Abre acima da bandeja com quebra automática de linha a partir do 6º ícone e botão de configurações (`⚙`).
-- **Modal de Configurações**: Janela centralizada com switches/checkboxes reativos para gerenciar os 5 widgets da bandeja em tempo real.
+A feature **System Icon Tray** foi planejada, implementada e validada em tempo real com máxima precisão:
+- **Cápsula na barra**: Chevron expansível (`^`) + ícones fixados nominais (Network, Audio, etc.).
+- **Pop-up em Grid**: Abre acima da bandeja exibindo estritamente os ícones ocultos (não visíveis na barra) + botão de configurações (`⚙`), sem qualquer duplicação.
+- **Modal de Configurações**: Janela centralizada com switches/checkboxes reativos para gerenciar os 5 widgets da bandeja (Áudio, Rede, Agentes IA, Clima, Telas/Display) em tempo real.
 - **Show Desktop**: Botão retangular no extremo direito acionando alternância limpa no Hyprland (`hl.dsp.workspace.toggle_special`).
 - **Estado atual**: Implementado, operacional e validado em runtime. Consulte [`system_icon_tray_plan.md`](system_icon_tray_plan.md) para o histórico das etapas.

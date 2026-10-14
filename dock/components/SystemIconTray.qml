@@ -27,7 +27,6 @@ Item {
         if (widgetId === "omarchy.audio") return "Volume e Áudio"
         if (widgetId === "omarchy.network") return "Rede e Conexões"
         if (widgetId === "brunoma.agents") return "Agentes de IA"
-        if (widgetId === "io.github.rawritude.floating-mode") return "Modo Janela / Desktop"
         if (widgetId === "omarchy.weather") return "Previsão do Tempo"
         if (widgetId === "omarchy.monitor") return "Telas e Display"
         return widgetId
@@ -139,7 +138,6 @@ Item {
                             }
                             if (modelData === "omarchy.network") return "󰖩"
                             if (modelData === "brunoma.agents") return "󰚩"
-                            if (modelData === "io.github.rawritude.floating-mode") return "󰍹"
                             if (modelData === "omarchy.weather") return "󰖐"
                             if (modelData === "omarchy.monitor") return "󰍹"
                             return dockPanel ? dockPanel.getWidgetIcon(modelData, null) : "󰒓"
