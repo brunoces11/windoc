@@ -11,6 +11,8 @@
     "chrome-fhihpiojkbmbpdjeoajapmgkhlnakfjf-Default",
     "chromium",
     "kitty",
-    "com.obsproject.Studio"
+    "com.obsproject.Studio",
+    "org.kde.kdenlive",
+    "org.shotcut.Shotcut"
   ]
 }

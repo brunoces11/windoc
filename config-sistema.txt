@@ -793,3 +793,17 @@ Data: 14/10/2026. Estado: corrigido, calibrado, testado e validado em runtime.
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso;
   * IPC validado via `omarchy-shell rosakodu.dock toggleTray`.
+
+
+15. INSTALAÇÃO E FIXAÇÃO DE EDITORES DE VÍDEO (KDENLIVE E SHOTCUT)
+Data: 14/10/2026. Estado: configurado e validado.
+
+- Instalação e verificação dos pacotes oficiais no Arch Linux / Omarchy:
+  * Kdenlive (`org.kde.kdenlive`, versão 26.08.0): já estava instalado no sistema.
+  * Shotcut (`org.shotcut.Shotcut`, versão 26.8.1): instalado via pacman com
+    suas dependências de runtime (eigen, movit, ladspa, qt6-charts, qt6-websockets).
+- Fixação dos dois aplicativos na barra inferior (WinDoc):
+  * Adicionados os identificadores `org.kde.kdenlive` e `org.shotcut.Shotcut`
+    à lista persistente de favoritos em `~/Desktop/windoc/shell/dock-pinned.json`
+    (refletido em `~/.config/omarchy/dock-pinned.json` via symlink).
+  * Executado `omarchy restart shell` para recarregar a barra com os novos ícones.
