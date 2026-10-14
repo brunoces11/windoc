@@ -749,3 +749,21 @@ Data: 14/10/2026. Estado: instalado, fixado, validado e operacional em runtime.
   * Verificado o funcionamento do IPC do dock via `quickshell --path /usr/share/omarchy/shell ipc call rosakodu.dock ping` (resposta: "ok").
   * Ícone fixo e responsivo na barra de tarefas inferior.
 
+
+38. INSTALAÇÃO DO CLAUDE DESKTOP (CLAUDE CODE) E FIXAÇÃO DO ÍCONE NA BARRA DE TAREFAS (DOCK)
+Data: 14/10/2026. Estado: instalado, fixado, validado e operacional em runtime.
+
+- Identificação e Instalação do Pacote Oficial:
+  * Identificado o pacote oficial `claude-desktop` (v2.31226.1-1, "Official Claude desktop app with Claude Code") disponibilizado diretamente pelo repositório `omarchy`.
+  * Instalação efetuada com sucesso via `sudo pacman -S --noconfirm claude-desktop`.
+  * Verificado o binário em `/usr/bin/claude-desktop` e a entrada desktop oficial em `/usr/share/applications/com.anthropic.Claude.desktop`.
+- Fixação do Ícone na Barra Inferior (WinDoc Taskbar):
+  * Arquivo afetado: `shell/dock-pinned.json`.
+  * Adicionado `"com.anthropic.Claude"` à lista de aplicativos fixados (`pinned`), posicionado no grupo de ferramentas de desenvolvimento e IA (junto a VSCode e Orca IDE).
+  * O ícone oficial (`/usr/share/icons/hicolor/128x128/apps/claude-desktop.png`) foi resolvido e carregado pela dock.
+- Validação Técnica e Runtime:
+  * Executado `omarchy restart shell` para recarregar o Quickshell.
+  * Verificado o funcionamento do IPC do dock via `quickshell --path /usr/share/omarchy/shell ipc call rosakodu.dock ping` (resposta: "ok").
+  * Ícone fixo e responsivo na barra de tarefas inferior.
+
+
