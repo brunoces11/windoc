@@ -504,3 +504,13 @@ Data: 14/10/2026. Estado: criado, formalizado, documentado e sincronizado.
 - Atualização das Regras de Negócio (`AGENTS.md`):
   * Adicionado o arquivo `DIRETRIZES_DE_DESIGN.txt` na árvore oficial da estrutura centralizada de arquivos.
   * Inserida a "REGRA 6: Observância e Registro em DIRETRIZES_DE_DESIGN.txt (OBRIGATÓRIO)", tornando mandatória a consulta prévia e a catalogação de quaisquer novas diretrizes de design ou variantes de estilos solicitadas pelo usuário.
+
+
+27. FORMALIZAÇÃO DA REGRA 7 NO AGENTS.MD: PADRÃO MANDATÓRIO DE CRIAÇÃO E NOMENCLATURA DE NOVOS ARQUIVOS
+Data: 14/10/2026. Estado: formalizado, documentado e sincronizado.
+
+- Inclusão da REGRA 7 nas diretrizes de agentes (`AGENTS.md`):
+  * Local Padrão: caso o usuário não informe explicitamente o caminho, o arquivo deve ser criado por padrão na raiz do projeto (`~/Desktop/windoc/`).
+  * Nomenclatura em Caixa Alta: o nome do arquivo deve ser integralmente em letras MAIÚSCULAS (UPPERCASE).
+  * Separador Exclusivo: proibição de espaços e hífens (`-`), exigindo o sublinhado/underline (`_`) como separador exclusivo entre palavras.
+  * Extensão Padrão: formato `.txt` por padrão, com admissão de `.md` quando justificado contextualmente, ou qualquer outra extensão técnica expressamente indicada pelo usuário (ex: `.json`, `.qml`, `.sh`).

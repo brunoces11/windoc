@@ -80,6 +80,14 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 * **Consulta Obrigatória**: Toda vez que o usuário solicitar uma alteração visual, de layout, de espaçamento ou fizer referência a um padrão registrado (ex: "espaçamento padrão", "janela X", "janela Y"), o agente DEVE consultar `DIRETRIZES_DE_DESIGN.txt` e aplicar rigorosamente os valores e convenções ali estabelecidos.
 * **Registro de Novos Padrões e Variantes**: Toda vez que o usuário solicitar uma modificação de design e pedir para registrá-la ou acordar um novo padrão (ex: novas dimensões, regras de janela com cores/outlines/paddings específicos, novas variantes), o agente DEVE documentar e atualizar imediatamente o arquivo `DIRETRIZES_DE_DESIGN.txt`.
 
+### REGRA 7: Padrão Mandatório de Criação e Nomenclatura de Novos Arquivos (OBRIGATÓRIO)
+> **MUITO IMPORTANTE:** Toda vez que o usuário solicitar a criação de um novo arquivo, ou o agente identificar a necessidade de criá-lo, devem ser observadas rigorosamente as seguintes diretivas:
+1. **Local Padrão (Raiz)**: Caso o usuário não indique expressamente o diretório de destino, o arquivo DEVE ser criado diretamente na raiz do projeto (`~/Desktop/windoc/`).
+2. **Nomenclatura em Caixa Alta**: O nome do arquivo deve ser redigido inteiramente em letras MAIÚSCULAS (UPPERCASE).
+3. **Separador Obrigatório**: Utilizar exclusivamente o caractere underline (`_`) como separador entre palavras. É proibido o uso de espaços em branco ou hífens (`-`).
+4. **Extensão Padrão**: O formato e extensão padrão oficial é `.txt`. Caso aplicável ou justificado pelo contexto, poderá ser `.md`, ou qualquer outra extensão técnica expressamente requisitada pelo usuário (ex: `.json`, `.qml`, `.sh`).
+*(Exemplos de conformidade: `DIRETRIZES_DE_DESIGN.txt`, `MAPA_DE_ENTIDADES.txt`, `REGRAS_DE_ESTILO.md`).*
+
 ## 4. Status vigente: System Icon Tray
 
 A feature **System Icon Tray** foi planejada, implementada e validada em tempo real com máxima precisão (commit `c31d566` e registro em `system_icon_tray_plan.md`).
