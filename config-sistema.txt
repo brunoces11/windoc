@@ -389,3 +389,30 @@ Data: 14/10/2026. Estado: protocolo sequencial registrado; execução pendente.
 - AGENTS.md aponta para o gate obrigatório. Status atual: etapa 1 PENDENTE;
   etapa 2 BLOQUEADA. Nenhum código ou configuração ativa foi alterado.
 - Verificação documental: estrutura do gate, campos de estado, referências e diff.
+
+
+19. IMPLEMENTAÇÃO DO SYSTEM ICON TRAY & BARRA DE TAREFAS ESTILO WINDOWS 10/11
+Data: 14/10/2026. Estado: implementado, funcional e validado em tempo real.
+
+- Implementação completa do System Icon Tray na barra de tarefas inferior (Dock)
+  do WinDoc, emulando fielmente o comportamento e a ergonomia do Windows 10/11:
+  * Criado o componente `dock/components/SystemIconTray.qml`: cápsula horizontal com
+    botão chevron expansível (`^`), ícones fixados (pinned) com repasse de eventos do mouse
+    e suporte a rolagem para controle de volume (`wpctl`).
+  * Pop-up expansível com animação de subida e grid adaptativo de 5 colunas que
+    quebra automaticamente em novas linhas a partir do 6º item, acompanhado do
+    botão dedicado de configurações (`⚙`).
+  * Criado o componente `dock/components/SystemTraySettingsModal.qml`: janela modal
+    centralizada na tela com estética Windows 11 Fluent, permitindo ao usuário marcar
+    via switches/checkboxes quais ícones ficam fixados na barra e quais ficam ocultos no pop-up.
+  * Criado o botão "Show Desktop" no canto extremo direito após o relógio, com fatia
+    vertical estreita e acionamento do Hyprland (`hl.dsp.workspace.toggle_special`).
+  * Atualizado `dock/DockPanel.qml`: remoção da trava restritiva de `slice(0, 2)`,
+    suporte a larguras dinâmicas para Tray, Relógio e Desktop, instanciação sob demanda
+    via Loader e persistência reativa em `dock-settings.json`.
+  * Atualizado `shell/shell.json`: remoção coordenada dos widgets da barra superior
+    (`omarchy.audio`, `omarchy.network`, `brunoma.agents`, `io.github.rawritude.floating-mode`)
+    para evitar redundância ou duplicidade de instâncias.
+  * Validação técnica: reinicialização do shell executada com sucesso (`omarchy restart shell`),
+    sem erros de QML registrados no journalctl e com total estabilidade.
+

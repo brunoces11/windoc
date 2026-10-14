@@ -14,5 +14,13 @@
     "omarchy.weather"
   ],
   "windowsTaskbarMode": true,
-  "taskbarAppAlignment": "center"
+  "taskbarAppAlignment": "center",
+  "systemTray": {
+    "enabled": true,
+    "pinnedWidgets": [
+      "omarchy.network",
+      "omarchy.audio"
+    ],
+    "showDesktopButton": true
+  }
 }

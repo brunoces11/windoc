@@ -848,10 +848,71 @@ Item {
 
     readonly property var widgetLayout: DockModel.getDockWidgetLayout(root.showAppMenu, root.appMenuPosition, root.widgetsEnabled, root.dockWidgets, root.widgetPosition)
     readonly property var leftWidgetsList: widgetLayout.leftWidgets || []
+    readonly property var allSystemTrayWidgets: [
+        { id: "omarchy.audio", name: "Volume e Áudio", icon: "󰕾", desc: "Dispositivos de áudio e controle de volume" },
+        { id: "omarchy.network", name: "Rede e Conexões", icon: "󰖩", desc: "Wi-Fi, Ethernet e configurações de rede" },
+        { id: "brunoma.agents", name: "Agentes de IA", icon: "󰚩", desc: "Consumo de créditos e limites dos modelos de IA" },
+        { id: "io.github.rawritude.floating-mode", name: "Modo Janela / Desktop", icon: "󰍹", desc: "Alterna entre janelas flutuantes e ladrilhadas" },
+        { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" }
+    ]
+    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "io.github.rawritude.floating-mode", "omarchy.weather"]
+
+    property bool systemTrayEnabled: true
+    property var systemTrayPinnedWidgets: ["omarchy.network", "omarchy.audio"]
+    property bool showDesktopButtonEnabled: true
+
+    function isTrayWidget(widgetId) {
+        return widgetId === "taskbar.tray"
+    }
+
+    function isDesktopWidget(widgetId) {
+        return widgetId === "taskbar.desktop"
+    }
+
+    readonly property real desktopSlotWidth: 10
+    readonly property real traySlotWidth: {
+        var count = (root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets)) ? root.systemTrayPinnedWidgets.length : 2
+        return 20 + (count * 28) + (count * 2) + 4
+    }
+
+    function toggleSystemTrayPin(widgetId) {
+        var current = (root.systemTrayPinnedWidgets || []).slice()
+        var idx = current.indexOf(widgetId)
+        if (idx !== -1) {
+            current.splice(idx, 1)
+        } else {
+            current.push(widgetId)
+        }
+        root.systemTrayPinnedWidgets = current
+        root.saveSettings()
+    }
+
+    function openSystemTraySettings() {
+        if (typeof systemTraySettingsModal !== "undefined" && systemTraySettingsModal) {
+            systemTraySettingsModal.opened = true
+        }
+    }
+
     readonly property var rightWidgetsList: {
-        var widgets = (widgetLayout.rightWidgets || []).slice()
-        if (root.windowsTaskbarMode && !root.isVertical && widgets.indexOf("taskbar.clock") === -1) {
-            widgets.push("taskbar.clock")
+        var rawWidgets = (widgetLayout.rightWidgets || []).slice()
+        var widgets = []
+        var trayManaged = (root.windowsTaskbarMode && root.systemTrayEnabled) ? root.allSystemTrayWidgetIds : []
+        for (var i = 0; i < rawWidgets.length; i++) {
+            var wid = rawWidgets[i]
+            if (trayManaged.indexOf(wid) === -1 && wid !== "taskbar.clock" && wid !== "taskbar.tray" && wid !== "taskbar.desktop") {
+                widgets.push(wid)
+            }
+        }
+        if (root.windowsTaskbarMode && !root.isVertical) {
+            if (root.systemTrayEnabled && widgets.indexOf("taskbar.tray") === -1) {
+                widgets.push("taskbar.tray")
+            }
+            if (widgets.indexOf("taskbar.clock") === -1) {
+                widgets.push("taskbar.clock")
+            }
+            if (root.showDesktopButtonEnabled && widgets.indexOf("taskbar.desktop") === -1) {
+                widgets.push("taskbar.desktop")
+            }
         }
         return widgets
     }
@@ -881,6 +942,15 @@ Item {
         ? Math.max(root.slotSize, clockMetrics.advanceWidth + 24)
         : root.slotSize
 
+    function getRightWidgetDimension(id) {
+        if (!root.isVertical) {
+            if (root.isClockWidget(id)) return root.clockSlotWidth
+            if (root.isTrayWidget(id)) return root.traySlotWidth
+            if (root.isDesktopWidget(id)) return root.desktopSlotWidth
+        }
+        return root.slotSize
+    }
+
     function getLeftWidgetOffset(index) {
         var offset = 0
         for (var i = 0; i < index; i++) {
@@ -895,8 +965,7 @@ Item {
         var offset = 0
         for (var i = 0; i < index; i++) {
             var id = root.rightWidgetsList[i]
-            var dim = (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
-            offset += dim
+            offset += root.getRightWidgetDimension(id)
         }
         return offset
     }
@@ -916,7 +985,7 @@ Item {
         var total = 0
         for (var i = 0; i < rightWidgetsList.length; i++) {
             var id = rightWidgetsList[i]
-            total += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+            total += root.getRightWidgetDimension(id)
         }
         return total
     }
@@ -1045,7 +1114,7 @@ Item {
                     if (!root.widgetsEnabled) {
                         root.dockWidgets = []
                     } else {
-                        var newDockWidgets = s.dockWidgets.slice(0, 2)
+                        var newDockWidgets = s.dockWidgets.slice()
                         var oldDockWidgets = Array.isArray(root.dockWidgets) ? root.dockWidgets.slice() : []
                         var removedWidgets = []
                         for (var owi = 0; owi < oldDockWidgets.length; owi++) {
@@ -1067,6 +1136,15 @@ Item {
                     }
                 } else if (root.widgetsEnabled) {
                     root.dockWidgets = ["omarchy.apps"]
+                }
+                if (s.systemTray !== undefined && typeof s.systemTray === "object") {
+                    if (s.systemTray.enabled !== undefined) root.systemTrayEnabled = (s.systemTray.enabled === true)
+                    if (s.systemTray.pinnedWidgets !== undefined && Array.isArray(s.systemTray.pinnedWidgets)) {
+                        root.systemTrayPinnedWidgets = s.systemTray.pinnedWidgets.slice()
+                    }
+                    if (s.systemTray.showDesktopButton !== undefined) {
+                        root.showDesktopButtonEnabled = (s.systemTray.showDesktopButton === true)
+                    }
                 }
                 if (s.widgetSavedPositions !== undefined && typeof s.widgetSavedPositions === "object") {
                     root.widgetSavedPositions = s.widgetSavedPositions
@@ -1095,7 +1173,12 @@ Item {
             widgetsEnabled: root.widgetsEnabled,
             appMenuPosition: root.appMenuPosition || "left",
             widgetPosition: root.widgetPosition || "right",
-            dockWidgets: (root.widgetsEnabled && root.dockWidgets) ? root.dockWidgets.slice(0, 2) : [],
+            dockWidgets: (root.widgetsEnabled && root.dockWidgets) ? root.dockWidgets.slice() : [],
+            systemTray: {
+                enabled: root.systemTrayEnabled,
+                pinnedWidgets: root.systemTrayPinnedWidgets || ["omarchy.network", "omarchy.audio"],
+                showDesktopButton: root.showDesktopButtonEnabled
+            },
             widgetSavedPositions: root.widgetSavedPositions || {}
         }, null, 2)
         settingsFile.setText(jsonStr + "\n")
@@ -1215,6 +1298,12 @@ Item {
         }
         if (widgetId === "omarchy.weather") {
             return "file:///usr/share/omarchy/shell/plugins/panels/weather/Panel.qml"
+        }
+        if (widgetId === "brunoma.agents") {
+            return "file://" + Quickshell.env("HOME") + "/.config/omarchy/plugins/brunoma.agents/Panel.qml"
+        }
+        if (widgetId === "io.github.rawritude.floating-mode") {
+            return "file://" + Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.rawritude.floating-mode/BarWidget.qml"
         }
         var manifest = (root.shell && root.shell.pluginRegistry && root.shell.pluginRegistry.installedPlugins) ? root.shell.pluginRegistry.installedPlugins[widgetId] : null
         if (manifest && root.shell && root.shell.pluginRegistry) {
@@ -1441,7 +1530,11 @@ Item {
             return "󰌌"
         }
         if (widgetId === "omarchy.tray") return "󰇙"
-        if (widgetId === "omarchy.agents") return "󰚩"
+        if (widgetId === "omarchy.agents" || widgetId === "brunoma.agents") return "󰚩"
+        if (widgetId === "io.github.rawritude.floating-mode") {
+            if (item && item.floatingMode !== undefined) return item.floatingMode ? "󰖲" : "󰍹"
+            return "󰍹"
+        }
         if (widgetId === "omarchy.indicators") return "󰂚"
         if (widgetId === "silvaio.gamemode") return "󰊴"
         if (widgetId === "lgse.sandman") return "󰒲"
@@ -3366,7 +3459,7 @@ Item {
                         readonly property real rWidgetBaseOffset: root.windowsTaskbarMode && !root.isVertical
                             ? dockContent.width - root.rightWidgetsWidth
                             : ((root.hasLeftWidgets ? (root.leftWidgetsWidth + root.leftSeparatorSize) : 0) + root.itemsWidth + root.rightSeparatorSize)
-                        readonly property real rWidgetSlotDimension: (root.isClockWidget(modelData) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                        readonly property real rWidgetSlotDimension: root.getRightWidgetDimension(modelData)
                         readonly property real rWidgetPos: rWidgetBaseOffset + root.getRightWidgetOffset(index)
                         x: root.isVertical ? 0 : rWidgetPos
                         y: root.isVertical ? rWidgetPos : 0
@@ -3374,8 +3467,63 @@ Item {
                         height: root.isVertical ? rWidgetSlotDimension : root.slotSize
                         z: 1
 
+                        // 1. System Icon Tray (Windows Notification Area & Chevron Flyout)
+                        Loader {
+                            id: systemIconTrayLoader
+                            active: root.isTrayWidget(modelData)
+                            visible: active
+                            anchors.fill: parent
+                            sourceComponent: SystemIconTray {
+                                root: root
+                                dockWindow: root ? root.dockWindow : null
+                            }
+                        }
+
+                        // 2. Windows Show Desktop Button (Far Right Corner Sliver)
+                        Item {
+                            id: showDesktopItem
+                            visible: root.isDesktopWidget(modelData)
+                            anchors.fill: parent
+
+                            Rectangle {
+                                width: 1
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                anchors.margins: 10
+                                anchors.left: parent.left
+                                color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.3)
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.leftMargin: 2
+                                color: desktopMouse.containsMouse
+                                    ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.25)
+                                    : "transparent"
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: desktopMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Util.execDetached("hyprctl dispatch 'hl.dsp.workspace.toggle_special()'")
+                                }
+                            }
+
+                            PanelToolTip {
+                                visible: desktopMouse.containsMouse
+                                text: "Mostrar área de trabalho"
+                                fontFamily: Style.font.family
+                            }
+                        }
+
+                        // 3. Standard Widget Wrapper (Clock & Other Individual Widgets)
                         Item {
                             id: rightWidgetWrapper
+                            visible: !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
                             anchors.centerIn: parent
                             width: (root.isClockWidget(modelData) && !root.isVertical) ? (rightWidgetSlotRoot.width - 10) : root.iconBaseSize
                             height: (root.isClockWidget(modelData) && root.isVertical) ? (root.slotSize - 8) : root.iconBaseSize
@@ -3423,7 +3571,7 @@ Item {
 
                             DockGlyph {
                                 id: rightWidgetGlyph
-                                visible: !root.isClockWidget(modelData)
+                                visible: !root.isClockWidget(modelData) && !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
                                 anchors.centerIn: parent
                                 width: root.iconBaseSize
                                 height: root.iconBaseSize
@@ -3448,12 +3596,8 @@ Item {
                                 id: rightWidgetLoader
                                 anchors.fill: parent
                                 opacity: 0.0
-                                // source and sourceComponent clear one another, so pick one
-                                // imperatively instead of binding both. This runs on every
-                                // registry revision (dozens during shell start-up); re-assigning
-                                // an unchanged source would still tear the item down, so it
-                                // returns early when nothing changed.
                                 function applyWidgetSource() {
+                                    if (root.isTrayWidget(modelData) || root.isDesktopWidget(modelData)) return
                                     var comp = root.getWidgetComponent(modelData)
                                     if (comp) {
                                         if (sourceComponent === comp) return
@@ -3489,6 +3633,7 @@ Item {
 
                         MouseArea {
                             id: rightWidgetSlotMouse
+                            visible: !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
@@ -3539,6 +3684,13 @@ Item {
         id: calendarPopup
         root: root
         dockWindow: root.dockWindow
+    }
+
+    // 6. Windows Taskbar System Tray Settings Modal
+    SystemTraySettingsModal {
+        id: systemTraySettingsModal
+        root: root
+        dockWindow: root ? root.dockWindow : null
     }
 
     // 5. Autohide Edge Trigger — thin invisible strip at screen edge, activates dock reveal
