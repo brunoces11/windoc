@@ -55,9 +55,15 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
   * O estado atual (validado, funcional ou pendente).
 * Não registrar senhas, tokens ou segredos.
 
-### REGRA 3: Versionamento Ativo e Commits Semânticos
-* Todas as edições feitas na pasta são detectadas pelo Git instantaneamente.
-* Concluída e testada uma alteração solicitada pelo usuário, o agente deve propor/efetuar o commit semântico (ex: `feat: ...`, `fix: ...`, `style: ...`) e o push para o repositório remoto oficial `brunoces11/windoc`.
+### REGRA 3: Auto-Commit & Auto-Push Obrigatório ao Final de Cada Tarefa (Trigger Automático)
+> **MUITO IMPORTANTE:** Toda vez que o agente realizar qualquer modificação, ajuste ou adição de arquivos na estrutura deste projeto (`~/Desktop/windoc/`), o agente DEVE, AUTOMATICAMENTE e OBRIGATORIAMENTE antes de finalizar a resposta ao usuário:
+1. Validar a integridade técnica da alteração (sintaxe, `hyprctl reload`, etc.).
+2. Registrar a mudança no histórico incremental do `config-sistema.txt`.
+3. Adicionar as alterações ao stage (`git add .`).
+4. Criar um commit com mensagem semântica, clara e sucinta descrevendo o que foi feito (ex: `feat(dock): ...`, `fix(hypr): ...`, `style(shell): ...`).
+5. Executar imediatamente o envio ao GitHub (`git push origin main`).
+6. Informar ao usuário na resposta final o commit gerado e a confirmação do push.
+*O usuário NÃO precisa pedir para commitar nem para dar push: isso é um trigger automático mandatório ao final de qualquer modificação.*
 
 ### REGRA 4: Hot-Reload e Validação no Omarchy/Hyprland
 * Ao alterar configurações do Hyprland: validar sempre com `hyprctl reload` e verificar se há erros com `hyprctl configerrors`.

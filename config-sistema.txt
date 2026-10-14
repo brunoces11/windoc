@@ -284,3 +284,18 @@ Data: 13/10/2026. Estado: configurado e validado.
 - Criação do script `sync-symlinks.sh` para auditoria e restauração dos links.
 - Criação das diretrizes `AGENTS.md` definindo a política obrigatória de symlinks
   prévios e registro incremental contínuo em `config-sistema.txt`.
+
+
+12. IMPLEMENTAÇÃO DO TRIGGER AUTOMÁTICO DE AUTO-COMMIT E CLI WINDOC
+Data: 13/10/2026. Estado: configurado e validado.
+
+- Formalizada a REGRA 3 no `AGENTS.md` (e no arquivo global de regras do
+  Antigravity) como Trigger Automático Obrigatório: ao término de qualquer
+  modificação feita por agente de IA, é obrigatório validar, commitar com
+  mensagem semântica sucinta e executar `git push origin main` sem que o
+  usuário precise solicitar manualmente.
+- Criado o utilitário CLI `windoc` em `~/.local/bin/windoc` para uso manual pelo
+  usuário via terminal:
+  * `windoc status`: exibe arquivos alterados no projeto.
+  * `windoc push [msg]`: adiciona, comita e envia tudo ao GitHub com 1 comando.
+  * `windoc symlinks`: audita e restaura os links simbólicos do sistema.
