@@ -132,6 +132,12 @@
 #               widgets fixados, relógio/calendário ou chevron).
 #            b) Na área de trabalho: foca e ativa a janela do aplicativo (Wayland toplevel)
 #               posicionada sob as coordenadas do clique.
+#       4. Imutabilidade e Posição Absolutamente Fixa do Pop-up:
+#          - O pop-up do overflow é estritamente centrado e ancorado ao botão chevron
+#            (setinha) da barra de tarefas. Sua coordenada horizontal (`card.x`) é travada
+#            (`fixedCenterX`) ao ser aberto e permanece completamente estática.
+#          - Clicar em qualquer um dos ícones no interior do grid (seja na coluna esquerda,
+#            centro ou direita) NUNCA desloca o pop-up lateralmente; ele permanece 100% fixo.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)

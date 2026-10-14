@@ -77,6 +77,7 @@ Item {
     property real systemTrayAnchorX: -1
     property real systemTrayAnchorY: -1
     property var systemTrayChevronAnchorItem: null
+    property real systemTrayChevronAnchorX: -1
 
     // Live 1D Rail Displacement for Main Dock Bar
     property int dockDragActiveIndex: -1
@@ -896,7 +897,11 @@ Item {
 
     function toggleTrayOverflow(anchorItem) {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
-            root.setSystemTrayAnchor(anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem)
+            var chevron = anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem
+            root.setSystemTrayAnchor(chevron)
+            if (root.systemTrayAnchorX > 0) {
+                root.systemTrayChevronAnchorX = root.systemTrayAnchorX
+            }
             trayOverflowPopup.mouseHasBeenNear = true
             trayOverflowPopup.opened = !trayOverflowPopup.opened
             console.log("WinDoc: toggleTrayOverflow() called -> opened is now", trayOverflowPopup.opened)
@@ -1026,6 +1031,10 @@ Item {
 
         root.systemTrayAnchorX = screenX + itemW / 2
         root.systemTrayAnchorY = screenY
+
+        if (!isInsideOverflow && (anchorItem === root.systemTrayChevronAnchorItem || (root.systemTrayChevronAnchorItem && anchorItem === root.systemTrayChevronAnchorItem))) {
+            root.systemTrayChevronAnchorX = screenX + itemW / 2
+        }
 
         if (isInsideOverflow) {
             // Relative standard spacing for items inside the overflow popup:

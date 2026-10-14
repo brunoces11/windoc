@@ -689,3 +689,23 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+35. FIXAÇÃO ESTRITA DA POSIÇÃO HORIZONTAL DO TRAY OVERFLOW POPUP (IMOBILIDADE DO CARD)
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/components/TrayOverflowPopup.qml`, `dock/DockPanel.qml`, `DIRETRIZES_DE_DESIGN.txt` e `config-sistema.txt`.
+- Motivação e Objetivos:
+  1. Diagnóstico do Deslocamento Lateral:
+     - Anteriormente, a coordenada horizontal `card.x` do pop-up de overflow estava reativamente ligada à propriedade genérica `dockPanel.systemTrayAnchorX`.
+     - Ao clicar em qualquer ícone do grid (por exemplo, os ícones da coluna esquerda como áudio e rede), a função `setSystemTrayAnchor(itemSlot)` atualizava `systemTrayAnchorX` para centralizar a janela do aplicativo sobre aquele ícone clicado. Isso causava o efeito colateral indesejado de deslocar o pop-up de overflow para a esquerda ou direita a cada clique.
+  2. Isolamento de Âncora e Trava Horizontal (`fixedCenterX`):
+     - Introduzida a propriedade `fixedCenterX` em `TrayOverflowPopup.qml`, capturando e travando o centro do botão chevron (`systemTrayChevronAnchorX`) exatamente no momento da abertura (`onOpenedChanged`).
+     - Adicionada a propriedade dedicada `systemTrayChevronAnchorX` em `DockPanel.qml`, garantindo que o ponto de ancoragem do chevron nunca seja sobrescrito pelos ícones do grid interno.
+     - A coordenada horizontal `card.x` passa a consumir prioritariamente `fixedCenterX`, tornando o pop-up de overflow 100% estático, fixo e imutável durante toda a sua exibição, independente de quantos ícones internos forem clicados.
+  3. Atualização de Diretrizes de Design:
+     - Catalogado o item 4 ("Imutabilidade e Posição Absolutamente Fixa do Pop-up") no [COMPONENTE 02] de `DIRETRIZES_DE_DESIGN.txt`.
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso e camadas recarregadas.

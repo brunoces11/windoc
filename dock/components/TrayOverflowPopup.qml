@@ -22,8 +22,11 @@ PanelWindow {
         if (opened) {
             card.forceActiveFocus()
             mouseHasBeenNear = false
+            var cx = dockPanel ? (dockPanel.systemTrayChevronAnchorX > 0 ? dockPanel.systemTrayChevronAnchorX : dockPanel.systemTrayAnchorX) : -1
+            if (cx > 0) fixedCenterX = cx
         } else {
             mouseHasBeenNear = false
+            fixedCenterX = -1
         }
     }
 
@@ -48,6 +51,7 @@ PanelWindow {
     readonly property bool dockAtTop: dockPanel ? dockPanel.dockScreenPosition === "top" : false
 
     property bool mouseHasBeenNear: false
+    property real fixedCenterX: -1
 
     function transferClick(clickX, clickY, clickBtn) {
         var btn = clickBtn || Qt.LeftButton
@@ -285,7 +289,9 @@ PanelWindow {
         anchors.topMargin: overflowWindow.dockAtTop ? overflowWindow.popupAnchorY : 0
         anchors.bottomMargin: overflowWindow.dockAtTop ? 0 : Math.max(0, overflowWindow.dockHeight - overflowWindow.popupAnchorY)
         x: {
-            var centerX = dockPanel ? dockPanel.systemTrayAnchorX : -1
+            var centerX = overflowWindow.fixedCenterX > 0
+                ? overflowWindow.fixedCenterX
+                : (dockPanel ? (dockPanel.systemTrayChevronAnchorX > 0 ? dockPanel.systemTrayChevronAnchorX : dockPanel.systemTrayAnchorX) : -1)
             if (centerX < 0) centerX = parent.width - width / 2 - 8
             return Math.round(Math.max(6, Math.min(centerX - width / 2, parent.width - width - 6)))
         }
