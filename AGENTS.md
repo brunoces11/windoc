@@ -79,8 +79,9 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 ## 4. Planejamento vigente: System Icon Tray
 
 Consulte [`system_icon_tray_plan.md`](system_icon_tray_plan.md) antes de trabalhar
-nesta feature. É a referência única para decisões, escopo e divisão macro das
-etapas. Estado em 14/10/2026: documentação consolidada; implementação pendente.
-Manter a distinção entre comportamento atual e comportamento planejado. Não
-tratar esta atualização documental como autorização para implementar a feature.
-O detalhamento das etapas será feito em uma próxima interação.
+nesta feature. Escopo vigente em 14/10/2026: somente o ícone base da System Icon
+Tray, minimalista, exatamente na posição atual do ícone de previsão do tempo na
+barra inferior. O plano anterior em camadas foi substituído por essa entrega única.
+Não ampliar o escopo com requisitos de versões anteriores da documentação.
+Estado: documentação atualizada; implementação pendente. Esta revisão documental
+não autoriza iniciar a implementação.

@@ -24,19 +24,13 @@ Um "Windows slim e turbinado", construído sobre o Omarchy.
 
 ## Próxima evolução: System Icon Tray
 
-Planejamento consolidado em 14/10/2026; implementação pendente. Consulte o
-[plano de implementação](system_icon_tray_plan.md), referência única de escopo,
-estado atual e divisão proposta.
+Escopo revisado em 14/10/2026; implementação pendente. A entrega consiste apenas
+no ícone base da System Icon Tray, em versão minimalista, exatamente na posição
+atual do ícone de previsão do tempo na barra inferior.
 
-A bandeja reunirá os widgets escolhidos junto ao relógio: checkbox marcado fixa
-na barra, desmarcado mantém no pop-up de até cinco ícones por linha. Uma engrenagem
-abrirá as preferências. A migração será gradual; mostrar a área de trabalho será
-uma entrega adicional com mecanismo próprio a validar.
-
-A sequência proposta é **base e preferências → bandeja com piloto → painel de
-configuração → migração dos demais widgets → mostrar área de trabalho**. Cada
-entrega será verificável sem depender da próxima para funcionar. O detalhamento
-das etapas fica para a próxima interação.
+O [plano central](system_icon_tray_plan.md) registra essa entrega única e substitui
+a divisão anterior em camadas. Funcionalidades adicionais dependem de nova
+definição de escopo.
 
 ---
 
