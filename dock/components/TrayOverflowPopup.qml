@@ -114,6 +114,53 @@ PanelWindow {
         }
     }
 
+    function isInsideCard(screenX, screenY) {
+        if (!opened || !card) return false
+        return screenX >= card.x && screenX <= (card.x + card.width) &&
+               screenY >= card.y && screenY <= (card.y + card.height)
+    }
+
+    function handleCardClick(screenX, screenY, button) {
+        if (!isInsideCard(screenX, screenY)) return false
+
+        var relX = screenX - card.x
+        var relY = screenY - card.y
+
+        var gridX = (card.width - grid.width) / 2
+        var gridY = (card.height - grid.height) / 2
+
+        var localX = relX - gridX
+        var localY = relY - gridY
+
+        if (localX < 0 || localX > grid.width || localY < 0 || localY > grid.height) {
+            return true
+        }
+
+        var slotSpan = overflowWindow.itemSlotSize + overflowWindow.itemSpacing
+        var col = Math.floor(localX / slotSpan)
+        var row = Math.floor(localY / slotSpan)
+
+        if (col < 0) col = 0
+        if (col >= overflowWindow.gridCols) col = overflowWindow.gridCols - 1
+        if (row < 0) row = 0
+        if (row >= overflowWindow.gridRows) row = overflowWindow.gridRows - 1
+
+        var idx = row * overflowWindow.gridCols + col
+        if (idx >= 0 && idx < overflowWindow.trayItems.length) {
+            var item = overflowWindow.trayItems[idx]
+            if (item) {
+                var itemSlot = (itemRepeater && itemRepeater.count > idx) ? itemRepeater.itemAt(idx) : null
+                if (button === Qt.RightButton && typeof item.rightAction === "function") {
+                    item.rightAction(itemSlot)
+                } else if (typeof item.action === "function") {
+                    item.action(itemSlot)
+                }
+                return true
+            }
+        }
+        return true
+    }
+
     // Dismissal Area:
     // 1. Closes automatically if cursor moves >= 100px away from card in any direction.
     // 2. Closes and forwards/transfers the click if user clicks anywhere outside card.
@@ -331,6 +378,7 @@ PanelWindow {
             columnSpacing: overflowWindow.itemSpacing
 
             Repeater {
+                id: itemRepeater
                 model: overflowWindow.trayItems
 
                 Rectangle {

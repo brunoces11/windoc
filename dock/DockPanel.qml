@@ -1111,6 +1111,8 @@ Item {
         root.activeTrayPanelId = widgetId
         root.pendingTrayPanelId = ""
         root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton }, true)
+        root.attachDismissForwarder(item)
+        Qt.callLater(function() { root.attachDismissForwarder(item) })
     }
 
     function toggleSystemTrayPin(widgetId) {
@@ -1593,6 +1595,53 @@ Item {
         return "file:///usr/share/omarchy/shell/plugins/panels/" + name + "/BarWidget.qml"
     }
 
+    function attachDismissForwarder(target) {
+        if (!target) return
+        var toScan = [target]
+        if (target.panel) toScan.push(target.panel)
+        for (var s = 0; s < toScan.length; s++) {
+            var p = toScan[s]
+            if (!p) continue
+            var items = (p.children || []).concat(p.data || [])
+            for (var i = 0; i < items.length; i++) {
+                var c = items[i]
+                if (c && typeof c.forwardBarClick === "function" && !c._windocForwarderAttached) {
+                    c._windocForwarderAttached = true
+                    var origInBarRegion = c.inBarRegion
+                    var origForward = c.forwardBarClick
+
+                    c.inBarRegion = function(px, py) {
+                        if (root.trayOverflowOpened && trayOverflowPopup && typeof trayOverflowPopup.isInsideCard === "function" && trayOverflowPopup.isInsideCard(px, py)) {
+                            return true
+                        }
+                        var isTop = root.dockScreenPosition === "top"
+                        var screenH = (root.dockWindow && root.dockWindow.screen) ? root.dockWindow.screen.height : 864
+                        var dockH = root.dockWindow ? root.dockWindow.height : (root.slotSize + 8)
+                        var inDock = isTop ? (py <= dockH) : (py >= (screenH - dockH))
+                        if (inDock) return true
+
+                        return origInBarRegion ? origInBarRegion(px, py) : false
+                    }
+
+                    c.forwardBarClick = function(px, py, button) {
+                        if (root.trayOverflowOpened && trayOverflowPopup && typeof trayOverflowPopup.handleCardClick === "function") {
+                            if (trayOverflowPopup.handleCardClick(px, py, button)) {
+                                return true
+                            }
+                        }
+                        if (typeof root.handleExternalClick === "function") {
+                            if (root.handleExternalClick(px, py, button)) {
+                                return true
+                            }
+                        }
+                        return origForward ? origForward(px, py, button) : false
+                    }
+                    break
+                }
+            }
+        }
+    }
+
     function configureHostedWidget(item, widgetId, anchorItem, trayHosted) {
         if (!item) return
         if (root.loadedWidgetItems.indexOf(item) === -1) root.loadedWidgetItems.push(item)
@@ -1626,6 +1675,8 @@ Item {
                     root.evaluateHoverState()
                 })
             }
+            root.attachDismissForwarder(p)
+            Qt.callLater(function() { root.attachDismissForwarder(p) })
         }
 
         function scan(obj, depth) {
@@ -4051,7 +4102,13 @@ Item {
     Loader {
         id: systemTrayPanelLoader
         active: false
-        onLoaded: root.activatePendingTrayPanel()
+        onLoaded: {
+            root.activatePendingTrayPanel()
+            if (item) {
+                root.attachDismissForwarder(item)
+                Qt.callLater(function() { root.attachDismissForwarder(item) })
+            }
+        }
     }
 
     Loader {

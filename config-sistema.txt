@@ -709,3 +709,26 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+36. TRANSIÇÃO INSTANTÂNEA ENTRE PAINÉIS DE WIDGETS EM 1 CLIQUE DIRETO (ZERO DUPLO CLIQUE)
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/components/TrayOverflowPopup.qml`, `dock/DockPanel.qml`, `DIRETRIZES_DE_DESIGN.txt` e `config-sistema.txt`.
+- Motivação e Objetivos:
+  1. Diagnóstico da Necessidade de Dois Cliques (2x):
+     - Quando o usuário abria o painel de um widget (ex: Volume/Áudio) a partir do pop-up de overflow, a superfície `Overlay` do painel era mapeada no compositor Wayland sobrepondo a janela de overflow.
+     - Ao tentar clicar diretamente em outro ícone (ex: Rede) no pop-up, a área de descarte em tela cheia (`dismissArea`) do painel ativo interceptava o clique, consumindo-o para fechar o painel de áudio sem repassar a ação ao novo ícone. Isso forçava o usuário a clicar uma segunda vez para abrir o próximo painel.
+  2. Implementação do Encaminhador de Cliques (`attachDismissForwarder`):
+     - Criada a função `attachDismissForwarder()` em `DockPanel.qml`, conectada tanto em `applyToPanel()` quanto no evento `onLoaded` de `systemTrayPanelLoader`.
+     - O encaminhador estende dinamicamente os métodos `inBarRegion()` e `forwardBarClick()` da `dismissArea` do painel ativo.
+     - Clicar sobre qualquer ícone do card de overflow durante a exibição de um painel é detectado imediatamente via `trayOverflowPopup.isInsideCard()` e despachado diretamente para `trayOverflowPopup.handleCardClick()`.
+  3. Troca de Painel em 1 Clique Unificado:
+     - `handleCardClick()` resolve geometricamente o slot clicado no grid e dispara sua ação (`dockPanel.toggleTrayWidget()`), que fecha o painel anterior e instancia o novo painel instantaneamente no mesmo clique.
+     - O pop-up de overflow permanece aberto e fixo, permitindo navegar entre múltiplos painéis (Áudio -> Rede -> Agentes -> Clima -> Telas) sem fricção.
+  4. Atualização de Diretrizes de Design:
+     - Catalogado o item 5 ("Troca Instantânea de Painéis de Widgets em 1 Único Clique") no [COMPONENTE 02] de `DIRETRIZES_DE_DESIGN.txt`.
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso e camadas recarregadas.

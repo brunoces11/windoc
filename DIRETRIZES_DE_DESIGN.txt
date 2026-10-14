@@ -138,6 +138,14 @@
 #            (`fixedCenterX`) ao ser aberto e permanece completamente estática.
 #          - Clicar em qualquer um dos ícones no interior do grid (seja na coluna esquerda,
 #            centro ou direita) NUNCA desloca o pop-up lateralmente; ele permanece 100% fixo.
+#       5. Troca Instantânea de Painéis de Widgets em 1 Único Clique:
+#          - Quando um painel de widget (áudio, rede, etc.) já estiver aberto e o
+#            usuário clicar diretamente em outro ícone da bandeja (no pop-up de overflow
+#            ou na dock), o painel anterior é fechado e o novo é aberto imediatamente no
+#            mesmo clique, sem necessidade de duplo clique (`2x`).
+#          - O encaminhador de eventos (`attachDismissForwarder`) intercepta cliques sobre
+#            o grid de overflow mesmo quando a superfície do painel ativo estiver em
+#            primeiro plano no layer shell, despachando a ação instantaneamente.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)
