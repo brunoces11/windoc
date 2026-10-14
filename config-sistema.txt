@@ -326,3 +326,32 @@ Data: 13/10/2026. Estado: configurado e validado.
   gerenciador de arquivos) preservam o diretório pretendido. Sessões não-interativas
   (scripts, SCP, Git) permanecem inalteradas.
 - Atualizado o script `sync-symlinks.sh` com o novo atalho do `~/.bashrc`.
+
+
+15. SYSTEM ICON TRAY — CONSOLIDAÇÃO DOCUMENTAL E DIVISÃO DO PLANO
+Data: 14/10/2026. Estado: documentação revisada; implementação pendente.
+
+- Solicitação: atualizar o conhecimento do projeto e propor uma implementação
+  enxuta, modular e sequencial, sem detalhar nem executar as etapas nesta interação.
+- Antes: decisões dispersas na conversa, avaliações de risco excessivamente
+  otimistas e nenhuma cópia de system_icon_tray_plan.md encontrada no repositório.
+- Agora: system_icon_tray_plan.md concentra escopo, evidências locais, pendências
+  e cinco camadas propostas: base, bandeja com piloto, painel de configuração,
+  migração dos demais widgets e mostrar área de trabalho.
+- Checkbox marcado fixa na barra; desmarcado deixa no pop-up. Cinco colunas,
+  crescimento conforme conteúdo e preferências persistentes. Aplicativos externos
+  e remoção total da barra superior ficam fora desta entrega.
+- Confirmados em arquivos: modo Windows e clima na dock; limite de dois widgets
+  gerais na leitura e gravação; rotina existente de minimização; shell.json lista
+  rosakodu.dock e não inclui OmaPanel no layout. As descrições anteriores de dock
+  desabilitada/OmaPanel na barra permanecem como histórico, não como estado atual.
+  Esta inspeção não validou visualmente os plugins nem seu estado em execução.
+- Pendências: confirmar identidades de desktop e DNS, fixados iniciais e mecanismo
+  de mostrar/restaurar janelas. A bandeja não dependerá desse último recurso.
+- README.md e dock/README.md apontam para o plano central. AGENTS.md registra essa
+  referência e corrige a orientação de recarga: refresh shell restaura padrões;
+  documentação não exige reload/restart. Fonte conferida: omarchy-refresh-shell.
+- Arquivos afetados: system_icon_tray_plan.md, README.md, dock/README.md,
+  AGENTS.md e config-sistema.txt. Nenhum código, configuração ativa ou link alterado.
+- Verificação documental: consistência de escopo, referências locais e diff.
+  Validação funcional da feature permanece pendente para as futuras etapas.

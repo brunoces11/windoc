@@ -1,5 +1,9 @@
 # Omarchy Dock
 
+> **WinDoc — planejamento:** a System Icon Tray ainda não foi implementada.
+> O [plano central](../system_icon_tray_plan.md) define o escopo e a sequência de
+> evolução desta dock. A documentação abaixo descreve a base do plugin.
+
 ![Omarchy Dock](./preview.png)
 
 A modern, highly polished, and fully native application dock plugin for **Omarchy Quattro** (Hyprland + Quickshell), featuring app stacks (folders), iOS-style edit wiggle animations, multi-window management, dynamic orientation, and seamless theme integration.

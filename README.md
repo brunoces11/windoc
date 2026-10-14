@@ -22,6 +22,24 @@ Um "Windows slim e turbinado", construído sobre o Omarchy.
 
 ---
 
+## Próxima evolução: System Icon Tray
+
+Planejamento consolidado em 14/10/2026; implementação pendente. Consulte o
+[plano de implementação](system_icon_tray_plan.md), referência única de escopo,
+estado atual e divisão proposta.
+
+A bandeja reunirá os widgets escolhidos junto ao relógio: checkbox marcado fixa
+na barra, desmarcado mantém no pop-up de até cinco ícones por linha. Uma engrenagem
+abrirá as preferências. A migração será gradual; mostrar a área de trabalho será
+uma entrega adicional com mecanismo próprio a validar.
+
+A sequência proposta é **base e preferências → bandeja com piloto → painel de
+configuração → migração dos demais widgets → mostrar área de trabalho**. Cada
+entrega será verificável sem depender da próxima para funcionar. O detalhamento
+das etapas fica para a próxima interação.
+
+---
+
 ## 🛠️ Arquitetura por Links Simbólicos (Symlinks)
 
 Para que a edição centralizada nesta pasta reflita instantaneamente no sistema operacional sem necessidade de cópias manuais, os arquivos originais em `~/.config/` apontam para este repositório através de symlinks.

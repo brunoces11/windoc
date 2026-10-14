@@ -67,8 +67,20 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 
 ### REGRA 4: Hot-Reload e Validação no Omarchy/Hyprland
 * Ao alterar configurações do Hyprland: validar sempre com `hyprctl reload` e verificar se há erros com `hyprctl configerrors`.
-* Ao alterar componentes QML/JS da Dock ou `shell.json`: o Quickshell atualiza em tempo real; caso necessário, forçar atualização com `omarchy restart shell` ou `omarchy refresh shell`.
+* Ao alterar componentes QML/JS da Dock ou `shell.json`: verificar o carregamento e os logs do Quickshell/Omarchy Shell; o shell suporta atualização em tempo real. Se necessário, reiniciar com `omarchy restart shell`.
+* `omarchy refresh shell` restaura configurações padrão e NÃO deve ser usado como simples recarregamento.
+* Alterações exclusivamente documentais exigem revisão de conteúdo, referências e diff; não exigem reiniciar o shell nem recarregar o Hyprland.
 
 ### REGRA 5: Não Duplicação de Pastas e Diretórios (OBRIGATÓRIO)
 > **MUITO IMPORTANTE:** Antes de criar qualquer pasta ou diretório, verifique sempre se já existe uma pasta igual ou equivalente (inclusive variações de maiúsculas/minúsculas) para jamais criar pastas duplicadas ou redundantes.
 
+
+
+## 4. Planejamento vigente: System Icon Tray
+
+Consulte [`system_icon_tray_plan.md`](system_icon_tray_plan.md) antes de trabalhar
+nesta feature. É a referência única para decisões, escopo e divisão macro das
+etapas. Estado em 14/10/2026: documentação consolidada; implementação pendente.
+Manter a distinção entre comportamento atual e comportamento planejado. Não
+tratar esta atualização documental como autorização para implementar a feature.
+O detalhamento das etapas será feito em uma próxima interação.
