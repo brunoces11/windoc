@@ -454,3 +454,13 @@ Data: 14/10/2026. Estado: corrigido, validado e funcional.
   * Métodos IPC adicionados: integrados `toggleTray()` e `openTraySettings()` no `IpcHandler` do dock para acionamento e diagnóstico via linha de comando.
   * Validação técnica: shell reinicializado (`omarchy restart shell`), log limpo sem advertências e camadas validadas via `hyprctl layers` comprovando a criação e destruição reativa da superfície overlay `omarchy-dock-tray-overflow`.
 
+23. POSICIONAMENTO ESTRITO DOS TOOLTIPS DO SYSTEM ICON TRAY (25 PIXELS ACIMA DOS ÍCONES)
+Data: 14/10/2026. Estado: corrigido, testado e validado em runtime.
+
+- Resolução definitiva da sobreposição dos balões de dica (tooltips) sobre os ícones do System Tray:
+  * Diagnóstico de raiz: o dock da barra de tarefas reside em uma superfície Wayland de 48px de altura (`omarchy-dock`). Ao utilizar o componente `PanelToolTip` (wrapper do Qt Quick Controls `ToolTip`) com coordenadas negativas (`y < 0`), o algoritmo de contenção do Qt Quick forçava o tooltip a permanecer confinado à superfície da barra (`y >= 0`), posicionando-o diretamente sobre o ícone do chevron ou widgets fixados. No popup de overflow, o `PanelToolTip` também sofria colisões internas.
+  * Solução nativa no Dock (`dock/components/SystemIconTray.qml`): substituído o `PanelToolTip` por um `PopupWindow` nativo do Quickshell (superfície `xdg_popup` em Wayland), ancorado ao `dockWindow` da barra. No evento `onAnchoring`, a posição vertical é calculada estritamente como `localY = -popupH - 25`, mapeada via `contentItem.mapFromItem()`. Dessa forma, o balão flutua livremente fora do layer da dock, exatamente 25 pixels acima do topo de cada ícone (chevron e widgets fixados), sem qualquer risco de recorte ou sobreposição.
+  * Solução no Popup Grid (`dock/components/TrayOverflowPopup.qml`): substituído o `PanelToolTip` por um elemento `Rectangle` customizado com `anchors.bottom: parent.top` e `anchors.bottomMargin: 25`, acompanhado de elevação de profundidade (`z: itemMouse.containsMouse ? 100 : 1`), garantindo que o tooltip de cada um dos 6 ícones do grid flutue com precisão cirúrgica 25 pixels acima de seu respectivo ícone, sem ocultar a visualização do glifo.
+  * Validação técnica: shell reinicializado via `omarchy restart shell` com zero erros no journalctl (`quickshell`), garantindo posicionamento responsivo e livre de colisões.
+
+

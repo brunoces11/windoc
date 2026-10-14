@@ -205,6 +205,7 @@ PanelWindow {
                     required property var modelData
                     required property int index
 
+                    z: itemMouse.containsMouse ? 100 : 1
                     width: 44
                     height: 44
                     radius: 7
@@ -256,12 +257,29 @@ PanelWindow {
                         }
                     }
 
-                    PanelToolTip {
+                    Rectangle {
+                        id: itemTooltip
                         visible: itemMouse.containsMouse
-                        text: modelData.name
-                        fontFamily: Style.font.family
-                        y: -implicitHeight - 12
-                        x: Math.round((parent.width - implicitWidth) / 2)
+                        z: 9999
+                        anchors.bottom: parent.top
+                        anchors.bottomMargin: 25
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: tipLabel.implicitWidth + 14
+                        height: tipLabel.implicitHeight + 8
+                        radius: 5
+                        color: Color.popups.background
+                        border.width: 1
+                        border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.4)
+
+                        Text {
+                            id: tipLabel
+                            anchors.centerIn: parent
+                            textFormat: Text.PlainText
+                            text: modelData.name
+                            font.family: Style.font.family
+                            font.pixelSize: 11
+                            color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        }
                     }
                 }
             }

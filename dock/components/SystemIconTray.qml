@@ -13,6 +13,114 @@ Item {
     property var dockPanel: null
     property var dockWindow: null
 
+    property var activeTooltipTarget: null
+    property string activeTooltipText: ""
+
+    function getPinnedWidgetTitle(widgetId) {
+        if (widgetId === "omarchy.audio") return "Volume e Áudio"
+        if (widgetId === "omarchy.network") return "Rede e Conexões"
+        if (widgetId === "brunoma.agents") return "Agentes de IA"
+        if (widgetId === "io.github.rawritude.floating-mode") return "Modo Janela / Desktop"
+        if (widgetId === "omarchy.weather") return "Previsão do Tempo"
+        return widgetId
+    }
+
+    onActiveTooltipTargetChanged: {
+        if (activeTooltipTarget && popupAnchor.window) {
+            var target = activeTooltipTarget
+            var win = popupAnchor.window
+            var popupW = trayTooltipPopup.implicitWidth
+            var popupH = trayTooltipPopup.implicitHeight
+            var isTop = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "top")
+            var isLeft = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "left")
+            var isRight = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "right")
+
+            var localX = (target.width / 2) - (popupW / 2)
+            var localY = -popupH - 25
+
+            if (isTop) {
+                localY = target.height + 25
+            } else if (isLeft) {
+                localX = target.width + 25
+                localY = (target.height / 2) - (popupH / 2)
+            } else if (isRight) {
+                localX = -popupW - 25
+                localY = (target.height / 2) - (popupH / 2)
+            }
+
+            var pt = win.contentItem.mapFromItem(target, localX, localY)
+            popupAnchor.rect.x = Math.round(pt.x)
+            popupAnchor.rect.y = Math.round(pt.y)
+        }
+    }
+
+    PopupWindow {
+        id: trayTooltipPopup
+        visible: trayRoot.activeTooltipTarget !== null && trayRoot.activeTooltipText !== "" && !(trayRoot.dockPanel && trayRoot.dockPanel.trayOverflowOpened)
+        color: "transparent"
+        implicitWidth: Math.ceil(bubble.implicitWidth)
+        implicitHeight: Math.ceil(bubble.implicitHeight)
+
+        anchor {
+            id: popupAnchor
+            window: trayRoot.dockWindow ? trayRoot.dockWindow : (trayRoot.dockPanel ? trayRoot.dockPanel.dockWindow : (trayRoot.QsWindow ? trayRoot.QsWindow.window : null))
+            adjustment: PopupAdjustment.Slide
+            edges: Edges.Top | Edges.Left
+            gravity: Edges.Bottom | Edges.Right
+            rect.width: 1
+            rect.height: 1
+
+            onAnchoring: {
+                var target = trayRoot.activeTooltipTarget
+                var win = popupAnchor.window
+                if (!target || !win) return
+
+                var popupW = trayTooltipPopup.implicitWidth
+                var popupH = trayTooltipPopup.implicitHeight
+                var isTop = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "top")
+                var isLeft = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "left")
+                var isRight = (trayRoot.dockPanel && trayRoot.dockPanel.barPosition === "right")
+
+                var localX = (target.width / 2) - (popupW / 2)
+                var localY = -popupH - 25
+
+                if (isTop) {
+                    localY = target.height + 25
+                } else if (isLeft) {
+                    localX = target.width + 25
+                    localY = (target.height / 2) - (popupH / 2)
+                } else if (isRight) {
+                    localX = -popupW - 25
+                    localY = (target.height / 2) - (popupH / 2)
+                }
+
+                var pt = win.contentItem.mapFromItem(target, localX, localY)
+                popupAnchor.rect.x = Math.round(pt.x)
+                popupAnchor.rect.y = Math.round(pt.y)
+            }
+        }
+
+        Rectangle {
+            id: bubble
+            implicitWidth: bubbleLabel.implicitWidth + 14
+            implicitHeight: bubbleLabel.implicitHeight + 8
+            radius: 5
+            color: Color.popups.background
+            border.width: 1
+            border.color: Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.4)
+
+            Text {
+                id: bubbleLabel
+                anchors.centerIn: parent
+                textFormat: Text.PlainText
+                text: trayRoot.activeTooltipText
+                font.family: Style.font.family
+                font.pixelSize: 11
+                color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+            }
+        }
+    }
+
     readonly property var pinnedWidgets: (dockPanel && dockPanel.systemTrayPinnedWidgets && Array.isArray(dockPanel.systemTrayPinnedWidgets))
         ? dockPanel.systemTrayPinnedWidgets
         : []
@@ -60,19 +168,23 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                onEntered: {
+                    trayRoot.activeTooltipTarget = chevronBtn
+                    trayRoot.activeTooltipText = "Mostrar ícones ocultos"
+                }
+                onExited: {
+                    if (trayRoot.activeTooltipTarget === chevronBtn) {
+                        trayRoot.activeTooltipTarget = null
+                        trayRoot.activeTooltipText = ""
+                    }
+                }
                 onClicked: {
+                    trayRoot.activeTooltipTarget = null
+                    trayRoot.activeTooltipText = ""
                     if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayOverflow === "function") {
                         trayRoot.dockPanel.toggleTrayOverflow()
                     }
                 }
-            }
-
-            PanelToolTip {
-                visible: chevronMouse.containsMouse && !(trayRoot.dockPanel && trayRoot.dockPanel.trayOverflowOpened)
-                text: "Mostrar ícones ocultos"
-                fontFamily: Style.font.family
-                y: -implicitHeight - 25
-                x: Math.round((parent.width - implicitWidth) / 2)
             }
         }
 
@@ -130,7 +242,19 @@ Item {
                         hoverEnabled: true
                         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         cursorShape: Qt.PointingHandCursor
+                        onEntered: {
+                            trayRoot.activeTooltipTarget = pinnedSlot
+                            trayRoot.activeTooltipText = trayRoot.getPinnedWidgetTitle(modelData)
+                        }
+                        onExited: {
+                            if (trayRoot.activeTooltipTarget === pinnedSlot) {
+                                trayRoot.activeTooltipTarget = null
+                                trayRoot.activeTooltipText = ""
+                            }
+                        }
                         onClicked: function(mouse) {
+                            trayRoot.activeTooltipTarget = null
+                            trayRoot.activeTooltipText = ""
                             if (mouse.button === Qt.RightButton && modelData === "omarchy.audio") {
                                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
                                 return
@@ -148,21 +272,6 @@ Item {
                                 else if (delta < 0) Util.execDetached("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-")
                             }
                         }
-                    }
-
-                    PanelToolTip {
-                        visible: pinnedMouse.containsMouse
-                        text: {
-                            if (modelData === "omarchy.audio") return "Volume e Áudio"
-                            if (modelData === "omarchy.network") return "Rede e Conexões"
-                            if (modelData === "brunoma.agents") return "Agentes de IA"
-                            if (modelData === "io.github.rawritude.floating-mode") return "Modo Janela / Desktop"
-                            if (modelData === "omarchy.weather") return "Previsão do Tempo"
-                            return modelData
-                        }
-                        fontFamily: Style.font.family
-                        y: -implicitHeight - 25
-                        x: Math.round((parent.width - implicitWidth) / 2)
                     }
                 }
             }

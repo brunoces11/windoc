@@ -1,22 +1,30 @@
 {
   "dockEnabled": true,
   "visibilityMode": "always",
+  "preferredVisibilityMode": "hover",
+  "autohide": false,
   "overlayMode": false,
   "visibleWorkspace": "all",
+  "autohideEdgeDepth": 1,
   "showFolderTitles": true,
   "showBadges": true,
   "glassmorphism": false,
+  "blurOpacity": 0.68,
+  "windowsTaskbarMode": true,
+  "taskbarAppAlignment": "center",
   "widgetsEnabled": true,
   "appMenuPosition": "left",
   "widgetPosition": "right",
   "dockWidgets": [
     "omarchy.apps"
   ],
-  "windowsTaskbarMode": true,
-  "taskbarAppAlignment": "center",
   "systemTray": {
     "enabled": true,
-    "pinnedWidgets": [],
+    "pinnedWidgets": [
+      "omarchy.audio",
+      "brunoma.agents"
+    ],
     "showDesktopButton": true
-  }
+  },
+  "widgetSavedPositions": {}
 }
