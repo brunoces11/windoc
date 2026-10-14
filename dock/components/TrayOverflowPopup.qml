@@ -17,6 +17,12 @@ PanelWindow {
     screen: overflowWindow.dockWindow ? overflowWindow.dockWindow.screen : (Quickshell.screens && Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     visible: opened
 
+    readonly property real cardX: card ? card.x : 0
+    readonly property real cardY: card ? card.y : 0
+    readonly property real cardWidth: card ? card.width : 0
+    readonly property real cardHeight: card ? card.height : 0
+    readonly property var cardItem: card
+
     onOpenedChanged: {
         console.log("WinDoc TrayOverflowPopup: opened ->", opened, "visible ->", visible)
         if (opened) {
@@ -24,9 +30,15 @@ PanelWindow {
             mouseHasBeenNear = false
             var cx = dockPanel ? (dockPanel.systemTrayChevronAnchorX > 0 ? dockPanel.systemTrayChevronAnchorX : dockPanel.systemTrayAnchorX) : -1
             if (cx > 0) fixedCenterX = cx
+            if (dockPanel && typeof dockPanel.updateTrayOverflowProxyTargets === "function") {
+                Qt.callLater(dockPanel.updateTrayOverflowProxyTargets)
+            }
         } else {
             mouseHasBeenNear = false
             fixedCenterX = -1
+            if (dockPanel && typeof dockPanel.updateTrayOverflowProxyTargets === "function") {
+                Qt.callLater(dockPanel.updateTrayOverflowProxyTargets)
+            }
         }
     }
 

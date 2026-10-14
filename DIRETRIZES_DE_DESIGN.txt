@@ -143,9 +143,11 @@
 #            usuário clicar diretamente em outro ícone da bandeja (no pop-up de overflow
 #            ou na dock), o painel anterior é fechado e o novo é aberto imediatamente no
 #            mesmo clique, sem necessidade de duplo clique (`2x`).
-#          - O encaminhador de eventos (`attachDismissForwarder`) intercepta cliques sobre
-#            o grid de overflow mesmo quando a superfície do painel ativo estiver em
-#            primeiro plano no layer shell, despachando a ação instantaneamente.
+#          - A sincronização utiliza proxy click targets (`proxyRepeater`) mapeados no espaço
+#            de coordenadas da dock e integrados a `dockBarContext.clickTargets` e à expansão
+#            dinâmica da `barSize`. Isso permite que a `dismissArea` nativa do `KeyboardPanel`
+#            reconheça o clique sobre os slots do overflow e execute a troca em 1 clique nativo
+#            sem gerar erros de JavaScript em runtime.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)

@@ -894,6 +894,23 @@ Item {
     }
 
     readonly property bool trayOverflowOpened: (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) ? trayOverflowPopup.opened : false
+    property var trayOverflowProxyTargets: []
+
+    onTrayOverflowOpenedChanged: {
+        Qt.callLater(root.updateTrayOverflowProxyTargets)
+    }
+
+    function updateTrayOverflowProxyTargets() {
+        var targets = []
+        if (root.trayOverflowOpened && root.dockWindow && root.dockWindow.proxyRepeater) {
+            var rep = root.dockWindow.proxyRepeater
+            for (var i = 0; i < rep.count; i++) {
+                var it = rep.itemAt(i)
+                if (it) targets.push(it)
+            }
+        }
+        root.trayOverflowProxyTargets = targets
+    }
 
     function toggleTrayOverflow(anchorItem) {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
@@ -1111,8 +1128,6 @@ Item {
         root.activeTrayPanelId = widgetId
         root.pendingTrayPanelId = ""
         root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton }, true)
-        root.attachDismissForwarder(item)
-        Qt.callLater(function() { root.attachDismissForwarder(item) })
     }
 
     function toggleSystemTrayPin(widgetId) {
@@ -1595,53 +1610,6 @@ Item {
         return "file:///usr/share/omarchy/shell/plugins/panels/" + name + "/BarWidget.qml"
     }
 
-    function attachDismissForwarder(target) {
-        if (!target) return
-        var toScan = [target]
-        if (target.panel) toScan.push(target.panel)
-        for (var s = 0; s < toScan.length; s++) {
-            var p = toScan[s]
-            if (!p) continue
-            var items = (p.children || []).concat(p.data || [])
-            for (var i = 0; i < items.length; i++) {
-                var c = items[i]
-                if (c && typeof c.forwardBarClick === "function" && !c._windocForwarderAttached) {
-                    c._windocForwarderAttached = true
-                    var origInBarRegion = c.inBarRegion
-                    var origForward = c.forwardBarClick
-
-                    c.inBarRegion = function(px, py) {
-                        if (root.trayOverflowOpened && trayOverflowPopup && typeof trayOverflowPopup.isInsideCard === "function" && trayOverflowPopup.isInsideCard(px, py)) {
-                            return true
-                        }
-                        var isTop = root.dockScreenPosition === "top"
-                        var screenH = (root.dockWindow && root.dockWindow.screen) ? root.dockWindow.screen.height : 864
-                        var dockH = root.dockWindow ? root.dockWindow.height : (root.slotSize + 8)
-                        var inDock = isTop ? (py <= dockH) : (py >= (screenH - dockH))
-                        if (inDock) return true
-
-                        return origInBarRegion ? origInBarRegion(px, py) : false
-                    }
-
-                    c.forwardBarClick = function(px, py, button) {
-                        if (root.trayOverflowOpened && trayOverflowPopup && typeof trayOverflowPopup.handleCardClick === "function") {
-                            if (trayOverflowPopup.handleCardClick(px, py, button)) {
-                                return true
-                            }
-                        }
-                        if (typeof root.handleExternalClick === "function") {
-                            if (root.handleExternalClick(px, py, button)) {
-                                return true
-                            }
-                        }
-                        return origForward ? origForward(px, py, button) : false
-                    }
-                    break
-                }
-            }
-        }
-    }
-
     function configureHostedWidget(item, widgetId, anchorItem, trayHosted) {
         if (!item) return
         if (root.loadedWidgetItems.indexOf(item) === -1) root.loadedWidgetItems.push(item)
@@ -1675,8 +1643,6 @@ Item {
                     root.evaluateHoverState()
                 })
             }
-            root.attachDismissForwarder(p)
-            Qt.callLater(function() { root.attachDismissForwarder(p) })
         }
 
         function scan(obj, depth) {
@@ -1750,7 +1716,7 @@ Item {
     QtObject {
         id: dockBarContext
         property bool vertical: root.isVertical
-        property int barSize: root.slotSize + 8
+        property int barSize: (root.trayOverflowOpened && trayOverflowPopup && trayOverflowPopup.opened) ? 2000 : (root.slotSize + 8)
         property int barH: root.slotSize + 8
         property int barW: root.slotSize + 8
         property string position: root.dockScreenPosition
@@ -1764,9 +1730,18 @@ Item {
         property bool foregroundAnimationEnabled: true
         property string fontFamily: Style.font.family
         property var activePopout: null
+        property var clickTargets: (root.trayOverflowOpened && trayOverflowPopup && trayOverflowPopup.opened) ? root.trayOverflowProxyTargets : []
+        function targetBelongsToWindow(target, win) { return true }
         function showTooltip(item, text) {}
         function hideTooltip(item) {}
-        function requestPopout(key) { activePopout = key }
+        function requestPopout(key) {
+            if (activePopout === key) return
+            if (activePopout) {
+                if ("closeForPopoutSwitch" in activePopout) activePopout.closeForPopoutSwitch()
+                else if ("close" in activePopout) activePopout.close()
+            }
+            activePopout = key
+        }
         function releasePopout(key) { if (activePopout === key) activePopout = null }
         function isBarWidgetOpen(id) { return false }
         function switchPanelFrom(panel, dir) { return false }
@@ -3353,6 +3328,54 @@ Item {
                 }
                 property alias dynamicTrayAnchorProxy: dynamicTrayAnchorProxy
 
+                Item {
+                    id: trayOverflowProxiesContainer
+                    objectName: "trayOverflowProxiesContainer"
+                    visible: root.trayOverflowOpened && trayOverflowPopup && trayOverflowPopup.opened
+
+                    Repeater {
+                        id: proxyRepeater
+                        model: (root.trayOverflowOpened && trayOverflowPopup && trayOverflowPopup.opened)
+                            ? trayOverflowPopup.trayItems : []
+
+                        Item {
+                            id: proxySlot
+                            required property var modelData
+                            required property int index
+
+                            readonly property real slotSpan: (trayOverflowPopup ? trayOverflowPopup.itemSlotSize : 40) + (trayOverflowPopup ? trayOverflowPopup.itemSpacing : 2)
+                            readonly property int col: (trayOverflowPopup && trayOverflowPopup.gridCols > 0) ? (index % trayOverflowPopup.gridCols) : 0
+                            readonly property int row: (trayOverflowPopup && trayOverflowPopup.gridCols > 0) ? Math.floor(index / trayOverflowPopup.gridCols) : 0
+
+                            readonly property real slotScreenX: (trayOverflowPopup ? trayOverflowPopup.cardX : 0) + (trayOverflowPopup ? trayOverflowPopup.gridPadding : 7) + col * slotSpan
+                            readonly property real slotScreenY: (trayOverflowPopup ? trayOverflowPopup.cardY : 0) + (trayOverflowPopup ? trayOverflowPopup.gridPadding : 7) + row * slotSpan
+
+                            readonly property real screenW: dockLayer.screen ? dockLayer.screen.width : 1920
+                            readonly property real screenH: dockLayer.screen ? dockLayer.screen.height : 864
+                            readonly property real dockW: dockLayer.width
+                            readonly property real dockH: dockLayer.height
+
+                            x: (root.dockScreenPosition === "right") ? (slotScreenX - screenW + dockW) : slotScreenX
+                            y: (root.dockScreenPosition === "bottom") ? (slotScreenY - screenH + dockH) : slotScreenY
+                            width: trayOverflowPopup ? trayOverflowPopup.itemSlotSize : 40
+                            height: trayOverflowPopup ? trayOverflowPopup.itemSlotSize : 40
+                            visible: true
+                            opacity: 1
+
+                            function triggerPress(button) {
+                                if (button === Qt.RightButton && typeof modelData.rightAction === "function") {
+                                    modelData.rightAction(null)
+                                } else if (typeof modelData.action === "function") {
+                                    modelData.action(null)
+                                }
+                            }
+                        }
+
+                        onCountChanged: root.updateTrayOverflowProxyTargets()
+                    }
+                }
+                property alias proxyRepeater: proxyRepeater
+
                 HoverHandler {
                     id: dockHoverHandler
                     enabled: root.autohide && !dockLayer.slidOut
@@ -4102,13 +4125,7 @@ Item {
     Loader {
         id: systemTrayPanelLoader
         active: false
-        onLoaded: {
-            root.activatePendingTrayPanel()
-            if (item) {
-                root.attachDismissForwarder(item)
-                Qt.callLater(function() { root.attachDismissForwarder(item) })
-            }
-        }
+        onLoaded: root.activatePendingTrayPanel()
     }
 
     Loader {

@@ -767,3 +767,29 @@ Data: 14/10/2026. Estado: instalado, fixado, validado e operacional em runtime.
   * Ícone fixo e responsivo na barra de tarefas inferior.
 
 
+39. CORREÇÃO CRÍTICA DE ATIVAÇÃO DOS WIDGETS E IMPLEMENTAÇÃO NATIVA DE CLICK-TARGETS NO OVERFLOW
+Data: 14/10/2026. Estado: corrigido, calibrado, testado e validado em runtime.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`, `DIRETRIZES_DE_DESIGN.txt` e `config-sistema.txt`.
+- Causa Raiz do Não Funcionamento dos Ícones:
+  1. A tentativa anterior de interceptar a `dismissArea` via `attachDismissForwarder()` tentou atribuir uma propriedade dinâmica `_windocForwarderAttached` a uma instância de `QQuickMouseArea` (tipo nativo C++). No Qt 6 / QML, atribuir propriedades não declaradas a QObjects lança `Error: Cannot assign to non-existent property`.
+  2. Adicionalmente, funções declaradas no QML (como `inBarRegion` e `forwardBarClick`) são slots somente-leitura e não podem ser reatribuídas via JavaScript, disparando `TypeError: Cannot assign to read-only property`.
+  3. Essa exceção não tratada abortava imediatamente a execução de `configureHostedWidget()`, impedindo que `activateWidget()` alcançasse a chamada de abertura do painel (`target.panel.toggle()` / `target.panel.open()`).
+  4. Como consequência, todos os widgets (Áudio, Rede, Clima, Agentes, Monitores) falhavam silenciosamente ao serem clicados, com exceção do ícone de engrenagem (`tray.settings`), que abre um modal independente (`openSystemTraySettings()`).
+- Solução Robusta e Arquitetura Nativa:
+  1. Remoção Completa do Monkey-Patching:
+     - Removida a função `attachDismissForwarder()` e todas as suas invocações em `activatePendingTrayPanel()`, `applyToPanel()` e `systemTrayPanelLoader.onLoaded`.
+     - Todos os widgets voltaram a ser ativados e carregados instantaneamente com zero erros de script.
+  2. Integração Nativa via `clickTargets` e `proxyRepeater`:
+     - Utilizada a arquitetura nativa do `KeyboardPanel` do Omarchy, que consulta `root.bar.clickTargets` para rotear cliques sobre a barra e seus componentes.
+     - Criado o contêiner `trayOverflowProxiesContainer` em `dockLayer` (que pertence à `dockWindow` / `anchorWindow`), contendo um `proxyRepeater` com itens que representam geometricamente cada slot do grid de overflow (`slotScreenX`, `slotScreenY`, `itemSlotSize`).
+     - Em `dockBarContext`:
+       * `barSize` expande dinamicamente para `2000` enquanto o pop-up de overflow estiver aberto, fazendo com que `inBarRegion()` retorne verdadeiro para a região do pop-up;
+       * `clickTargets` expõe a lista de slots proxy do overflow;
+       * `requestPopout` fecha adequadamente o painel anterior (`activePopout.close()`) durante a troca.
+     - Clicar sobre qualquer ícone dentro do pop-up de overflow é resolvido pelo hit-testing nativo do `KeyboardPanel`, invocando `triggerPress()` no slot proxy e ativando o novo widget em 1 único clique (`1x`).
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso;
+  * IPC validado via `omarchy-shell rosakodu.dock toggleTray`.
