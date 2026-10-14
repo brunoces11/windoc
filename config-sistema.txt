@@ -732,3 +732,20 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+37. INSTALAÇÃO DO DISCORD E FIXAÇÃO DO ÍCONE NA BARRA DE TAREFAS (DOCK)
+Data: 14/10/2026. Estado: instalado, fixado, validado e operacional em runtime.
+
+- Instalação do Pacote Oficial:
+  * Instalado o pacote nativo oficial `discord` (versão 1:1.0.156-1) a partir do repositório `extra` do Arch Linux via `sudo pacman -S --noconfirm discord`.
+  * Verificado o binário em `/usr/bin/discord` e o arquivo de entrada desktop em `/usr/share/applications/discord.desktop`.
+- Fixação do Ícone na Barra Inferior (WinDoc Taskbar):
+  * Arquivo afetado: `shell/dock-pinned.json`.
+  * Adicionado `"discord"` à lista de aplicativos fixados (`pinned`), posicionado logo após o aplicativo `"WhatsApp"` e adjacente aos apps de comunicação e mensageria.
+  * O ícone foi resolvido automaticamente com suporte ao tema oficial do sistema (`/usr/share/icons/hicolor/256x256/apps/discord.png`).
+- Validação Técnica e Runtime:
+  * Executado `omarchy restart shell` para recarregamento do Quickshell.
+  * Verificado o funcionamento do IPC do dock via `quickshell --path /usr/share/omarchy/shell ipc call rosakodu.dock ping` (resposta: "ok").
+  * Ícone fixo e responsivo na barra de tarefas inferior.
+
