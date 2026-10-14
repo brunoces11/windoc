@@ -28,8 +28,8 @@ A bandeja fica na barra inferior, no espaço reservado à direita junto ao reló
 Ela agrupa os widgets de áudio, rede, consumo de agentes, modo de janela, clima e
 display. Os itens fixados aparecem na barra; os demais ficam no overflow em grade,
 com configurações acessíveis pelo ícone de engrenagem. Os painéis nativos são
-abertos a partir da bandeja com sua âncora no slot inferior e o espaçamento padrão
-do componente `KeyboardPanel`.
+abertos a partir da bandeja com sua borda mais próxima alinhada à linha do tooltip
+(12 px a partir do topo da dock), como uma expansão visual do próprio tooltip.
 
 O ícone `omarchy.monitor` não deve permanecer na barra superior. A bandeja de
 aplicativos de terceiros (`omarchy.tray`) permanece independente. Consulte o

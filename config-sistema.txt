@@ -541,3 +541,27 @@ Data: 14/10/2026. Estado: implementado; shell e popups validados em runtime.
 - Limitação: não há ferramenta de clique de ponteiro nesta sessão; os cliques
   individuais não foram exercitados por mouse sintético e ainda podem ser
   conferidos visualmente pelo usuário.
+
+
+29. ALINHAMENTO DOS POPUPS DA SYSTEM TRAY À LINHA DO TOOLTIP
+Data: 14/10/2026. Estado: implementado; overflow validado visualmente.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/SystemIconTray.qml`,
+  `dock/components/TrayOverflowPopup.qml`, `DIRETRIZES_DE_DESIGN.txt`,
+  `README.md` e `system_icon_tray_plan.md`.
+- Antes: tooltip ancorado em `rect.y = 12`, overflow afastado pela altura da dock
+  mais `Style.gapsOut` e painéis nativos afastados pela margem padrão positiva.
+- Depois: `systemTrayPopupAnchorY` centraliza a linha de referência. O overflow
+  posiciona sua borda junto a `dock.y + 12` e centra o card horizontalmente na
+  setinha. Painéis `KeyboardPanel` acionados pela bandeja usam o deslocamento
+  correspondente para sobrepor a linha inferior do tooltip; `PopupCard` da
+  configuração do Floating Mode recebe o mesmo alinhamento. Painéis de ícones
+  fixados permanecem centrados no ícone clicado.
+- Verificações: `git diff --check`, JSON e recarga do Quickshell aprovados;
+  overflow aberto/fechado via IPC e capturado com `grim`, mostrando a borda na
+  linha local y=12 da dock. Clique físico não foi simulado; painel individual
+  não foi capturado.
+- Observação de runtime: nesta recarga o helper reportou timeout de prontidão;
+  o processo Quickshell continuou ativo, e a camada da dock apareceu após a
+  inicialização tardia. A abertura/fechamento do overflow e a captura foram
+  feitas depois que a camada ficou ativa.

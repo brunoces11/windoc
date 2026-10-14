@@ -46,10 +46,16 @@
 #       um tooltip com "espaçamento padrão", deve-se aplicar o gap vertical de 6px
 #       em relação ao seu elemento interativo, garantindo zero sobreposição e
 #       alinhamento harmônico no eixo Y.
-#   * Painéis nativos de widgets:
-#       Ao ancorar um painel `KeyboardPanel` à bandeja, preservar `anchorItem` e
-#       o valor nativo `gap: Style.gapsOut`. Não substituir por offsets próprios;
-#       os 6px acima são o padrão de tooltip e não sobrescrevem o gap do painel.
+#   * Popups acionados pela System Icon Tray:
+#       O limite mais próximo da dock deve coincidir com a linha inferior do
+#       tooltip: Y local = 12px a partir do topo da janela da dock. Para a dock
+#       inferior, aplicar `KeyboardPanel.gap: -12`; para a superior, usar
+#       `gap: 12 - barH`. Em `PopupCard`, usar o mesmo deslocamento em `margin`.
+#       O overflow usa o mesmo alinhamento (borda inferior em dock.y + 12, ou
+#       borda superior em dock.y + 12 na dock superior) e centraliza seu card
+#       horizontalmente sobre a setinha. Painéis de itens fixados continuam
+#       centralizados sobre o ícone que os abriu. Esse padrão especial substitui
+#       `Style.gapsOut` apenas para popups acionados pela System Tray.
 #
 # ==============================================================================
 # 3. CATÁLOGO DE COMPONENTES E DESIGN TOKENS

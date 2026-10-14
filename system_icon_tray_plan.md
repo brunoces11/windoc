@@ -8,20 +8,24 @@
 > abaixo explicam decisões anteriores, mas não são instruções de execução atuais.
 >
 > **Integração vigente:** `DockPanel.qml` carrega sob demanda um painel nativo por
-> vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` no slot da bandeja. O
-> espaçamento do painel continua sendo o nativo `Style.gapsOut`; o tooltip mantém
-> seu próprio padrão de 6px. O display está disponível na lista e no overflow e
-> pode ser fixado pelo modal. O ícone de modo de janela mantém a ação de alternar
+> vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` no slot acionador. A
+> borda próxima do popup coincide com a linha do tooltip (12 px a partir do topo
+> da dock); o overflow também se centra horizontalmente na setinha. O display
+> está disponível na lista e no overflow e pode ser fixado pelo modal. O ícone
+> de modo de janela mantém a ação de alternar
 > no clique esquerdo e abre suas configurações no clique direito.
 >
 > **Validação desta revisão:** shell reiniciado sem erros QML; popup de overflow
-> e modal abriram e fecharam via IPC, e as camadas foram confirmadas em runtime.
-> Os caminhos de acionamento dos painéis foram auditados contra suas APIs nativas;
-> a sessão não oferece ferramenta de clique de ponteiro para testar cada ícone
-> visualmente. Essa limitação não substitui a validação manual dos cliques.
+> abriu e fechou via IPC e foi capturado visualmente. A borda inferior do card
+> ficou na linha local y=12 da dock, conforme o tooltip. O modal também abriu e
+> fechou via IPC. Os caminhos dos painéis foram auditados contra as APIs nativas;
+> a sessão não oferece ferramenta de clique de ponteiro para testar cada painel
+> individualmente por mouse. Nesta última reinicialização, a dock demorou mais
+> que o limite de prontidão do helper para reaparecer, mas o processo permaneceu
+> ativo e a camada voltou antes da verificação do overflow.
 
-Atualizado em 14/10/2026. Estado: diretrizes documentadas; etapas 1 e 2 pendentes.
-Referência única para o agente executor. Esta revisão é exclusivamente documental.
+Atualizado em 14/10/2026. Estado: implementação funcional e correções de posição
+em andamento; os registros de etapas seguintes a este cabeçalho são históricos.
 
 ## Contrato da entrega
 

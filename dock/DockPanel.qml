@@ -67,6 +67,14 @@ Item {
     // Static Standard Dock Geometry (Strictly stable, no jumping/twitching on window state)
     readonly property real slotSize: 42
     readonly property real iconBaseSize: 24
+    // Shared anchor line for the right-side tooltip and tray popups. The
+    // tooltip's lower edge is at local y=12 in the dock window.
+    readonly property real systemTrayPopupAnchorY: 12
+    readonly property real systemTrayPopupGap: root.dockScreenPosition === "top"
+        ? root.systemTrayPopupAnchorY - (root.slotSize + 8)
+        : -root.systemTrayPopupAnchorY
+    property real systemTrayAnchorX: -1
+    property var systemTrayChevronAnchorItem: null
 
     // Live 1D Rail Displacement for Main Dock Bar
     property int dockDragActiveIndex: -1
@@ -885,10 +893,21 @@ Item {
 
     readonly property bool trayOverflowOpened: (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) ? trayOverflowPopup.opened : false
 
-    function toggleTrayOverflow() {
+    function toggleTrayOverflow(anchorItem) {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
+            root.setSystemTrayAnchor(anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem)
             trayOverflowPopup.opened = !trayOverflowPopup.opened
             console.log("WinDoc: toggleTrayOverflow() called -> opened is now", trayOverflowPopup.opened)
+        }
+    }
+
+    function setSystemTrayAnchor(anchorItem) {
+        if (!anchorItem) return
+        root.systemTrayAnchorItem = anchorItem
+        var anchorWindow = anchorItem.QsWindow ? anchorItem.QsWindow.window : root.dockWindow
+        if (anchorWindow && anchorWindow.contentItem) {
+            var point = anchorWindow.contentItem.mapFromItem(anchorItem, anchorItem.width / 2, 0)
+            root.systemTrayAnchorX = point.x
         }
     }
 
@@ -902,7 +921,7 @@ Item {
     function toggleTrayWidget(widgetId, anchorItem, button) {
         if (widgetId === "io.github.rawritude.floating-mode") {
             if (button === Qt.RightButton) {
-                root.systemTrayAnchorItem = anchorItem || root.systemTrayAnchorItem
+                root.setSystemTrayAnchor(anchorItem || root.systemTrayAnchorItem)
                 root.pendingFloatingSettings = true
                 floatingModeTrayLoader.active = true
                 floatingModeTrayLoader.source = root.getWidgetSource(widgetId)
@@ -918,9 +937,9 @@ Item {
         }
         if (!widgetId || widgetId === "tray.settings") return false
         var anchor = anchorItem || root.systemTrayAnchorItem
-        if (anchor) root.systemTrayAnchorItem = anchor
+        if (anchor) root.setSystemTrayAnchor(anchor)
         if (root.activeTrayPanelId === widgetId && systemTrayPanelLoader.item) {
-            root.activateWidget(widgetId, systemTrayPanelLoader.item, anchor, { button: button || Qt.LeftButton })
+            root.activateWidget(widgetId, systemTrayPanelLoader.item, anchor, { button: button || Qt.LeftButton }, true)
             return true
         }
         root.closeActiveTrayPanel()
@@ -944,7 +963,7 @@ Item {
         if (!item || !widgetId) return
         root.activeTrayPanelId = widgetId
         root.pendingTrayPanelId = ""
-        root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton })
+        root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton }, true)
     }
 
     function toggleSystemTrayPin(widgetId) {
@@ -1416,7 +1435,7 @@ Item {
         return "file:///usr/share/omarchy/shell/plugins/panels/" + name + "/BarWidget.qml"
     }
 
-    function configureHostedWidget(item, widgetId, anchorItem) {
+    function configureHostedWidget(item, widgetId, anchorItem, trayHosted) {
         if (!item) return
         if (root.loadedWidgetItems.indexOf(item) === -1) root.loadedWidgetItems.push(item)
         if ("bar" in item) item.bar = dockBarContext
@@ -1434,6 +1453,10 @@ Item {
             }
             if ("anchorItem" in p) {
                 p.anchorItem = anchorItem || (root.dockWindow ? root.dockWindow.contentItem : null)
+            }
+            if (trayHosted) {
+                if ("gap" in p) p.gap = root.systemTrayPopupGap
+                else if ("margin" in p) p.margin = root.systemTrayPopupGap
             }
             if ("opened" in p && p.openedChanged) {
                 p.openedChanged.connect(function() {
@@ -1713,7 +1736,7 @@ Item {
         Util.execDetached("omarchy-shell shell toggle " + widgetId)
     }
 
-    function activateWidget(widgetId, target, slotRoot, mouse) {
+    function activateWidget(widgetId, target, slotRoot, mouse, trayHosted) {
         if (root.isEditMode) {
             if (mouse && mouse.button === Qt.RightButton) {
                 root.isEditMode = false
@@ -1743,7 +1766,7 @@ Item {
         }
 
         if (target) {
-            root.configureHostedWidget(target, widgetId, slotRoot)
+            root.configureHostedWidget(target, widgetId, slotRoot, trayHosted === true)
             if (mouse && mouse.button === Qt.RightButton) {
                 if (widgetId === "omarchy.weather") {
                     Util.execDetached("omarchy-notification-send \"$(omarchy-weather-status)\"")
@@ -3759,7 +3782,7 @@ Item {
                         if (rx + popupW > dockLayer.width - 6) rx = dockLayer.width - popupW - 6
                         if (rx < 6) rx = 6
                         rightTooltipAnchor.rect.x = Math.round(rx)
-                        rightTooltipAnchor.rect.y = 12
+                        rightTooltipAnchor.rect.y = root.systemTrayPopupAnchorY
                     }
 
                     Connections {
@@ -3872,7 +3895,7 @@ Item {
         height: root.systemTrayAnchorItem ? root.systemTrayAnchorItem.height : root.slotSize
         onLoaded: {
             if (!item) return
-            root.configureHostedWidget(item, "io.github.rawritude.floating-mode", root.systemTrayAnchorItem)
+            root.configureHostedWidget(item, "io.github.rawritude.floating-mode", root.systemTrayAnchorItem, true)
             if (root.pendingFloatingSettings && "settingsOpen" in item) item.settingsOpen = true
             root.pendingFloatingSettings = false
         }

@@ -39,8 +39,8 @@ PanelWindow {
     readonly property int dockHeight: (dockPanel && dockPanel.windowsTaskbarMode && !dockPanel.isVertical && overflowWindow.dockWindow)
         ? overflowWindow.dockWindow.height
         : (dockPanel ? (dockPanel.slotSize + 8) : 50)
-    readonly property int dockGap: (Style.gapsOut || 5)
-    readonly property int dockOffset: isOverlay ? (dockGap + dockHeight + dockGap) : (dockHeight + dockGap)
+    readonly property real popupAnchorY: dockPanel ? dockPanel.systemTrayPopupAnchorY : 12
+    readonly property bool dockAtTop: dockPanel ? dockPanel.dockScreenPosition === "top" : false
 
     // Close when clicking anywhere outside the card
     MouseArea {
@@ -170,13 +170,14 @@ PanelWindow {
             event.accepted = true
             overflowWindow.opened = false
         }
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: overflowWindow.dockOffset + 2
-        anchors.right: parent.right
-        anchors.rightMargin: {
-            var clockW = (dockPanel && dockPanel.clockSlotWidth) ? dockPanel.clockSlotWidth : 76
-            var deskW = (dockPanel && dockPanel.showDesktopButtonEnabled && dockPanel.desktopSlotWidth) ? dockPanel.desktopSlotWidth : 10
-            return clockW + deskW + (Style.gapsOut || 5)
+        anchors.top: overflowWindow.dockAtTop ? parent.top : undefined
+        anchors.bottom: overflowWindow.dockAtTop ? undefined : parent.bottom
+        anchors.topMargin: overflowWindow.dockAtTop ? overflowWindow.popupAnchorY : 0
+        anchors.bottomMargin: overflowWindow.dockAtTop ? 0 : Math.max(0, overflowWindow.dockHeight - overflowWindow.popupAnchorY)
+        x: {
+            var centerX = dockPanel ? dockPanel.systemTrayAnchorX : -1
+            if (centerX < 0) centerX = parent.width - width / 2 - 8
+            return Math.round(Math.max(6, Math.min(centerX - width / 2, parent.width - width - 6)))
         }
 
         width: (overflowWindow.gridCols * 44) + ((overflowWindow.gridCols - 1) * 6) + 20

@@ -13,6 +13,16 @@ Item {
     property var dockPanel: null
     property var dockWindow: null
 
+    function registerChevronAnchor() {
+        if (!dockPanel || !visible) return
+        dockPanel.systemTrayChevronAnchorItem = chevronBtn
+    }
+
+    Component.onCompleted: Qt.callLater(registerChevronAnchor)
+    onVisibleChanged: {
+        if (visible) Qt.callLater(registerChevronAnchor)
+    }
+
     function getPinnedWidgetTitle(widgetId) {
         if (widgetId === "omarchy.audio") return "Volume e Áudio"
         if (widgetId === "omarchy.network") return "Rede e Conexões"
@@ -87,8 +97,7 @@ Item {
                         trayRoot.dockPanel.hideRightTooltip(chevronBtn)
                     }
                     if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayOverflow === "function") {
-                        trayRoot.dockPanel.systemTrayAnchorItem = trayRoot.parent || chevronBtn
-                        trayRoot.dockPanel.toggleTrayOverflow()
+                        trayRoot.dockPanel.toggleTrayOverflow(chevronBtn)
                     }
                 }
             }
