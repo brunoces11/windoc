@@ -621,3 +621,25 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+32. UNIFICAÇÃO DO TAMANHO DOS ÍCONES DA BANDEJA (TASKBAR VS. OVERFLOW) E COMPACTAÇÃO DO POP-UP
+Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
+
+- Arquivos afetados: `dock/components/TrayOverflowPopup.qml`, `DIRETRIZES_DE_DESIGN.txt` e `config-sistema.txt`.
+- Motivação e Objetivos:
+  1. Padronização Visual de Escala: os ícones dentro do pop-up de overflow (^) estavam
+     com glifo de 20px, perceptivelmente maiores que os ícones da barra de tarefas (17px).
+     Unificado o tamanho de todos os ícones da bandeja para 17px (`font.pixelSize: 17`),
+     garantindo consistência e harmonia visual 1:1 entre a barra e o pop-up.
+  2. Redução de 20% no Espaçamento Entre Ícones: diminuído o espaçamento entre itens
+     de 6px para 5px (`rowSpacing` e `columnSpacing`), reduzindo a dispersão visual.
+  3. Redução de 20% no Padding Interno do Grid: diminuído o respiro perimetral do card
+     de 10px para 8px (total de 20px reduzido para 16px no eixo X e Y), tornando
+     o pop-up mais compacto e elegante sobre a dock.
+  4. Atualização de Design: novo padrão catalogado no componente [COMPONENTE 02]
+     em `DIRETRIZES_DE_DESIGN.txt`.
+- Verificações Técnicas:
+  * `git diff --check` aprovado;
+  * `python3 -m json.tool shell/shell.json` validado;
+  * `omarchy restart shell` executado com sucesso e camadas recarregadas.

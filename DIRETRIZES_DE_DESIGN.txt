@@ -92,7 +92,31 @@
 #       - Superfície: PopupWindow nativa do Quickshell (camada Wayland fora do dockLayer) ou Rectangle elevado com z: 9999.
 #
 # ------------------------------------------------------------------------------
-# [COMPONENTE 02] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)
+# [COMPONENTE 02] TRAY OVERFLOW POPUP (MENU DE ÍCONES OCULTOS)
+# ------------------------------------------------------------------------------
+# Dimensões e espaçamentos da janela pop-up que exibe os ícones ocultos da bandeja (^):
+#   * Glifo do Ícone (Glyph Size):
+#       - Tamanho: 17px (`font.pixelSize: 17`) — rigorosamente idêntico ao tamanho
+#         dos ícones fixados na barra de tarefas padrão (`SystemIconTray.qml`).
+#       - Família tipográfica: Style.font.family.
+#   * Espaçamento Entre Ícones (Item Spacing):
+#       - `rowSpacing: 5` e `columnSpacing: 5` (redução de 20% em relação ao padrão
+#         anterior de 6px, mantendo valor inteiro de 5px para máxima nitidez de renderização).
+#   * Padding Interno do Grid (Card Padding):
+#       - `gridPadding: 8` (redução de 20% em relação ao padding original de 10px,
+#         resultando em 16px totais no eixo horizontal e vertical).
+#   * Dimensões do Slot e Card:
+#       - Slot individual: 44x44 px (`radius: 7`).
+#       - Card acrílico: `width = (gridCols * 44) + ((gridCols - 1) * 5) + 16`
+#                        `height = (gridRows * 44) + ((gridRows - 1) * 5) + 16`
+#       - Raio de curvatura do card: 10px (`radius: 10`).
+#   * Superfície e Contorno:
+#       - Cor de Fundo: `Color.popups.background`.
+#       - Borda: 1px, `Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.28)`.
+#       - Glow interno: 1px, `Color.composed("popups.highlight", "popups.highlight-alpha", Color.text, 0.08)`.
+#
+# ------------------------------------------------------------------------------
+# [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)
 # ------------------------------------------------------------------------------
 # Regra de catalogação: quando o usuário definir estilos como "Janela X", "Janela Y",
 # "Painel Modal A", etc., registrar neste bloco as propriedades completas:

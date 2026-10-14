@@ -168,6 +168,12 @@ PanelWindow {
     readonly property int gridCols: Math.max(1, Math.min(totalItems, 5))
     readonly property int gridRows: Math.max(1, Math.ceil(totalItems / gridCols))
 
+    // Spacing and sizing tokens (matching standard taskbar size and compacting grid by 20%)
+    readonly property real iconPixelSize: 17
+    readonly property real itemSpacing: 5
+    readonly property real gridPadding: 8
+    readonly property real itemSlotSize: 44
+
     // The Floating Acrylic Popup Card
     Rectangle {
         id: card
@@ -187,8 +193,8 @@ PanelWindow {
             return Math.round(Math.max(6, Math.min(centerX - width / 2, parent.width - width - 6)))
         }
 
-        width: (overflowWindow.gridCols * 44) + ((overflowWindow.gridCols - 1) * 6) + 20
-        height: (overflowWindow.gridRows * 44) + ((overflowWindow.gridRows - 1) * 6) + 20
+        width: Math.round((overflowWindow.gridCols * overflowWindow.itemSlotSize) + ((overflowWindow.gridCols - 1) * overflowWindow.itemSpacing) + (overflowWindow.gridPadding * 2))
+        height: Math.round((overflowWindow.gridRows * overflowWindow.itemSlotSize) + ((overflowWindow.gridRows - 1) * overflowWindow.itemSpacing) + (overflowWindow.gridPadding * 2))
         radius: 10
         color: Color.popups.background
         border.width: 1
@@ -214,8 +220,8 @@ PanelWindow {
             id: grid
             anchors.centerIn: parent
             columns: overflowWindow.gridCols
-            rowSpacing: 6
-            columnSpacing: 6
+            rowSpacing: overflowWindow.itemSpacing
+            columnSpacing: overflowWindow.itemSpacing
 
             Repeater {
                 model: overflowWindow.trayItems
@@ -226,8 +232,8 @@ PanelWindow {
                     required property int index
 
                     z: itemMouse.containsMouse ? 100 : 1
-                    width: 44
-                    height: 44
+                    width: overflowWindow.itemSlotSize
+                    height: overflowWindow.itemSlotSize
                     radius: 7
                     color: itemMouse.containsMouse
                         ? Color.composed("popups.hover", "popups.hover-alpha", Color.outline, 0.2)
@@ -249,7 +255,7 @@ PanelWindow {
                             }
                             return modelData.icon || "󰒓"
                         }
-                        font.pixelSize: 20
+                        font.pixelSize: overflowWindow.iconPixelSize
                         font.family: Style.font.family
                         color: itemMouse.containsMouse
                             ? Color.accent
