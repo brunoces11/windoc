@@ -724,3 +724,16 @@ Data: 15/10/2026. Estado: implementação feita; recarga do shell validada.
   a camada `omarchy-dock` reapareceu e os logs recentes não mostraram erro QML.
   O teste de cliques físicos não foi automatizado nesta sessão. A alteração local de
   preferências em `shell/dock-settings.json` foi preservada e não entrou no commit.
+
+
+37. REGISTRO DA MENSAGEM PERSONALIZADA DE CADA COMMIT NA RESPOSTA FINAL
+Data: 15/10/2026. Estado: diretriz documentada.
+
+- Arquivos afetados: `AGENTS.md` e este histórico.
+- Antes: a regra exigia informar o commit e confirmar o push, sem especificar que a
+  mensagem do commit deveria explicar as mudanças funcionais nem ser reproduzida.
+- Depois: a mensagem personalizada deve ter duas linhas claras, diretas e sem jargão;
+  a resposta final deve mostrar o identificador do commit e, logo após, repetir
+  exatamente essa mensagem, antes de confirmar o push.
+- Verificação: conteúdo revisado e `git diff --check` aprovado. Nenhum arquivo de
+  código ou configuração do sistema foi alterado.

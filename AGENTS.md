@@ -61,9 +61,9 @@ Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **
 1. Validar a integridade técnica da alteração (sintaxe, `hyprctl reload`, etc.).
 2. Registrar a mudança no histórico incremental do `config-sistema.txt`.
 3. Adicionar as alterações ao stage (`git add .`).
-4. Criar um commit com mensagem semântica, clara e sucinta descrevendo o que foi feito (ex: `feat(dock): ...`, `fix(hypr): ...`, `style(shell): ...`).
+4. Criar um commit com uma mensagem personalizada, clara e informativa, preferencialmente em português e sem jargão técnico. A mensagem deve caber em duas linhas: a primeira resume a mudança percebida pelo usuário; a segunda descreve, de forma direta, as funcionalidades ou comportamentos modificados. Evitar mensagens genéricas e incluir todas as mudanças funcionais relevantes daquela edição.
 5. Executar imediatamente o envio ao GitHub (`git push origin main`).
-6. Informar ao usuário na resposta final o commit gerado e a confirmação do push.
+6. Na resposta final, informar o identificador do commit e, logo em seguida, reproduzir exatamente a mensagem personalizada criada para ele, nas mesmas duas linhas. A mensagem deve deixar claro o que foi alterado sem depender de detalhes técnicos. Depois, confirmar se o push foi concluído.
 *O usuário NÃO precisa pedir para commitar nem para dar push: isso é um trigger automático mandatório ao final de qualquer modificação.*
 
 ### REGRA 4: Hot-Reload e Validação no Omarchy/Hyprland
