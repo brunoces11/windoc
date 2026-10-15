@@ -117,6 +117,12 @@
 #       - Cor de Fundo: `Color.popups.background`.
 #       - Borda: 1px, `Color.composed("popups.border", "popups.border-alpha", Color.outline, 0.28)`.
 #       - Glow interno: 1px, `Color.composed("popups.highlight", "popups.highlight-alpha", Color.text, 0.08)`.
+#   * Permanência e Fechamento:
+#       - Clicar em um ícone do grid executa sua ação/abre seu painel sem fechar o
+#         overflow; o painel do widget pode ficar acima dele.
+#       - O overflow fecha apenas ao clicar novamente na seta, ao clicar fora do card
+#         ou quando o cursor se afasta 100px ou mais do card.
+#       - Cliques e movimento do cursor dentro do card mantêm o overflow aberto.
 #
 # ------------------------------------------------------------------------------
 # [COMPONENTE 03] JANELAS, MODAIS E VARIANTES (ESPAÇO RESERVADO PARA NOVOS ESTILOS)

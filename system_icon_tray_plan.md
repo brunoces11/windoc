@@ -22,6 +22,10 @@
 > superfície fullscreen diretamente. `KeyboardPanel.gap` e `PopupCard.margin` são
 > calculados separadamente para respeitar o modelo de cada componente. A recarga do
 > shell foi validada; a conferência visual item a item ainda depende de interação real.
+>
+> **Permanência do overflow:** clicar em qualquer ícone ou na engrenagem executa sua
+> ação sem fechar a bandeja. Ela fecha ao clicar na seta novamente, clicar fora do
+> card ou afastar o cursor pelo menos 100px do card.
 
 Atualizado em 14/10/2026. Estado: implementação funcional e correções de posição
 em andamento; os registros de etapas seguintes a este cabeçalho são históricos.

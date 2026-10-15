@@ -13,13 +13,19 @@ PanelWindow {
     property var dockPanel: null
     property var dockWindow: null
     property bool opened: false
+    property bool mouseHasBeenNear: false
 
     screen: overflowWindow.dockWindow ? overflowWindow.dockWindow.screen : (Quickshell.screens && Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     visible: opened
 
     onOpenedChanged: {
         console.log("WinDoc TrayOverflowPopup: opened ->", opened, "visible ->", visible)
-        if (opened) card.forceActiveFocus()
+        if (opened) {
+            mouseHasBeenNear = true
+            card.forceActiveFocus()
+        } else {
+            mouseHasBeenNear = false
+        }
     }
 
     WlrLayershell.namespace: "omarchy-dock-tray-overflow"
@@ -42,11 +48,27 @@ PanelWindow {
     readonly property real popupAnchorY: dockPanel ? dockPanel.systemTrayPopupAnchorY : 12
     readonly property bool dockAtTop: dockPanel ? dockPanel.dockScreenPosition === "top" : false
 
-    // Close when clicking anywhere outside the card
+    // Keep the tray open near the card. Close only after the pointer moves
+    // 100px beyond it, or when the user clicks outside the card.
     MouseArea {
         anchors.fill: parent
         z: 0
+        hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onPositionChanged: function(mouse) {
+            var dx = 0
+            if (mouse.x < card.x) dx = card.x - mouse.x
+            else if (mouse.x > card.x + card.width) dx = mouse.x - (card.x + card.width)
+
+            var dy = 0
+            if (mouse.y < card.y) dy = card.y - mouse.y
+            else if (mouse.y > card.y + card.height) dy = mouse.y - (card.y + card.height)
+
+            if (dx < 100 && dy < 100) mouseHasBeenNear = true
+            if (mouseHasBeenNear && (dx >= 100 || dy >= 100)) {
+                overflowWindow.opened = false
+            }
+        }
         onClicked: {
             overflowWindow.opened = false
         }
@@ -68,7 +90,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.audio")
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
@@ -88,7 +109,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle omarchy.network")
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-launch-floating-terminal-with-presentation nmtui")
@@ -104,7 +124,6 @@ PanelWindow {
                 } else {
                     Util.execDetached("omarchy-shell shell toggle brunoma.agents")
                 }
-                overflowWindow.opened = false
             }
         },
         {
@@ -115,7 +134,6 @@ PanelWindow {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function") {
                     dockPanel.toggleTrayWidget("omarchy.weather", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
                 }
-                overflowWindow.opened = false
             },
             rightAction: function(anchorItem) {
                 Util.execDetached("omarchy-notification-send \"$(omarchy-weather-status)\"")
@@ -128,7 +146,6 @@ PanelWindow {
             action: function(anchorItem) {
                 if (dockPanel && typeof dockPanel.toggleTrayWidget === "function")
                     dockPanel.toggleTrayWidget("omarchy.monitor", anchorItem || dockPanel.systemTrayAnchorItem, Qt.LeftButton)
-                overflowWindow.opened = false
             }
         },
         {
@@ -136,7 +153,6 @@ PanelWindow {
             name: "Configurações da Bandeja",
             icon: "󰒓",
             action: function(anchorItem) {
-                overflowWindow.opened = false
                 if (dockPanel && typeof dockPanel.openSystemTraySettings === "function") {
                     dockPanel.openSystemTraySettings()
                 }
@@ -183,10 +199,6 @@ PanelWindow {
         id: card
         z: 1
         focus: true
-        Keys.onEscapePressed: function(event) {
-            event.accepted = true
-            overflowWindow.opened = false
-        }
         anchors.top: overflowWindow.dockAtTop ? parent.top : undefined
         anchors.bottom: overflowWindow.dockAtTop ? undefined : parent.bottom
         anchors.topMargin: overflowWindow.dockAtTop ? overflowWindow.popupAnchorY : 0

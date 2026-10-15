@@ -708,3 +708,19 @@ Data: 15/10/2026. Estado: recarga de runtime validada; conferência visual item 
   a camada `omarchy-dock` reapareceu e os logs recentes não mostraram erro QML.
   A preferência local em `shell/dock-settings.json` foi preservada e não faz parte
   desta mudança. Os cliques físicos individuais não foram simulados nesta sessão.
+
+
+36. MANTER O OVERFLOW DA SYSTEM TRAY ABERTO DURANTE A ATIVAÇÃO DOS ÍCONES
+Data: 15/10/2026. Estado: implementação feita; recarga do shell validada.
+
+- Arquivos afetados: `dock/components/TrayOverflowPopup.qml`,
+  `DIRETRIZES_DE_DESIGN.txt`, `system_icon_tray_plan.md` e este histórico.
+- Antes: os handlers de áudio, rede, agentes, clima, display e configurações
+  definiam `opened = false` ao serem acionados; o handler de ESC também fechava.
+- Depois: ações nos ícones não fecham a bandeja, permitindo que o painel do widget
+  apareça acima do overflow enquanto ele permanece visível. Fechamentos previstos:
+  clicar fora do card, afastar o cursor pelo menos 100px, ou clicar novamente na seta.
+- Verificações: `git diff --check` aprovado; `omarchy restart shell` retornou sucesso,
+  a camada `omarchy-dock` reapareceu e os logs recentes não mostraram erro QML.
+  O teste de cliques físicos não foi automatizado nesta sessão. A alteração local de
+  preferências em `shell/dock-settings.json` foi preservada e não entrou no commit.
