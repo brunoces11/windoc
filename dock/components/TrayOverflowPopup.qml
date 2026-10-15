@@ -204,7 +204,7 @@ PanelWindow {
         anchors.topMargin: overflowWindow.dockAtTop ? overflowWindow.popupAnchorY : 0
         anchors.bottomMargin: overflowWindow.dockAtTop ? 0 : Math.max(0, overflowWindow.dockHeight - overflowWindow.popupAnchorY)
         x: {
-            var centerX = dockPanel ? dockPanel.systemTrayAnchorX : -1
+            var centerX = dockPanel ? dockPanel.systemTrayOverflowCenterX : -1
             if (centerX < 0) centerX = parent.width - width / 2 - 8
             return Math.round(Math.max(6, Math.min(centerX - width / 2, parent.width - width - 6)))
         }

@@ -77,6 +77,7 @@ Item {
     property real currentTrayAnchorMargin: 0
     property real systemTrayAnchorX: -1
     property real systemTrayAnchorY: -1
+    property real systemTrayOverflowCenterX: -1
     property var systemTrayChevronAnchorItem: null
 
     // Live 1D Rail Displacement for Main Dock Bar
@@ -897,8 +898,13 @@ Item {
 
     function toggleTrayOverflow(anchorItem) {
         if (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) {
-            root.setSystemTrayAnchor(anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem)
-            trayOverflowPopup.opened = !trayOverflowPopup.opened
+            if (trayOverflowPopup.opened) {
+                trayOverflowPopup.opened = false
+            } else {
+                root.setSystemTrayAnchor(anchorItem || root.systemTrayChevronAnchorItem || root.systemTrayAnchorItem)
+                root.systemTrayOverflowCenterX = root.systemTrayAnchorX
+                trayOverflowPopup.opened = true
+            }
             console.log("WinDoc: toggleTrayOverflow() called -> opened is now", trayOverflowPopup.opened)
         }
     }
@@ -947,7 +953,11 @@ Item {
             if (activeDock && activeDock.dynamicTrayAnchorProxy) {
                 var proxy = activeDock.dynamicTrayAnchorProxy
                 proxy.x = screenX
-                proxy.y = isTop ? screenY : (screenY - dockScreenTop)
+                // The panel uses the proxy's window and horizontal position;
+                // its vertical position is calculated from currentTrayAnchorGap.
+                // Keep the proxy inside the dock surface instead of placing it
+                // above the window at the overflow card's screen coordinate.
+                proxy.y = 0
                 proxy.width = itemW
                 proxy.height = itemH
                 root.systemTrayAnchorItem = proxy
@@ -992,7 +1002,7 @@ Item {
         var anchor = anchorItem || root.systemTrayAnchorItem
         if (anchor) root.setSystemTrayAnchor(anchor)
         if (root.activeTrayPanelId === widgetId && systemTrayPanelLoader.item) {
-            root.activateWidget(widgetId, systemTrayPanelLoader.item, anchor, { button: button || Qt.LeftButton }, true)
+            root.activateWidget(widgetId, systemTrayPanelLoader.item, root.systemTrayAnchorItem, { button: button || Qt.LeftButton }, true)
             return true
         }
         root.closeActiveTrayPanel()

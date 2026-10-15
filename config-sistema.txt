@@ -737,3 +737,22 @@ Data: 15/10/2026. Estado: diretriz documentada.
   exatamente essa mensagem, antes de confirmar o push.
 - Verificação: conteúdo revisado e `git diff --check` aprovado. Nenhum arquivo de
   código ou configuração do sistema foi alterado.
+
+
+38. ESTABILIZAR A BANDEJA E A POSIÇÃO DOS PAINÉIS DOS ÍCONES OCULTOS
+Data: 15/10/2026. Estado: implementação feita; recarga do shell validada.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`
+  e este histórico.
+- Antes: ao clicar em um ícone oculto, a bandeja reutilizava a coordenada horizontal
+  do painel ativo e podia deslizar. Ao reabrir o painel do mesmo ícone, a âncora da
+  janela fullscreen do overflow podia ser usada como se fosse a janela da Dock,
+  causando posicionamento incorreto.
+- Depois: a bandeja guarda a posição da seta ao abrir e mantém esse centro durante
+  a navegação. Os painéis usam sempre o proxy ancorado à janela da Dock, inclusive
+  ao reabrir o painel do ícone selecionado; o proxy permanece dentro da superfície
+  da Dock enquanto o afastamento vertical segue as coordenadas do ícone.
+- Verificações: `git diff --check` aprovado; recarga do shell e inspeção dos logs
+  realizadas. A preferência local em `shell/dock-settings.json` foi preservada e
+  não faz parte desta mudança. A verificação visual por cliques físicos permanece
+  necessária para confirmar os dois sintomas em uso real.
