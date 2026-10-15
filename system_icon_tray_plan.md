@@ -19,7 +19,10 @@
 >
 > **Validação desta revisão:** shell reiniciado sem erros QML (`omarchy restart shell`);
 > popup de overflow abriu e fechou via IPC; cálculo de coordenadas relativas e gap
-> dinâmico (`currentTrayAnchorGap`) implementados em runtime. Working tree sincronizado.
+> dinâmico (`currentTrayAnchorGap`) implementado em runtime. `PopupCard.margin` é
+> calculada separadamente do `KeyboardPanel.gap`, usando o anchor efetivo para manter
+> a borda do painel sobre a linha do tooltip. Recarga do shell validada nesta revisão;
+> clique físico em cada item continua sem validação automatizada.
 
 Atualizado em 14/10/2026. Estado: implementação funcional e correções de posição
 em andamento; os registros de etapas seguintes a este cabeçalho são históricos.

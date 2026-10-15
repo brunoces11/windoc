@@ -831,3 +831,24 @@ Data: 14/10/2026. Estado: corrigido, calibrado, testado e validado em runtime.
     * O painel antigo fechou e o novo mapeou imediatamente na camada Overlay (`omarchy-keyboard-panel`).
   - `omarchy restart shell` executado sem erros ou alertas;
   - `git diff --check` aprovado.
+
+
+32. CORREÇÃO DE ÂNCORA VERTICAL ENTRE TOOLTIP E PAINÉIS DA SYSTEM TRAY
+Data: 14/10/2026. Estado: corrigido; recarga do shell validada.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `DIRETRIZES_DE_DESIGN.txt`,
+  `system_icon_tray_plan.md` e este histórico.
+- Causa encontrada: `KeyboardPanel` posiciona seu painel usando `gap` relativo à
+  borda da dock, enquanto `PopupCard` usa `margin` relativo ao topo do item âncora.
+  Reutilizar `currentTrayAnchorGap` para os dois tipos deslocava painéis `PopupCard`
+  (incluindo as configurações do Floating Mode) em relação ao tooltip.
+- Correção: cálculo separado de `currentTrayAnchorMargin` pela coordenada vertical
+  real do ícone e da linha inferior do tooltip. O cálculo cobre ícones fixados e
+  ícones no overflow. Também foi corrigido o caminho em que o painel do Floating
+  Mode já estava carregado, que não passava a flag `trayHosted` ao configurar o
+  painel.
+- Verificações: `git diff --check` aprovado; `omarchy restart shell` retornou
+  sucesso, a camada `omarchy-dock` reapareceu e os logs recentes não mostram erro
+  QML. Os caminhos de áudio, rede, agentes, clima e display usam `KeyboardPanel`;
+  as configurações Floating Mode usam `PopupCard` e agora recebem a margem própria.
+  Clique físico em cada ícone não foi exercitado por mouse sintético nesta sessão.
