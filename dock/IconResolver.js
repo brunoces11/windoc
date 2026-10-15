@@ -42,6 +42,10 @@ var FALLBACK_MAP = {
     "transmission": "transmission-gtk",
     "transmission-gtk": "transmission-gtk",
     "com.transmissionbt.transmission": "transmission-gtk",
+    "concat": "concat",
+    "davinci-resolve": "davinci-resolve",
+    "com.blackmagicdesign.resolve": "davinci-resolve",
+    "resolve": "davinci-resolve",
     "youtube": "youtube"
 };
 

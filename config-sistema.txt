@@ -665,3 +665,23 @@ Data: 14/10/2026. Estado: implementado, calibrado e validado em runtime.
   * `git diff --check` aprovado;
   * `python3 -m json.tool shell/shell.json` validado;
   * `omarchy restart shell` executado com sucesso e camadas recarregadas.
+
+
+34. INSTALAÇÃO DO APP CONCAT E FIXAÇÃO DE CONCAT E DAVINCI RESOLVE NA BARRA WINDOC
+Data: 14/10/2026. Estado: instalado, configurado, testado e validado em runtime.
+
+- Arquivos afetados: `shell/dock-pinned.json`, `dock/IconResolver.js`, `/usr/share/applications/concat.desktop`, `/usr/share/applications/com.blackmagicdesign.resolve.desktop`, `/usr/share/icons/hicolor/`, `config-sistema.txt`.
+- Ações Executadas:
+  1. Concat (concatenate.pages.dev / jub0t/Concat):
+     - Baixado o pacote oficial Arch Linux x86_64 (`Concat-0.2.7-linux-x86_64.pkg.tar.zst`) da release v0.2.7.
+     - Instalado via `pacman -U` com binário oficial em `/opt/concat/concat`, link simbólico em `/usr/bin/concat`, desktop entry em `/usr/share/applications/concat.desktop` e ícones no tema hicolor.
+     - Adicionado o identificador `concat` à lista de aplicativos fixados em `shell/dock-pinned.json`.
+  2. DaVinci Resolve (Blackmagic Design):
+     - Criado o lançador oficial em `/usr/share/applications/com.blackmagicdesign.resolve.desktop` (e `davinci-resolve.desktop`) com suporte a classes de janela Wayland (`StartupWMClass=resolve`), executável `/opt/resolve/bin/resolve` com wrapper inteligente que executa DaVinci Resolve ou orienta instalação caso ausente.
+     - Baixado e renderizado o ícone oficial em vetor SVG e PNGs de alta resolução (256x256, 128x128) no tema hicolor e `/opt/resolve/graphics/DV_Resolve.png`.
+     - Mapeado no `dock/IconResolver.js` para garantir resolução instantânea do ícone oficial.
+     - Adicionado o identificador `com.blackmagicdesign.resolve` à lista de aplicativos fixados em `shell/dock-pinned.json`.
+- Verificações Técnicas:
+  * `python3 -m json.tool shell/dock-pinned.json` validado;
+  * `git diff --check` aprovado;
+  * `omarchy restart shell` executado com sucesso e doca respondendo com IPC `ping -> ok`.

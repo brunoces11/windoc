@@ -9,6 +9,9 @@
     "chrome-fhihpiojkbmbpdjeoajapmgkhlnakfjf-Default",
     "chromium",
     "kitty",
-    "com.obsproject.Studio"
+    "com.obsproject.Studio",
+    "org.kde.kdenlive",
+    "concat",
+    "com.blackmagicdesign.resolve"
   ]
 }
