@@ -756,3 +756,21 @@ Data: 15/10/2026. Estado: implementação feita; recarga do shell validada.
   realizadas. A preferência local em `shell/dock-settings.json` foi preservada e
   não faz parte desta mudança. A verificação visual por cliques físicos permanece
   necessária para confirmar os dois sintomas em uso real.
+
+
+39. PRESERVAR OS DADOS DO PAINEL DE PREVISÃO DO TEMPO NA BANDEJA
+Data: 15/10/2026. Estado: implementação feita; reload validado, cliques reais pendentes.
+
+- Arquivos afetados: `dock/DockPanel.qml` e este histórico.
+- Antes: o painel de clima compartilhava o mesmo `Loader` dos outros widgets.
+  Ao trocar de ícone, sua instância e os relatórios em memória eram descartados;
+  ao voltar, o painel reiniciava as consultas de rede e mostrava o carregamento.
+- Depois: o painel de clima mantém uma instância própria após a primeira abertura.
+  Os dados permanecem em memória durante a sessão, o painel reabre sem forçar nova
+  consulta e continua seguindo o intervalo periódico de atualização do widget.
+- Cache: os relatórios são mantidos apenas na memória da sessão; não há cache
+  persistente em disco no painel empacotado do Omarchy.
+- Verificações: `git diff --check` aprovado; `omarchy restart shell` executado e
+  camada da Dock confirmada. Os logs recentes não indicaram erro QML. Como o painel
+  é carregado sob demanda, a sequência visual de abrir, trocar de widget e reabrir
+  o clima ainda precisa de conferência por cliques reais.

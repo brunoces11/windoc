@@ -975,7 +975,9 @@ Item {
     }
 
     function closeActiveTrayPanel() {
-        var item = systemTrayPanelLoader.item
+        var item = root.activeTrayPanelId === "omarchy.weather"
+            ? weatherTrayPanelLoader.item
+            : systemTrayPanelLoader.item
         if (!item) return
         if (typeof item.close === "function") item.close()
         else if (item.panel && typeof item.panel.close === "function") item.panel.close()
@@ -1001,6 +1003,32 @@ Item {
         if (!widgetId || widgetId === "tray.settings") return false
         var anchor = anchorItem || root.systemTrayAnchorItem
         if (anchor) root.setSystemTrayAnchor(anchor)
+
+        // Keep the weather panel instance alive after its first use. Its
+        // reports live in that instance, and replacing the shared loader with
+        // another widget would otherwise discard them and trigger a cold load
+        // the next time Weather is selected.
+        if (widgetId === "omarchy.weather") {
+            var weatherPanel = weatherTrayPanelLoader.item
+            if (root.activeTrayPanelId === widgetId && weatherPanel) {
+                root.configureHostedWidget(weatherPanel, widgetId, root.systemTrayAnchorItem, true)
+                if (weatherPanel.opened) weatherPanel.close()
+                else if (weatherPanel.controller && typeof weatherPanel.controller.show === "function") weatherPanel.controller.show()
+                return true
+            }
+
+            root.closeActiveTrayPanel()
+            root.activeTrayPanelId = ""
+            root.pendingTrayPanelId = widgetId
+            weatherTrayPanelLoader.active = true
+            if (weatherTrayPanelLoader.item) {
+                root.activatePendingTrayPanel()
+            } else if (!weatherTrayPanelLoader.source) {
+                weatherTrayPanelLoader.source = root.getWidgetSource(widgetId)
+            }
+            return true
+        }
+
         if (root.activeTrayPanelId === widgetId && systemTrayPanelLoader.item) {
             root.activateWidget(widgetId, systemTrayPanelLoader.item, root.systemTrayAnchorItem, { button: button || Qt.LeftButton }, true)
             return true
@@ -1021,11 +1049,20 @@ Item {
     }
 
     function activatePendingTrayPanel() {
-        var item = systemTrayPanelLoader.item
         var widgetId = root.pendingTrayPanelId
+        var item = widgetId === "omarchy.weather"
+            ? weatherTrayPanelLoader.item
+            : systemTrayPanelLoader.item
         if (!item || !widgetId) return
         root.activeTrayPanelId = widgetId
         root.pendingTrayPanelId = ""
+        if (widgetId === "omarchy.weather") {
+            root.configureHostedWidget(item, widgetId, root.systemTrayAnchorItem, true)
+            // Weather refreshes on its own schedule. Showing the retained
+            // panel directly avoids forcing a network refresh on each reopen.
+            if (item.controller && typeof item.controller.show === "function") item.controller.show()
+            return
+        }
         root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton }, true)
     }
 
@@ -3966,6 +4003,12 @@ Item {
 
     Loader {
         id: systemTrayPanelLoader
+        active: false
+        onLoaded: root.activatePendingTrayPanel()
+    }
+
+    Loader {
+        id: weatherTrayPanelLoader
         active: false
         onLoaded: root.activatePendingTrayPanel()
     }
