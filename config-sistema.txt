@@ -766,11 +766,24 @@ Data: 15/10/2026. Estado: implementação feita; reload validado, cliques reais 
   Ao trocar de ícone, sua instância e os relatórios em memória eram descartados;
   ao voltar, o painel reiniciava as consultas de rede e mostrava o carregamento.
 - Depois: o painel de clima mantém uma instância própria após a primeira abertura.
-  Os dados permanecem em memória durante a sessão, o painel reabre sem forçar nova
-  consulta e continua seguindo o intervalo periódico de atualização do widget.
+  Os dados permanecem em memória durante a sessão; cada abertura usa o ciclo normal
+  do widget, incluindo sua atualização, sem descartar o relatório já carregado.
 - Cache: os relatórios são mantidos apenas na memória da sessão; não há cache
   persistente em disco no painel empacotado do Omarchy.
 - Verificações: `git diff --check` aprovado; `omarchy restart shell` executado e
   camada da Dock confirmada. Os logs recentes não indicaram erro QML. Como o painel
   é carregado sob demanda, a sequência visual de abrir, trocar de widget e reabrir
   o clima ainda precisa de conferência por cliques reais.
+
+
+40. RESTAURAR A ABERTURA DO CARTÃO DO WIDGET DE PREVISÃO DO TEMPO
+Data: 15/10/2026. Estado: correção aplicada; reload validado, cliques pendentes.
+
+- Arquivo afetado: `dock/DockPanel.qml`.
+- Antes: a instância persistente do clima era exibida diretamente pelo controlador,
+  sem passar pelo fluxo comum de ativação usado pelos demais ícones da bandeja.
+- Depois: primeira abertura e reabertura passam pela ativação comum do widget,
+  que configura a âncora selecionada e aciona o ciclo de abertura próprio do clima.
+  A instância segue preservada para manter seus relatórios em memória.
+- Verificações: `git diff --check` aprovado; recarga do shell e camada da Dock
+  verificadas. A confirmação visual por clique permanece pendente.

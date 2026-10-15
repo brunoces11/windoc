@@ -1011,9 +1011,8 @@ Item {
         if (widgetId === "omarchy.weather") {
             var weatherPanel = weatherTrayPanelLoader.item
             if (root.activeTrayPanelId === widgetId && weatherPanel) {
-                root.configureHostedWidget(weatherPanel, widgetId, root.systemTrayAnchorItem, true)
-                if (weatherPanel.opened) weatherPanel.close()
-                else if (weatherPanel.controller && typeof weatherPanel.controller.show === "function") weatherPanel.controller.show()
+                root.activateWidget(widgetId, weatherPanel, root.systemTrayAnchorItem,
+                                    { button: button || Qt.LeftButton }, true)
                 return true
             }
 
@@ -1057,10 +1056,10 @@ Item {
         root.activeTrayPanelId = widgetId
         root.pendingTrayPanelId = ""
         if (widgetId === "omarchy.weather") {
-            root.configureHostedWidget(item, widgetId, root.systemTrayAnchorItem, true)
-            // Weather refreshes on its own schedule. Showing the retained
-            // panel directly avoids forcing a network refresh on each reopen.
-            if (item.controller && typeof item.controller.show === "function") item.controller.show()
+            // Use the same activation path as the other widgets so the weather
+            // panel runs its own open lifecycle and anchors to the selected slot.
+            root.activateWidget(widgetId, item, root.systemTrayAnchorItem,
+                                { button: Qt.LeftButton }, true)
             return
         }
         root.activateWidget(widgetId, item, root.systemTrayAnchorItem, { button: Qt.LeftButton }, true)
