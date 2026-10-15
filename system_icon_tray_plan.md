@@ -11,15 +11,17 @@
 > vez, injeta `dockBarContext` e ancora seu `KeyboardPanel` na coordenada exata do item
 > clicado. O espaçamento padrão é estritamente relativo: para itens na barra da dock,
 > a borda do popup repousa na linha do tooltip da barra (Y local = 12); para itens
-> dentro da janela pop-up (`TrayOverflowPopup`), as coordenadas de tela do elemento no
-> grid são capturadas e a janela de configuração abre centralizada sobre ele e com sua
+> dentro da janela pop-up (`TrayOverflowPopup`), coordenadas explícitas do elemento no
+> grid são passadas à dock por `slotScreenX` e `slotScreenY`, e a janela de configuração abre centralizada sobre ele e com sua
 > borda inferior a 6px do item (onde o tooltip do grid estava), mantendo a ilusão contínua
 > de expansão do tooltip sem prender as janelas à barra inferior. O display está disponível
 > na lista e no overflow e pode ser fixado pelo modal.
 >
-> **Validação desta revisão:** shell reiniciado sem erros QML (`omarchy restart shell`);
-> popup de overflow abriu e fechou via IPC; cálculo de coordenadas relativas e gap
-> dinâmico (`currentTrayAnchorGap`) implementados em runtime. Working tree sincronizado.
+> **Correção aplicada:** a identificação do popup por `window.namespace` podia tratar
+> um item do grid como se estivesse na dock. Os itens agora expõem suas coordenadas da
+> superfície fullscreen diretamente. `KeyboardPanel.gap` e `PopupCard.margin` são
+> calculados separadamente para respeitar o modelo de cada componente. A recarga do
+> shell foi validada; a conferência visual item a item ainda depende de interação real.
 
 Atualizado em 14/10/2026. Estado: implementação funcional e correções de posição
 em andamento; os registros de etapas seguintes a este cabeçalho são históricos.

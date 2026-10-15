@@ -234,6 +234,14 @@ PanelWindow {
                     id: itemSlot
                     required property var modelData
                     required property int index
+                    readonly property real slotSpan: overflowWindow.itemSlotSize + overflowWindow.itemSpacing
+                    readonly property int slotColumn: index % overflowWindow.gridCols
+                    readonly property int slotRow: Math.floor(index / overflowWindow.gridCols)
+                    // Absolute coordinates within the full-screen overflow surface.
+                    // Passing these explicitly avoids cross-window mapToItem() ambiguity
+                    // when a widget panel is anchored back to the dock surface.
+                    readonly property real slotScreenX: card.x + overflowWindow.gridPadding + slotColumn * slotSpan
+                    readonly property real slotScreenY: card.y + overflowWindow.gridPadding + slotRow * slotSpan
 
                     z: itemMouse.containsMouse ? 100 : 1
                     width: overflowWindow.itemSlotSize

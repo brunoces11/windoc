@@ -685,3 +685,26 @@ Data: 14/10/2026. Estado: instalado, configurado, testado e validado em runtime.
   * `python3 -m json.tool shell/dock-pinned.json` validado;
   * `git diff --check` aprovado;
   * `omarchy restart shell` executado com sucesso e doca respondendo com IPC `ping -> ok`.
+
+
+35. CORREÇÃO DE POSIÇÃO DOS PAINÉIS PARA ÍCONES NO OVERFLOW DA SYSTEM TRAY
+Data: 15/10/2026. Estado: recarga de runtime validada; conferência visual item a item pendente.
+
+- Arquivos afetados: `dock/DockPanel.qml`, `dock/components/TrayOverflowPopup.qml`,
+  `DIRETRIZES_DE_DESIGN.txt`, `system_icon_tray_plan.md` e este histórico.
+- Causa: o caminho do overflow inferia sua origem por `window.namespace` e fazia
+  conversão de coordenadas entre a janela fullscreen do overflow e a janela estreita
+  da dock. Essa identificação/conversão podia falhar e enviar o painel ao canto da
+  tela. Os ícones fixados diretamente na WinDock usam a própria janela como âncora e
+  não passam por esse caminho.
+- Correção: cada slot no overflow fornece `slotScreenX` e `slotScreenY` explicitamente;
+  essas coordenadas alimentam o proxy da dock e o cálculo de `KeyboardPanel.gap`.
+  `PopupCard.margin` recebe cálculo distinto, relativo ao anchor, e o painel do
+  Floating Mode passa a ser configurado como painel hospedado também quando já está
+  carregado.
+- Escopo: afeta apenas painéis iniciados por ícones hospedados no overflow; ícones
+  fixados diretamente na WinDock mantêm sua âncora e comportamento existentes.
+- Verificações: `git diff --check` aprovado; `omarchy restart shell` retornou sucesso,
+  a camada `omarchy-dock` reapareceu e os logs recentes não mostraram erro QML.
+  A preferência local em `shell/dock-settings.json` foi preservada e não faz parte
+  desta mudança. Os cliques físicos individuais não foram simulados nesta sessão.

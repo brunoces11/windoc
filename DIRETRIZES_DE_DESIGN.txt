@@ -51,16 +51,19 @@
 #       interativo clicado, e NUNCA uma coordenada absoluta global fixa:
 #       1. Ícone na Barra Inferior (Dock/Taskbar):
 #          - O tooltip do elemento abre nivelado na linha local Y = 12.
-#          - O pop-up ou janela de configuração (ex: overflow na setinha, ou
-#            painel de áudio/rede fixado) abre com sua borda inferior repousando
-#            exatamente nessa mesma linha (gap: -12), centrado no ícone clicado.
+#          - O pop-up ou janela de configuração (ex: painel de áudio/rede fixado)
+#            abre com sua borda inferior repousando exatamente nessa mesma linha.
+#            `KeyboardPanel` usa `gap`; `PopupCard` usa margem calculada a partir
+#            do anchor real, pois os dois posicionam seus painéis de formas distintas.
 #       2. Ícone dentro da Janela Pop-up (ex: Grid do TrayOverflowPopup):
-#          - O elemento possui coordenadas próprias na tela (`screenX`, `screenY`).
+#          - O elemento possui coordenadas explícitas na superfície fullscreen
+#            (`slotScreenX`, `slotScreenY`); não inferir por conversão entre janelas.
 #          - O tooltip daquele item repousa a 6px acima do contêiner (`bottomMargin: 6`).
 #          - A janela de configuração correspondente (áudio, rede, monitor, agentes,
-#            clima) deve abrir ancorada A ESSE ELEMENTO ESPECÍFICO, mantendo o mesmo
-#            espaçamento padrão relativo (borda inferior em `screenY - 6`, centrada
-#            horizontalmente no ícone do grid), e JAMAIS lá embaixo na barra dock.
+#            clima) deve abrir ancorada A ESSE ELEMENTO ESPECÍFICO, mantendo a borda
+#            inferior em `screenY - 6`, centrada horizontalmente no ícone do grid.
+#            `KeyboardPanel.gap` e `PopupCard.margin` são calculados separadamente;
+#            painéis do overflow não podem cair no canto da tela nem na dock.
 #       3. Princípio de Ilusão de Expansão:
 #          Em qualquer local da interface, o pop-up deve surgir na mesma cota de
 #          afastamento do tooltip ativo para aquele item, criando a sensação contínua

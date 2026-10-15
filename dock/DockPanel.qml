@@ -74,6 +74,7 @@ Item {
         ? root.systemTrayPopupAnchorY - (root.slotSize + 8)
         : -root.systemTrayPopupAnchorY
     property real currentTrayAnchorGap: root.systemTrayPopupGap
+    property real currentTrayAnchorMargin: 0
     property real systemTrayAnchorX: -1
     property real systemTrayAnchorY: -1
     property var systemTrayChevronAnchorItem: null
@@ -915,9 +916,13 @@ Item {
         var screenY = 0
         var itemW = anchorItem.width || 24
         var itemH = anchorItem.height || 24
-        var isInsideOverflow = (win && win.namespace === "omarchy-dock-tray-overflow")
+        var hasOverflowCoordinates = anchorItem.slotScreenX !== undefined && anchorItem.slotScreenY !== undefined
+        var isInsideOverflow = hasOverflowCoordinates || (win && win.namespace === "omarchy-dock-tray-overflow")
 
-        if (isInsideOverflow) {
+        if (hasOverflowCoordinates) {
+            screenX = anchorItem.slotScreenX
+            screenY = anchorItem.slotScreenY
+        } else if (isInsideOverflow) {
             var pt = anchorItem.mapToItem(win.contentItem, 0, 0)
             screenX = pt.x
             screenY = pt.y
@@ -935,6 +940,9 @@ Item {
             // Aligns with itemTooltip (anchors.bottom: parent.top; margin: 6).
             var targetBaselineY = isTop ? (screenY + itemH + 6) : (screenY - 6)
             root.currentTrayAnchorGap = isTop ? (targetBaselineY - dockH) : (dockScreenTop - targetBaselineY)
+            root.currentTrayAnchorMargin = isTop
+                ? (targetBaselineY - (screenY + itemH))
+                : (screenY - targetBaselineY)
 
             if (activeDock && activeDock.dynamicTrayAnchorProxy) {
                 var proxy = activeDock.dynamicTrayAnchorProxy
@@ -948,6 +956,10 @@ Item {
             }
         } else {
             root.currentTrayAnchorGap = isTop ? (root.systemTrayPopupAnchorY - dockH) : -root.systemTrayPopupAnchorY
+            var targetBaselineY = dockScreenTop + root.systemTrayPopupAnchorY
+            root.currentTrayAnchorMargin = isTop
+                ? (targetBaselineY - (screenY + itemH))
+                : (screenY - targetBaselineY)
             root.systemTrayAnchorItem = anchorItem
         }
     }
@@ -967,7 +979,7 @@ Item {
                 floatingModeTrayLoader.active = true
                 floatingModeTrayLoader.source = root.getWidgetSource(widgetId)
                 if (floatingModeTrayLoader.item) {
-                    root.configureHostedWidget(floatingModeTrayLoader.item, widgetId, root.systemTrayAnchorItem)
+                    root.configureHostedWidget(floatingModeTrayLoader.item, widgetId, root.systemTrayAnchorItem, true)
                     floatingModeTrayLoader.item.settingsOpen = true
                     root.pendingFloatingSettings = false
                 }
@@ -1508,7 +1520,7 @@ Item {
             }
             if (trayHosted) {
                 if ("gap" in p) p.gap = root.currentTrayAnchorGap
-                else if ("margin" in p) p.margin = root.currentTrayAnchorGap
+                else if ("margin" in p) p.margin = root.currentTrayAnchorMargin
             }
             if ("opened" in p && p.openedChanged) {
                 p.openedChanged.connect(function() {
