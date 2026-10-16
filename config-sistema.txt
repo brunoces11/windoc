@@ -926,3 +926,29 @@ Data: 16/10/2026. Estado: implementado, integrado por padrão, testado e validad
   aprovado com zero advertências de formatação; Quickshell reiniciado com sucesso via
   `omarchy restart shell`; camada `omarchy-dock` verificada ativa via `hyprctl layers`;
   respostas IPC confirmadas (`ping` e `setShowTooltips`).
+
+47. TRANSFERÊNCIA DOS NÚMEROS DE WORKSPACES PARA A BARRA INFERIOR (WINDOC)
+Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
+
+- Arquivos afetados: `shell/shell.json`, `dock/components/DockWorkspaces.qml`, `dock/DockPanel.qml`,
+  `dock/BarWidget.qml`, `shell/dock-settings.json`, `symlinks.tsv`, `adotados/.config/omarchy/plugins/brunoma.workspaces/` e este histórico.
+- Antes: Os números que indicam os workspaces do Omarchy (`brunoma.workspaces`) estavam posicionados
+  no canto superior esquerdo da barra superior (`shell.json`), ao lado do botão de menu. A barra
+  inferior do WinDoc exibia apenas o ícone de programas instalados (`omarchy.apps`) no canto inferior
+  esquerdo, sem os números de áreas de trabalho.
+- Depois:
+  * Removido `brunoma.workspaces` da barra superior em `shell/shell.json`, deixando o topo limpo.
+  * Incorporado o plugin `brunoma.workspaces` e o script `reorder-workspaces.py` ao WinDoc via protocolo
+    de adoção (`adotados/` e `symlinks.tsv`).
+  * Criado o componente nativo `dock/components/DockWorkspaces.qml` e integrado à barra inferior em
+    `dock/DockPanel.qml`, posicionado imediatamente à direita do ícone do menu de programas instalados
+    (`omarchy.apps`).
+  * Mantido o estilo e comportamento idênticos ao padrão do Omarchy: exibição de 5 números por padrão
+    (e expansão dinâmica conforme workspaces ativos), indicador com bloco arredondado no workspace em foco,
+    troca de workspace por clique simples ou roda do mouse (scroll), e reordenação com Alt+arraste.
+  * Integrada a configuração `showWorkspaces: true` em `dock-settings.json`, `DockPanel.qml` e `BarWidget.qml`,
+    com cálculo dinâmico de largura e compensação de offset nos itens centrais da barra de tarefas.
+- Verificações: Capturas de tela realizadas com confirmação visual da remoção na barra superior e
+  posicionamento milimétrico na barra inferior; reinicialização do shell via `omarchy restart shell`;
+  verificação de processos do Quickshell (`quickshell -n -p /usr/share/omarchy/shell`);
+  `hyprctl configerrors` com zero erros.

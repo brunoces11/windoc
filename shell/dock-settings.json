@@ -13,6 +13,7 @@
   "blurOpacity": 0.68,
   "windowsTaskbarMode": true,
   "taskbarAppAlignment": "center",
+  "showWorkspaces": true,
   "widgetsEnabled": true,
   "appMenuPosition": "left",
   "widgetPosition": "right",

@@ -422,6 +422,7 @@ Item {
     property real blurOpacity: 0.68
     property bool windowsTaskbarMode: true
     property string taskbarAppAlignment: "center"
+    property bool showWorkspaces: true
     readonly property bool showAppMenu: root.widgetsEnabled && root.dockWidgets && (root.dockWidgets.indexOf("omarchy.apps") !== -1)
     property string appMenuPosition: "left"
     property bool widgetsEnabled: true
@@ -1130,7 +1131,7 @@ Item {
         }
         return widgets
     }
-    readonly property bool hasLeftWidgets: leftWidgetsList.length > 0
+    readonly property bool hasLeftWidgets: leftWidgetsList.length > 0 || (root.showWorkspaces && root.workspacesDimension > 0)
     readonly property bool hasRightWidgets: rightWidgetsList.length > 0
     readonly property bool hasWidgets: hasLeftWidgets || hasRightWidgets
 
@@ -1165,12 +1166,17 @@ Item {
         return root.slotSize
     }
 
+    readonly property real workspacesDimension: (root.showWorkspaces && typeof dockWorkspaces !== "undefined" && dockWorkspaces) ? (root.isVertical ? dockWorkspaces.implicitHeight : dockWorkspaces.implicitWidth) : 0
+
     function getLeftWidgetOffset(index) {
         var offset = 0
         for (var i = 0; i < index; i++) {
             var id = root.leftWidgetsList[i]
             var dim = (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
             offset += dim
+        }
+        if (root.showWorkspaces && index > 0) {
+            offset += root.workspacesDimension
         }
         return offset
     }
@@ -1185,11 +1191,15 @@ Item {
     }
 
     readonly property real leftWidgetsWidth: {
-        if (!hasLeftWidgets) return 0
         var total = 0
-        for (var i = 0; i < leftWidgetsList.length; i++) {
-            var id = leftWidgetsList[i]
-            total += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+        if (leftWidgetsList.length > 0) {
+            for (var i = 0; i < leftWidgetsList.length; i++) {
+                var id = leftWidgetsList[i]
+                total += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+            }
+        }
+        if (root.showWorkspaces) {
+            total += root.workspacesDimension
         }
         return total
     }
@@ -1313,6 +1323,11 @@ Item {
                 } else {
                     root.showTooltips = true
                 }
+                if (s.showWorkspaces !== undefined) {
+                    root.showWorkspaces = (s.showWorkspaces === true)
+                } else {
+                    root.showWorkspaces = true
+                }
                 if (s.glassmorphism !== undefined) {
                     root.glassmorphism = (s.glassmorphism === true)
                 }
@@ -1400,6 +1415,7 @@ Item {
             blurOpacity: root.blurOpacity,
             windowsTaskbarMode: root.windowsTaskbarMode,
             taskbarAppAlignment: root.taskbarAppAlignment,
+            showWorkspaces: root.showWorkspaces,
             widgetsEnabled: root.widgetsEnabled,
             appMenuPosition: root.appMenuPosition || "left",
             widgetPosition: root.widgetPosition || "right",
@@ -3563,6 +3579,37 @@ Item {
                             }
                         }
                     }
+                }
+
+                // 1b. Left Workspaces (immediately to the right of the programs icon)
+                DockWorkspaces {
+                    id: dockWorkspaces
+                    visible: root.showWorkspaces
+                    isVertical: root.isVertical
+                    barSize: root.slotSize
+                    bar: root.bar
+                    dockPanel: root
+                    x: {
+                        if (root.isVertical) return 0
+                        var appsOffset = 0
+                        for (var i = 0; i < root.leftWidgetsList.length; i++) {
+                            var id = root.leftWidgetsList[i]
+                            appsOffset += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                            if (id === "omarchy.apps") break
+                        }
+                        return appsOffset > 0 ? appsOffset : root.slotSize
+                    }
+                    y: {
+                        if (!root.isVertical) return 0
+                        var appsOffsetY = 0
+                        for (var j = 0; j < root.leftWidgetsList.length; j++) {
+                            var idY = root.leftWidgetsList[j]
+                            appsOffsetY += root.slotSize
+                            if (idY === "omarchy.apps") break
+                        }
+                        return appsOffsetY > 0 ? appsOffsetY : root.slotSize
+                    }
+                    z: 1
                 }
 
                 // 2. Left Sleek Separator between Left Widgets and Apps

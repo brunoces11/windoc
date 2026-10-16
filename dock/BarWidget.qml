@@ -22,6 +22,7 @@ BarWidget {
   property bool showFolderTitles: true
   property bool showBadges: true
   property bool showTooltips: true
+  property bool showWorkspaces: true
   property bool widgetsEnabled: true
   readonly property bool settingsOpen: settingsWindow.open
   property bool isSavingSettings: false
@@ -87,6 +88,9 @@ BarWidget {
         if (s && s.showTooltips !== undefined) {
           root.showTooltips = (s.showTooltips === true)
         }
+        if (s && s.showWorkspaces !== undefined) {
+          root.showWorkspaces = (s.showWorkspaces === true)
+        }
         if (s && s.widgetsEnabled !== undefined) {
           root.widgetsEnabled = (s.widgetsEnabled === true)
         }
@@ -126,6 +130,7 @@ BarWidget {
     s.showFolderTitles = root.showFolderTitles
     s.showBadges = root.showBadges
     s.showTooltips = root.showTooltips
+    s.showWorkspaces = root.showWorkspaces
     s.widgetsEnabled = root.widgetsEnabled
     s.appMenuPosition = root.appMenuPosition || s.appMenuPosition || "left"
     s.widgetPosition = root.widgetPosition || s.widgetPosition || "right"
