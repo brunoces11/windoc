@@ -1194,3 +1194,13 @@ Data: 16/10/2026. Estado: implementado e validado.
 - Espaçamento vertical entre título e artista reduzido em 7%, de 1px para 0.93px.
 - Arquivos: `amberol-deskband/components/DeskbandCapsule.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
 - Validação: 7 testes Python do instalador e 13 testes QML aprovados; shell reiniciado, ping confirmado e log sem novos erros QML.
+
+
+60. REDUZIR E CENTRALIZAR ÍCONES DA CÁPSULA AMBEROL
+Data: 16/10/2026. Estado: implementado e validado.
+
+- Glifos dos botões de anterior, play/pause, próxima faixa, shuffle e expansão reduzidos em 15%, sem diminuir a área clicável.
+- Espaçamento horizontal do conjunto reduzido em mais 30%, de 2.21px para 1.547px.
+- Alinhamento dos glifos agora usa toda a caixa interna do botão com centralização horizontal e vertical explícita, incluindo a seta de expansão.
+- Arquivos: `amberol-deskband/components/DeskbandButton.qml`, `DeskbandCapsule.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
+- Validação: 7 testes Python do instalador e 13 testes QML aprovados; shell reiniciado, ping confirmado e log sem novos erros QML.

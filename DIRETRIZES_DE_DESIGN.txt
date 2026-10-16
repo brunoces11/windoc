@@ -200,3 +200,9 @@
 # os cinco controles e preservando o tamanho dos botões. Título reduzido em 1px
 # em ambos os modos (11 -> 10px na dock; 10 -> 9px no topo). Espaçamento entre
 # título e artista reduzido em 7%: 1px -> 0.93px.
+
+
+# Ajuste de 16/10/2026 — glifos e alinhamento dos botões Amberol
+# Glifos dos cinco controles da cápsula 15% menores (escala 0.85), sem alterar
+# a área clicável; espaçamento horizontal cai mais 30%, de 2.21px para 1.547px.
+# Glifos alinhados ao centro horizontal e vertical da área inteira de cada botão.
