@@ -6,6 +6,8 @@ hl.config({
     kb_layout = "br",
     kb_variant = "",
     kb_model = "abnt2",
+    follow_mouse = 2,
+    float_switch_override_focus = 0,
   },
 })
 

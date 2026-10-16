@@ -787,3 +787,17 @@ Data: 15/10/2026. Estado: correção aplicada; reload validado, cliques pendente
   A instância segue preservada para manter seus relatórios em memória.
 - Verificações: `git diff --check` aprovado; recarga do shell e camada da Dock
   verificadas. A confirmação visual por clique permanece pendente.
+
+
+41. ATIVAR FOCO DE JANELA EXCLUSIVO POR CLIQUE (CLICK-TO-FOCUS)
+Data: 15/10/2026. Estado: implementação feita; recarga do Hyprland validada em tempo real.
+
+- Arquivo afetado: `hyprland/input.lua` e este histórico.
+- Antes: `follow_mouse = 1` herdado dos padrões do Omarchy (`/usr/share/omarchy/default/hypr/input.lua`),
+  onde o foco do teclado seguia automaticamente a posição do cursor do mouse, trocando
+  a janela ativa involuntariamente ao esbarrar ou mover o cursor sobre outra área.
+- Depois: `follow_mouse = 2` e `float_switch_override_focus = 0` declarados no override
+  de usuário, desacoplando o foco do teclado do movimento do cursor e garantindo que
+  apenas o clique explícito mude a janela ativa receptora de comandos.
+- Verificações: `hyprctl reload` e `hyprctl configerrors` executados sem erros; opções
+  `input:follow_mouse = 2` e `input:float_switch_override_focus = 0` confirmadas ativas.
