@@ -162,21 +162,25 @@
 # ------------------------------------------------------------------------------
 # Cápsula única no host da dock: largura padrão de 265.2px, altura de 42px; margens
 # internas da superfície de 2px, raio de até 12px, fundo cinza neutro com brilho
-# 10% maior que a composição anterior (alpha 0.055 sobre a barra), e borda de 1px
+# 15% maior que a superfície anterior (alpha 0.055 sobre a barra), e borda de 1px
 # com alpha 0.12. Espaçamento horizontal de 3.4px (antes 4px, redução de 15%). Miniatura de 28px; título de 11px, artista
 # de 10px; botões de 26x28px. Texto segue a fonte do host, com reticências e tooltip.
 # Na barra superior de 24px: largura padrão de 218.4px, miniatura de 18px, texto
 # de 10px em uma linha e botões de 22x20px. Não aumentar a altura global da barra.
-# Popup: 320x390px, raio de 10px, borda de 1px com alpha 0.28, cor do popup do
-# host, padding lateral de 16px e superior de 14px; capa de 156px. Título de
-# 13px e artista de 11px. Afastamento de 6px da cápsula; no dock abre para cima.
-# Sliders: trilho de 4px, knob de 12px e preenchimento na cor de destaque.
+# Progresso na dock: abaixo dos controles, dentro dos 42px existentes; trilho de
+# 3px, knob de 8px, área interativa de 10px e preenchimento na cor de destaque.
+# Não aumentar a altura do dock. Na barra superior de 24px, ocultar o progresso.
+# Popup: 340x390px, raio de 10px, borda de 1px com alpha 0.28, cor do popup do
+# host, padding lateral de 14px e superior de 12px. Lista rolável da playlist salva
+# pelo Amberol; indicar que não garante a próxima ordem nem reflete shuffle.
+# Afastamento de 6px da cápsula; no dock abre para cima.
 # A cápsula mantém a faixa pausada; recolhe em 160ms quando não há faixa. Progresso
-# atualiza a cada 500ms apenas com popup aberto e reprodução ativa. Sem marquee
+# atualiza a cada 500ms com cápsula visível e reprodução ativa. A playlist é relida
+# ao abrir e por notificação de alteração do arquivo, sem polling. Sem marquee
 # contínuo ou blur global. Aleatório sem suporte funcional deve aparecer desativado.
 
 # Ajuste de 16/10/2026: larguras padrão e teto reduzidos em 22%:
 # dock 340 -> 265.2px; topo 280 -> 218.4px; teto configurável 480 -> 374.4px.
 # Preservar mínimos funcionais de 240px no dock e 200px no modo compacto.
 # Converter o brilho ponderado da antiga superfície para cinza e multiplicar por
-# 1.10; o host informa a cor real da barra para manter o cálculo coerente com o tema.
+# 1.265 (15% acima do fator anterior 1.10); o host informa a cor real da barra.

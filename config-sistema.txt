@@ -1129,3 +1129,35 @@ Data: 16/10/2026. Estado: aplicado e validado visualmente em runtime.
   - `omarchy plugin validate` aprovado com código 0 no repositório.
   - Recarregamento do shell via `omarchy-restart-shell` sem erros nos logs do Quickshell.
   - Notificações de teste validadas e transição de estado conferida.
+
+55. PROGRESSO COMPACTO E LISTA DA PLAYLIST NO AMBEROL DESKBAND
+Data: 16/10/2026. Estado: implementado e validado em runtime.
+
+- Fundo da cápsula clareado em 15% em relação à superfície anterior, mantendo o tom cinza neutro.
+- Cápsula da dock ganhou barra de progresso arrastável abaixo dos controles. Mantém a altura existente de 42px, usa área de toque compacta e envia seek ao soltar. A barra superior permanece com 24px e não mostra esse controle.
+- O popup deixou de repetir capa e comandos e agora apresenta a lista rolável da playlist PLS salva pelo Amberol. Lê novamente ao abrir, observa atualizações do arquivo e também procura o cache Flatpak. Exibe nomes de arquivo e ordem salva, sem alegar que representa a próxima fila após shuffle; Amberol não publica TrackList nem uma ação confiável para saltar à faixa.
+- Shuffle permanece indisponível para Amberol 2026.1 porque o MPRIS do programa não implementa o comando; o botão continua desativado para evitar falso estado.
+- Arquivos: `amberol-deskband/components/DeskbandCapsule.qml`, `DeskbandPopup.qml`, `DeskbandSlider.qml`, `BarWidget.qml`, `AmberolController.js`, testes QML, manifesto e README; `DIRETRIZES_DE_DESIGN.txt`; `RELATORIO_AMBEROL_DESKBAND.md`; este log.
+- Validação: 7 testes do instalador, 9 verificações QML, 26 testes do host, compilação Python e preflight do instalador aprovados; shell reiniciado e ping confirmado; popup real exibiu as 41 faixas do cache e foi inspecionado visualmente; logs sem novos erros QML. Player permaneceu pausado e popup fechado ao fim.
+
+56. TÍTULO DINÂMICO E LOADER ANIMADO NA ABA DO HYPRLAND PARA ANTIGRAVITY CLI
+Data: 16/10/2026. Estado: implementado, integrado e validado em runtime.
+
+- Contexto e motivação:
+  - No Hyprland com janelas agrupadas (abas/groupbar), o terminal com Codex CLI exibe nativamente o título do chat e um loader animado (braille spinner) em tempo real enquanto o modelo trabalha.
+  - O terminal com Antigravity CLI (`agy`) permanecia com o título estático fixo em "agy", pois o binário original não enviava sequências OSC de atualização de janela.
+- Customização implementada:
+  - Criado o script monitor assíncrono `terminal/agy-title-monitor.py`, projetado para rodar em segundo plano associado ao PID do shell Bash ativo.
+  - O monitor identifica o PID filho do `agy`, detecta os descritores de arquivo abertos em `/proc/<pid>/fd` para extrair o `conversation_id` e consulta o banco SQLite `~/.gemini/antigravity-cli/conversation_summaries.db` em modo seguro somente leitura (`?mode=ro`).
+  - Enquanto o Antigravity está executando (`CASCADE_RUN_STATUS_RUNNING` ou `not_fully_idle = 1`), emite uma microanimação de loader com caracteres braille giratórios (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) a cada 80ms via sequência ANSI OSC 0 (`\033]0;[frame] [título] | [pasta]\007`) para a TTY da janela.
+  - Quando o modelo conclui o turno e fica ocioso (`CASCADE_RUN_STATUS_IDLE`), o monitor fixa o título estático atualizado com o nome da conversa e reduz a frequência de checagem para evitar consumo de CPU ou concorrência no SQLite.
+  - Atualizada a função wrapper `agy()` em `terminal/bashrc` para iniciar o monitor apenas em terminais interativos (`[[ -t 1 ]]`), com limpeza rigorosa via `trap ... RETURN INT TERM` para encerrar o subprocesso e restaurar o título do terminal ao fechar o chat.
+- Arquivos afetados:
+  - `terminal/agy-title-monitor.py` (script monitor de alta performance)
+  - `terminal/bashrc` (integração na função wrapper `agy()`)
+  - `config-sistema.txt` (este histórico)
+- Validação:
+  - Sintaxe de `terminal/agy-title-monitor.py` validada via Python 3.
+  - Função interativa testada via `bash -i -c 'type agy'`.
+  - Atualização de títulos via OSC testada e confirmada via `hyprctl clients` em runtime, refletindo instantaneamente na barra de abas do Hyprland.
+

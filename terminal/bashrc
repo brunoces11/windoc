@@ -26,8 +26,18 @@ export PATH="/home/brunoma/.local/bin:$PATH"
 
 
 
-# Antigravity Wrapper (Adiciona 'agy r' com DB Nativo)
+# Antigravity Wrapper (com título dinâmico na aba do Hyprland e loader animado)
 agy() {
+  local mon_pid=""
+  local tty_dev=""
+
+  if [[ -t 1 ]] && command -v python3 >/dev/null 2>&1; then
+    tty_dev="$(tty 2>/dev/null || echo '/dev/tty')"
+    python3 "$HOME/Desktop/windoc/terminal/agy-title-monitor.py" --shell-pid "$$" --tty "$tty_dev" >/dev/null 2>&1 &
+    mon_pid=$!
+    trap '[[ -n "$mon_pid" ]] && kill "$mon_pid" 2>/dev/null; printf "\033]0;%s\007" "Terminal" 2>/dev/null' RETURN INT TERM
+  fi
+
   if [[ "$1" == "r" ]]; then
     local db_path="$HOME/Desktop/SESSION/S_ANTIGRAVITY/antigravity-cli/conversation_summaries.db"
     local selected
