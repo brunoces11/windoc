@@ -2,6 +2,7 @@ import os
 import re
 import json
 import sqlite3
+import time
 from kitty.fast_data_types import add_timer, remove_timer
 
 from kitty.tab_bar import (
@@ -29,20 +30,19 @@ AGY_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 
 def animate_agy_titles(timer_id):
-    """Anima apenas títulos de trabalho nativos; cada painel mantém sua identidade."""
+    """Atualiza a barra; o título externo agregado é responsabilidade do daemon."""
     boss = get_boss()
     if boss is None:
         return
     state = boss._windoc_agy_title_animation
     state["frame"] = (state["frame"] + 1) % len(AGY_FRAMES)
-    for window in tuple(boss.window_id_map.values()):
-        title = window.title
-        if (not window.override_title and len(title) > 2
-                and title[0] in AGY_FRAMES and title[1:].startswith(" Antigravity")):
-            boss.call_remote_control(window, (
-                "set-window-title", "--temporary", "--match", f"id:{window.id}",
-                "--", AGY_FRAMES[state["frame"]] + title[1:],
-            ))
+    now = time.monotonic()
+    state["status_cache"] = {
+        pid: cached for pid, cached in state["status_cache"].items()
+        if now - cached[0] < 5
+    }
+    for tab_manager in tuple(boss.os_window_map.values()):
+        tab_manager.mark_tab_bar_dirty()
 
 
 def install_agy_title_animation():
@@ -52,7 +52,7 @@ def install_agy_title_animation():
     previous = getattr(boss, "_windoc_agy_title_animation", None)
     if previous is not None:
         remove_timer(previous["timer"])
-    state = {"frame": 0}
+    state = {"frame": 0, "status_cache": {}}
     boss._windoc_agy_title_animation = state
     state["timer"] = add_timer(animate_agy_titles, 0.12, True)
 
@@ -118,6 +118,60 @@ def get_agy_conversation_title(pid: int) -> str | None:
     return None
 
 
+def is_agy_tab_running(tab: TabBarData) -> bool:
+    """Consulta o estado da conversa associada a esta aba específica do Kitty."""
+    boss = get_boss()
+    if boss is None:
+        return False
+    try:
+        state = boss._windoc_agy_title_animation
+        exe, cmdline, pid = get_tab_process_info(tab.tab_id)
+        if not pid:
+            return False
+        identity = f"{exe} {cmdline}".lower()
+        if "agy" not in identity and "antigravity" not in identity:
+            return False
+
+        now = time.monotonic()
+        cached = state["status_cache"].get(pid)
+        if cached and now - cached[0] < 0.12:
+            return cached[1]
+
+        running = False
+        fd_dir = f"/proc/{pid}/fd"
+        db_path = "/home/brunoma/.gemini/antigravity-cli/conversation_summaries.db"
+        if os.path.exists(fd_dir) and os.path.exists(db_path):
+            conv_id = None
+            for link in os.listdir(fd_dir):
+                try:
+                    target = os.readlink(os.path.join(fd_dir, link))
+                    if "/presence/" in target and target.endswith(".lock"):
+                        conv_id = os.path.basename(target)[:-5]
+                        break
+                    if "/conversations/" in target and target.endswith(".db"):
+                        conv_id = os.path.basename(target)[:-3]
+                        break
+                except OSError:
+                    continue
+            if conv_id:
+                with sqlite3.connect(
+                    f"file:{db_path}?mode=ro", uri=True, timeout=0.1
+                ) as conn:
+                    row = conn.execute(
+                        "SELECT status, not_fully_idle FROM conversation_summaries "
+                        "WHERE conversation_id = ?",
+                        (conv_id,),
+                    ).fetchone()
+                running = bool(row and (
+                    row[0] == "CASCADE_RUN_STATUS_RUNNING" or row[1]
+                ))
+
+        state["status_cache"][pid] = (now, running)
+        return running
+    except Exception:
+        return False
+
+
 def get_codex_thread_title() -> str | None:
     """Busca o título do tópico ativo do Codex."""
     try:
@@ -142,6 +196,13 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
     """
     raw_title = tab.title or ""
     exe, cmdline, pid = get_tab_process_info(tab.tab_id)
+    identity = f"{exe} {cmdline}".lower()
+    is_agy_process = "agy" in identity or "antigravity" in identity
+    # O daemon pode colocar o spinner agregado no título do Kitty para o
+    # Hyprland; esse estado não deve vazar para a aba interna selecionada.
+    if (is_agy_process and len(raw_title) > 2
+            and raw_title[0] in AGY_FRAMES and raw_title[1].isspace()):
+        raw_title = raw_title[2:].lstrip()
 
     t_lower = raw_title.lower()
     cmd_lower = cmdline.lower()
@@ -243,7 +304,12 @@ def draw_tab(
     try:
         agent_icon, session_title = resolve_smart_session(tab)
         icon = agent_icon if USE_DYNAMIC_ICONS else ICON_TERMINAL
-        formatted_title = f"{icon}  {session_title}"
+        if agent_icon == ICON_AGY and is_agy_tab_running(tab):
+            state = get_boss()._windoc_agy_title_animation
+            spinner = f"{AGY_FRAMES[state['frame']]} "
+        else:
+            spinner = ""
+        formatted_title = f"{spinner}{icon}  {session_title}"
 
         new_tab = tab._replace(title=formatted_title)
         return draw_tab_with_powerline(

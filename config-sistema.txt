@@ -1236,3 +1236,13 @@ Data: 16/10/2026. Estado: implementado, unificado e validado em tempo real.
   - Serviço `antigravity-tab-daemon.service` reiniciado via `systemctl --user restart`.
   - Verificação com `hyprctl clients` confirmou o status correto e a animação ativa tanto em janelas com Antigravity quanto em janelas com Codex/Claude.
 
+
+63. SEPARAR O SPINNER AGREGADO DO HYPRLAND DO SPINNER DAS ABAS INTERNAS DO KITTY
+Data: 16/10/2026. Estado: implementado e validado.
+
+- O título do Hyprland continua recebendo o estado agregado pelo daemon: qualquer conversa em execução mantém o spinner externo.
+- A barra interna do Kitty agora consulta o PID e o estado da conversa Antigravity de cada aba individualmente; só a aba cuja conversa está em execução recebe o spinner animado.
+- O spinner agregado que o daemon envia ao título da janela é removido da apresentação interna da aba Antigravity ociosa. O timer da barra não altera mais os títulos de todas as janelas Kitty.
+- Arquivos: `terminal/tab_bar.py` e este histórico.
+- Validação: compilação Python, `git diff --check` e recarga do `kitty.conf` aprovados. A consulta por PID identificou três abas Antigravity abertas, todas ociosas; nenhuma foi marcada para spinner.
+
