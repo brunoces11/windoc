@@ -879,3 +879,18 @@ Data: 16/10/2026. Estado: implementado, recarregado e conferido visualmente.
   conferida: seis ícones aparecem na barra inferior, sem o grupo de indicadores
   no layout superior. O log desta recarga não reporta erro QML/Dock. Cliques
   físicos individuais não foram simulados.
+
+45. FIXAR O REPRODUTOR DE MÚSICA AMBEROL NO WINDOC E REGISTRAR PACOTES
+Data: 16/10/2026. Estado: implementado, instalado no sistema e validado no dock.
+
+- Arquivos afetados: `shell/dock-pinned.json`, `dock/IconResolver.js`,
+  `pacotes-sistema.txt`, `shell/dock-settings.json` e este histórico.
+- Antes: O reprodutor Amberol (`io.bassi.Amberol`) não estava instalado nem
+  fixado na barra do WinDoc.
+- Depois: O Amberol e codecs de áudio do GStreamer foram instalados no sistema e
+  registrados em `pacotes-sistema.txt`; o identificador `io.bassi.Amberol` foi
+  adicionado aos aplicativos fixados da barra em `shell/dock-pinned.json`; os
+  mapeamentos de ícones correspondentes foram adicionados em `dock/IconResolver.js`.
+- Verificações: Validação de sintaxe JSON em `shell/dock-pinned.json` e
+  `shell/dock-settings.json`; `git diff --check` aprovado; shell reiniciado via
+  `omarchy restart shell` com confirmação de execução limpa no Quickshell.

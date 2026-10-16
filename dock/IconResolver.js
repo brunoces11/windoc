@@ -46,7 +46,10 @@ var FALLBACK_MAP = {
     "davinci-resolve": "davinci-resolve",
     "com.blackmagicdesign.resolve": "davinci-resolve",
     "resolve": "davinci-resolve",
-    "youtube": "youtube"
+    "youtube": "youtube",
+    "amberol": "io.bassi.Amberol",
+    "io.bassi.amberol": "io.bassi.Amberol",
+    "bassi.amberol": "io.bassi.Amberol"
 };
 
 function sanitizeName(name) {

@@ -1,2 +1,6 @@
 # Um pacote Arch por linha. Somente pacotes adicionais necessários à instalação limpa.
 # Revise e preencha este inventário antes de usar: windoc install --install-packages
+amberol
+gst-libav
+gst-plugins-bad
+gst-plugins-ugly

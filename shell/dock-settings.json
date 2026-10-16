@@ -24,11 +24,7 @@
       "omarchy.audio",
       "brunoma.agents",
       "omarchy.indicator.screen-recording",
-      "omarchy.indicator.reminder",
-      "omarchy.indicator.dictation",
-      "omarchy.indicator.idle",
-      "omarchy.indicator.notifications",
-      "omarchy.indicator.nightlight"
+      "omarchy.indicator.dictation"
     ],
     "showDesktopButton": true
   },
