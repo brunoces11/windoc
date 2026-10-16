@@ -801,3 +801,20 @@ Data: 15/10/2026. Estado: implementação feita; recarga do Hyprland validada em
   apenas o clique explícito mude a janela ativa receptora de comandos.
 - Verificações: `hyprctl reload` e `hyprctl configerrors` executados sem erros; opções
   `input:follow_mouse = 2` e `input:float_switch_override_focus = 0` confirmadas ativas.
+
+42. AUTOMATIZAR ADOÇÃO DE CONFIGURAÇÕES E PREPARAR PROVISIONAMENTO DO WINDOC
+Data: 15/10/2026. Estado: scripts implementados; inventário de pacotes pendente.
+
+- Arquivos afetados: `scripts/windoc`, `install.sh`, `sync-symlinks.sh`,
+  `symlinks.tsv`, `pacotes-sistema.txt` e `README.md`.
+- Antes: o CLI local não era versionado no WinDoc e só reconhecia uma lista fixa
+  de links; não havia fluxo para adotar novas configurações nem instalador.
+- Depois: `windoc adopt CAMINHO` aceita itens dentro de HOME, move-os ao WinDoc,
+  cria e valida o symlink e registra o vínculo no manifesto. A sincronização
+  restaura esses vínculos e recusa substituir destinos existentes não gerenciados.
+  `install.sh` sincroniza a configuração e instala o CLI versionado; com
+  `--install-packages`, lê o inventário explícito `pacotes-sistema.txt`.
+- Limites: inventário de pacotes permanece vazio até identificar dependências
+  adicionais; plugins externos não são instalados sem origem e versão declaradas.
+- Verificações: validação de sintaxe shell, diff e instalação local do CLI;
+  a adoção de dados reais e instalação de pacotes não foram executadas.

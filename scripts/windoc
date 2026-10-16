@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ACTION="${1:-status}"
+case "$ACTION" in
+  status|st) git -C "$REPO_DIR" status -sb ;;
+  symlinks|links) "$REPO_DIR/sync-symlinks.sh" ;;
+  adopt)
+    [ "$#" -ge 2 ] || { echo "Uso: windoc adopt CAMINHO" >&2; exit 2; }
+    source_arg="$2"
+    source_path="$(realpath -m -- "$source_arg")"
+    case "$source_path" in "$HOME"/*) ;; *) echo "Por segurança, a adoção aceita apenas caminhos dentro de HOME." >&2; exit 2 ;; esac
+    [ -e "$source_path" ] && [ ! -L "$source_path" ] || { echo "Origem deve existir e não pode ser symlink: $source_path" >&2; exit 2; }
+    relative="${source_path#"$HOME"/}"
+    repo_path="adotados/$relative"
+    target="$REPO_DIR/$repo_path"
+    [ ! -e "$target" ] || { echo "Já existe no WinDoc: $repo_path" >&2; exit 2; }
+    mkdir -p "$(dirname "$target")"
+    mv -- "$source_path" "$target"
+    if ! ln -s -- "$target" "$source_path"; then
+      mv -- "$target" "$source_path"
+      echo "Falha ao criar o link; arquivo restaurado." >&2
+      exit 1
+    fi
+    manifest="$REPO_DIR/symlinks.tsv"
+    touch "$manifest"
+    printf '~/%s\t%s\n' "$relative" "$repo_path" >> "$manifest"
+    [ -L "$source_path" ] && [ "$(readlink -f "$source_path")" = "$(readlink -f "$target")" ] || { echo "Validação falhou." >&2; exit 1; }
+    echo "Adotado e validado: $source_path -> $repo_path"
+    ;;
+  install)
+    exec "$REPO_DIR/install.sh" "${@:2}"
+    ;;
+  push)
+    shift
+    git -C "$REPO_DIR" add -A
+    if git -C "$REPO_DIR" diff --cached --quiet; then echo "Sem alterações para enviar."; exit 0; fi
+    git -C "$REPO_DIR" commit -m "${*:-Atualizar configurações do WinDoc}"
+    git -C "$REPO_DIR" push origin main
+    ;;
+  *) echo "Uso: windoc {status|symlinks|adopt CAMINHO|install|push [mensagem]}" >&2; exit 2 ;;
+esac

@@ -48,4 +48,27 @@ fi
 # 5. Desktop (única pasta oficial: windoc)
 # Nenhuma pasta ou atalho duplicado é criado no Desktop.
 
+# Links adotados dinamicamente pelo comando `windoc adopt`.
+MANIFEST="$PROJECT_DIR/symlinks.tsv"
+if [ -f "$MANIFEST" ]; then
+  while IFS=$'\t' read -r source_path repo_path; do
+    [ -n "${source_path:-}" ] || continue
+    [[ "$source_path" == \#* ]] && continue
+    source_path="${source_path/#\~/$HOME}"
+    target="$PROJECT_DIR/$repo_path"
+    if [ ! -e "$target" ]; then
+      echo "  [ERRO] Destino ausente no WinDoc: $repo_path" >&2
+      exit 1
+    fi
+    mkdir -p "$(dirname "$source_path")"
+    if [ -e "$source_path" ] && [ ! -L "$source_path" ]; then
+      echo "  [ERRO] Existe arquivo não gerenciado no destino: $source_path" >&2
+      exit 1
+    fi
+    ln -sfn "$target" "$source_path"
+    [ "$(readlink -f "$source_path")" = "$(readlink -f "$target")" ] || exit 1
+    echo "  [OK] Adotado: $source_path"
+  done < "$MANIFEST"
+fi
+
 echo "==> Todos os symlinks foram validados com sucesso!"

@@ -47,6 +47,19 @@ Para verificar ou restaurar todos os links a qualquer momento:
 ./sync-symlinks.sh
 ```
 
+### Provisionamento e adoção de novas configurações
+
+`./install.sh` sincroniza os links declarados e instala o comando `windoc` em
+`~/.local/bin/`. Para incluir pacotes, declare um pacote Arch por linha em
+`pacotes-sistema.txt` e execute `./install.sh --install-packages`.
+
+`windoc adopt CAMINHO` incorpora um arquivo ou diretório que esteja dentro da
+pasta pessoal: move-o para `adotados/`, cria o symlink no local original e
+registra a relação em `symlinks.tsv`, usada por `sync-symlinks.sh`. A adoção
+recusa destinos fora de HOME e não substitui um item já existente no WinDoc.
+Plugins e extensões de terceiros ainda precisam ter origem e versão declaradas;
+não são baixados automaticamente.
+
 ---
 
 ## 🤖 Diretrizes para Agentes de IA
