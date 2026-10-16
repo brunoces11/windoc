@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
-Antigravity Hyprland Tab Sync Daemon (Versão Otimizada).
-Sincroniza o título e a animação do loader do Antigravity na barra de abas do Hyprland
-para cada janela do Kitty, mesmo com múltiplas abas abertas na mesma janela.
-Design de ultra-baixo consumo de CPU (<0.05%) e zero forks desnecessários.
+Universal AI Tab Sync Daemon para Hyprland / Kitty.
+Monitora e sincroniza o status de execução de todos os agentes de IA CLI
+(Antigravity, Codex e Claude Code) nas abas do Kitty e do Hyprland.
+
+Comportamento padrão garantido:
+- Se QUALQUER aba interna do Kitty (ativa ou em segundo plano) estiver executando um
+  processo de IA, a aba correspondente no Hyprland exibe o loader giratório (spinner).
+- Se todos os processos daquela janela estiverem ociosos (idle), exibe o título limpo.
+- Ao alternar abas no Kitty, a aba do Hyprland reflete o título da aba em foco.
+- Consumo de CPU de ultra-baixo impacto (<0.05%) e zero forks desnecessários.
 """
 
+import glob
 import json
 import os
 import signal
@@ -15,28 +22,23 @@ import sys
 import time
 
 SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-DB_PATH = os.path.expanduser("~/.gemini/antigravity-cli/conversation_summaries.db")
+SPINNER_CHARS = set("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▖▘▝▗◐◓◑◒*")
+AGY_DB_PATH = os.path.expanduser("~/.gemini/antigravity-cli/conversation_summaries.db")
 
 
-def get_conversation_data(conv_id: str, conn: sqlite3.Connection) -> tuple[str, bool]:
-    """Consulta título e status da conversa em modo somente leitura."""
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT title, status, not_fully_idle FROM conversation_summaries WHERE conversation_id = ?",
-            (conv_id,),
-        )
-        row = cur.fetchone()
-        if row:
-            title = row[0].strip() if row[0] else "Antigravity"
-            is_running = (row[1] == "CASCADE_RUN_STATUS_RUNNING") or bool(row[2])
-            return title, is_running
-    except Exception:
-        pass
-    return "Antigravity", False
+def has_spinner(title: str) -> bool:
+    t = title.strip()
+    return bool(t and t[0] in SPINNER_CHARS)
 
 
-def get_conv_id_from_pid(pid: int) -> str | None:
+def clean_title(title: str) -> str:
+    t = title.strip()
+    if t and t[0] in SPINNER_CHARS:
+        return t[1:].strip()
+    return t
+
+
+def get_agy_conv_id(pid: int) -> str | None:
     """Busca o conversation_id examinando os descritores abertos do agy."""
     fd_dir = f"/proc/{pid}/fd"
     if not os.path.exists(fd_dir):
@@ -54,6 +56,24 @@ def get_conv_id_from_pid(pid: int) -> str | None:
     except OSError:
         pass
     return None
+
+
+def get_agy_conv_data(conv_id: str, conn: sqlite3.Connection) -> tuple[str, bool]:
+    """Consulta título e status da conversa do Antigravity em modo somente leitura."""
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT title, status, not_fully_idle FROM conversation_summaries WHERE conversation_id = ?",
+            (conv_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            title = row[0].strip() if row[0] else "Antigravity"
+            is_running = (row[1] == "CASCADE_RUN_STATUS_RUNNING") or bool(row[2])
+            return title, is_running
+    except Exception:
+        pass
+    return "Antigravity", False
 
 
 def set_terminal_title(pts_path: str, title: str):
@@ -76,205 +96,181 @@ def main():
     signal.signal(signal.SIGTERM, handle_exit)
     signal.signal(signal.SIGINT, handle_exit)
 
-    sqlite_conn = None
-    if os.path.exists(DB_PATH):
+    agy_conn = None
+    if os.path.exists(AGY_DB_PATH):
         try:
-            sqlite_conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=0.1)
+            agy_conn = sqlite3.connect(f"file:{AGY_DB_PATH}?mode=ro", uri=True, timeout=0.1)
         except Exception:
-            sqlite_conn = None
+            agy_conn = None
 
-    last_proc_scan = 0.0
-    last_tab_scan = 0.0
+    last_topology_scan = 0.0
+    topology_interval = 1.0  # Escaneia abas das janelas a cada 1 segundo
     spinner_idx = 0
 
-    # Estruturas em cache:
-    # agy_sessions: {agy_pid: {'shell_pid': int, 'kitty_pid': int, 'tty': str, 'conv_id': str, 'cwd': str, 'title': str, 'is_running': bool}}
-    agy_sessions = {}
-    # active_pts_by_kitty: {kitty_pid: {'active_pts': str, 'active_title': str, 'cwd': str, 'has_running': bool, 'last_title': str}}
-    kitty_window_states = {}
+    # Estado por socket: {
+    #   'active_pts': str,
+    #   'active_title': str,
+    #   'active_is_natively_spinning': bool,
+    #   'has_any_running': bool,
+    #   'last_set_title': str,
+    #   'we_are_animating': bool
+    # }
+    window_states = {}
 
     try:
         while running:
             now = time.time()
 
-            # 1. Escaneamento ultra-rápido do /proc e SQLite (a cada 0.8s) - Zero forks de processos
-            if now - last_proc_scan >= 0.8:
-                last_proc_scan = now
+            # 1. Escaneamento periódico das janelas Kitty e suas abas
+            if now - last_topology_scan >= topology_interval:
+                last_topology_scan = now
 
-                if sqlite_conn is None and os.path.exists(DB_PATH):
+                if agy_conn is None and os.path.exists(AGY_DB_PATH):
                     try:
-                        sqlite_conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=0.1)
+                        agy_conn = sqlite3.connect(f"file:{AGY_DB_PATH}?mode=ro", uri=True, timeout=0.1)
                     except Exception:
-                        sqlite_conn = None
+                        agy_conn = None
 
-                current_pids = set()
-                kitty_to_agy = {}  # kitty_pid -> list of session dicts
+                runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
+                sockets = glob.glob(f"{runtime_dir}/omarchy-kitty-*")
+                active_sockets = set()
 
-                try:
-                    for entry in os.listdir("/proc"):
-                        if not entry.isdigit():
-                            continue
-                        pid = int(entry)
-                        cmd_file = f"/proc/{pid}/cmdline"
-                        if not os.path.exists(cmd_file):
-                            continue
-                        try:
-                            with open(cmd_file, "rb") as cf:
-                                if b"agy" not in cf.read():
-                                    continue
-                        except OSError:
-                            continue
+                for sock in sockets:
+                    active_sockets.add(sock)
+                    try:
+                        raw = subprocess.check_output(
+                            ["kitty", "@", "--to", f"unix:{sock}", "ls"],
+                            timeout=0.35,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        kdata = json.loads(raw)
+                    except Exception:
+                        continue
 
-                        # Descobre PPID (shell)
-                        try:
-                            with open(f"/proc/{pid}/stat", "r") as sf:
-                                ppid = int(sf.read().split()[3])
-                        except OSError:
-                            continue
-
-                        # Descobre TTY
-                        try:
-                            tty = os.readlink(f"/proc/{pid}/fd/0")
-                        except OSError:
-                            continue
-                        if not tty.startswith("/dev/pts/"):
-                            continue
-
-                        # Descobre Kitty PID (pai do shell)
-                        kitty_pid = 0
-                        try:
-                            with open(f"/proc/{ppid}/stat", "r") as kf:
-                                kitty_pid = int(kf.read().split()[3])
-                        except OSError:
-                            continue
-
-                        # Descobre conversation_id
-                        conv_id = get_conv_id_from_pid(pid)
-                        title, is_running = ("Antigravity", False)
-                        if conv_id and sqlite_conn:
-                            title, is_running = get_conversation_data(conv_id, sqlite_conn)
-
-                        # CWD amigável
-                        cwd_name = "~"
-                        try:
-                            cwd = os.readlink(f"/proc/{pid}/cwd")
-                            cwd_name = os.path.basename(cwd) or "~"
-                        except OSError:
-                            pass
-
-                        sess = {
-                            "pid": pid,
-                            "shell_pid": ppid,
-                            "kitty_pid": kitty_pid,
-                            "tty": tty,
-                            "conv_id": conv_id,
-                            "cwd": cwd_name,
-                            "title": title,
-                            "is_running": is_running,
-                        }
-                        current_pids.add(pid)
-                        agy_sessions[pid] = sess
-                        kitty_to_agy.setdefault(kitty_pid, []).append(sess)
-                except Exception:
-                    pass
-
-                # Remove sessões encerradas
-                for dead_pid in list(agy_sessions.keys()):
-                    if dead_pid not in current_pids:
-                        del agy_sessions[dead_pid]
-
-                # 2. Descobre qual aba está ativa em cada janela Kitty relevante (a cada 1.5s)
-                if now - last_tab_scan >= 1.5:
-                    last_tab_scan = now
-                    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
-
-                    for kpid, sessions in kitty_to_agy.items():
-                        sock = f"{runtime_dir}/omarchy-kitty-{kpid}"
-                        if not os.path.exists(sock):
-                            continue
-
+                    for os_win in kdata:
+                        has_ai_agent_in_window = False
+                        has_any_running = False
                         active_pts = None
-                        active_title = sessions[0]["title"]
-                        active_cwd = sessions[0]["cwd"]
-                        has_running = any(s["is_running"] for s in sessions)
+                        active_title = ""
+                        active_is_natively_spinning = False
 
-                        try:
-                            raw = subprocess.check_output(
-                                ["kitty", "@", "--to", f"unix:{sock}", "ls"],
-                                timeout=0.3,
-                                stderr=subprocess.DEVNULL,
-                            )
-                            kdata = json.loads(raw)
-                            for os_win in kdata:
-                                for tab in os_win.get("tabs", []):
-                                    if tab.get("is_active", False):
-                                        wins = tab.get("windows", [])
-                                        if wins:
-                                            w_pid = wins[0].get("pid", 0)
-                                            try:
-                                                active_pts = os.readlink(f"/proc/{w_pid}/fd/0")
-                                            except OSError:
-                                                pass
-                                            # Encontra se esta aba ativa tem um agy correspondente
-                                            for s in sessions:
-                                                if s["shell_pid"] == w_pid or s["tty"] == active_pts:
-                                                    active_title = s["title"]
-                                                    active_cwd = s["cwd"]
-                                                    break
-                                            break
-                        except Exception:
-                            # Fallback para o tty da primeira sessão
-                            active_pts = sessions[0]["tty"]
+                        for tab in os_win.get("tabs", []):
+                            is_active = tab.get("is_active", False)
+                            t_title = tab.get("title", "")
+                            windows = tab.get("windows", [])
+                            if not windows:
+                                continue
+                            win = windows[0]
+                            w_pid = win.get("pid", 0)
+                            fg = win.get("foreground_processes", [])
+                            fg_cmd = " ".join(fg[0]["cmdline"]) if fg else ""
+                            fg_pid = fg[0].get("pid", 0) if fg else 0
 
-                        prev = kitty_window_states.get(kpid, {})
-                        kitty_window_states[kpid] = {
-                            "active_pts": active_pts or sessions[0]["tty"],
-                            "active_title": active_title,
-                            "cwd": active_cwd,
-                            "has_running": has_running,
-                            "last_title": prev.get("last_title", ""),
+                            cmd_lower = fg_cmd.lower()
+                            is_agy = "agy" in cmd_lower or (fg_cmd == "agy")
+                            is_codex = "codex" in cmd_lower
+                            is_claude = "claude" in cmd_lower
+
+                            tab_is_running = False
+
+                            if is_agy and fg_pid > 0:
+                                has_ai_agent_in_window = True
+                                conv_id = get_agy_conv_id(fg_pid)
+                                if conv_id and agy_conn:
+                                    t_name, tab_is_running = get_agy_conv_data(conv_id, agy_conn)
+                                    if is_active:
+                                        # Obtém pasta atual
+                                        cwd_name = "~"
+                                        try:
+                                            cwd = os.readlink(f"/proc/{fg_pid}/cwd")
+                                            cwd_name = os.path.basename(cwd) or "~"
+                                        except OSError:
+                                            pass
+                                        active_title = f"{t_name} | {cwd_name}"
+                            elif is_codex or is_claude:
+                                has_ai_agent_in_window = True
+                                # Codex e Claude Code prefixam o título da aba com o spinner quando trabalhando
+                                if has_spinner(t_title):
+                                    tab_is_running = True
+                                    if is_active:
+                                        active_is_natively_spinning = True
+
+                            if tab_is_running:
+                                has_any_running = True
+
+                            if is_active:
+                                if not active_title:
+                                    active_title = clean_title(t_title)
+                                try:
+                                    active_pts = os.readlink(f"/proc/{w_pid}/fd/0")
+                                except OSError:
+                                    pass
+
+                        # Se esta janela Kitty não possui nenhum agente de IA (ex: terminal bash puro), ignora
+                        if not has_ai_agent_in_window:
+                            if sock in window_states:
+                                del window_states[sock]
+                            continue
+
+                        prev = window_states.get(sock, {})
+                        window_states[sock] = {
+                            "active_pts": active_pts,
+                            "active_title": active_title or "Terminal",
+                            "active_is_natively_spinning": active_is_natively_spinning,
+                            "has_any_running": has_any_running,
+                            "last_set_title": prev.get("last_set_title", ""),
+                            "we_are_animating": prev.get("we_are_animating", False),
                         }
 
-                    # Remove janelas kitty que não têm mais agy
-                    for kpid in list(kitty_window_states.keys()):
-                        if kpid not in kitty_to_agy:
-                            del kitty_window_states[kpid]
+                # Limpeza de sockets encerrados
+                for dead_sock in list(window_states.keys()):
+                    if dead_sock not in active_sockets:
+                        del window_states[dead_sock]
 
-            # 3. Atualização contínua do frame da animação (a cada 80ms)
-            for kpid, state in list(kitty_window_states.items()):
-                pts = state.get("active_pts")
+            # 2. Atualização suave dos frames do título (a cada 80ms)
+            for sock, st in list(window_states.items()):
+                pts = st.get("active_pts")
                 if not pts or not os.path.exists(pts):
                     continue
 
-                title = state.get("active_title", "Antigravity")
-                cwd = state.get("cwd", "~")
-                has_running = state.get("has_running", False)
+                title = st.get("active_title", "Terminal")
+                has_running = st.get("has_any_running", False)
+                active_spinning = st.get("active_is_natively_spinning", False)
 
                 if has_running:
-                    frame = SPINNER_FRAMES[spinner_idx % len(SPINNER_FRAMES)]
-                    full_title = f"{frame} {title} | {cwd}"
-                    set_terminal_title(pts, full_title)
-                    state["last_title"] = full_title
-                else:
-                    full_title = f"{title} | {cwd}"
-                    if full_title != state.get("last_title"):
+                    # Se a aba ativa já está girando nativamente (ex: Codex ou Claude ativo e trabalhando),
+                    # não sobrepomos para não conflitar com a animação nativa
+                    if active_spinning:
+                        st["we_are_animating"] = False
+                    else:
+                        # Antigravity trabalhando OU processo de IA em aba de segundo plano:
+                        # Injetamos o spinner na aba ativa para que a aba do Hyprland gire!
+                        frame = SPINNER_FRAMES[spinner_idx % len(SPINNER_FRAMES)]
+                        full_title = f"{frame} {title}"
                         set_terminal_title(pts, full_title)
-                        state["last_title"] = full_title
+                        st["last_set_title"] = full_title
+                        st["we_are_animating"] = True
+                else:
+                    # Todos os processos da janela estão ociosos
+                    if st.get("we_are_animating") or st.get("last_set_title") != title:
+                        clean = clean_title(title)
+                        set_terminal_title(pts, clean)
+                        st["last_set_title"] = clean
+                        st["we_are_animating"] = False
 
             spinner_idx += 1
             time.sleep(0.08)
 
     finally:
-        for kpid, state in kitty_window_states.items():
-            pts = state.get("active_pts")
+        for sock, st in window_states.items():
+            pts = st.get("active_pts")
             if pts and os.path.exists(pts):
-                title = state.get("active_title", "Antigravity")
-                cwd = state.get("cwd", "~")
-                set_terminal_title(pts, f"{title} | {cwd}")
+                clean = clean_title(st.get("active_title", "Terminal"))
+                set_terminal_title(pts, clean)
 
-        if sqlite_conn:
+        if agy_conn:
             try:
-                sqlite_conn.close()
+                agy_conn.close()
             except Exception:
                 pass
 

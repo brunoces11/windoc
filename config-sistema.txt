@@ -1214,3 +1214,25 @@ Data: 16/10/2026. Estado: implementação instalada; quatro sessões Codex ident
 - O callback do título nativo do Antigravity registra o ID recebido junto ao processo `agy`. O estado, os IDs e os arquivos Kitty ficam em `PERSISTIR_WORKSPACE/ESTADO_LOCAL/`, modo privado, ignorados pelo Git. O código e a configuração do monitor ficam versionados no WinDoc.
 - Autostart do Hyprland inicia o monitor no login. Aplicações gráficas têm inventário e restauração básica configurada para Chromium, Sublime Text e Nautilus; recuperar arquivo específico do Sublime ou conteúdo interno de aplicativos requer adaptador próprio.
 - Validação: Python compilado; snapshot real encontrou 2 janelas Kitty e 6 painéis de agentes (Codex 4/4 identificados; Antigravity 0/2 na última captura); permissões 0700/0600 e regra gitignore verificadas; `git diff --check`, `luac -p` e `hyprctl configerrors` aprovados. Restauração integral não foi disparada na sessão ativa para evitar duplicar janelas; fluxo de boot não foi testado por reinicialização.
+
+62. MONITORAMENTO UNIVERSAL DE ABAS DO HYPRLAND PARA ANTIGRAVITY, CODEX E CLAUDE CODE
+Data: 16/10/2026. Estado: implementado, unificado e validado em tempo real.
+
+- Contexto e motivação:
+  - Inicialmente, a sincronização do spinner da aba do Hyprland com suporte a múltiplas abas internas em segundo plano foi criada apenas para o Antigravity.
+  - No Codex e no Claude Code, quando o terminal tinha múltiplas abas no Kitty e uma aba em segundo plano estava trabalhando enquanto a aba ativa estava ociosa, a aba do Hyprland permanecia estática sem spinner.
+- Customização implementada:
+  - O daemon centralizado `terminal/agy-title-daemon.py` foi expandido para se tornar o monitor universal de agentes de IA CLI nas abas do Kitty/Hyprland.
+  - Agora inspeciona todas as janelas do Kitty e detecta a presença de Antigravity (`agy`), Codex (`codex`) e Claude Code (`claude`).
+  - Lógica agregada por janela: se QUALQUER aba da janela (visível ou em segundo plano) estiver executando um turno de IA, a aba do Hyprland lá em cima gira a microanimação do loader (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) em tempo real.
+  - Para o Antigravity: lê o status diretamente do SQLite (`conversation_summaries.db`).
+  - Para Codex e Claude Code: detecta os frames giratórios de seus terminais e, caso o processo esteja rodando em uma aba de segundo plano, replica a animação na aba ativa para que a aba do Hyprland mantenha o spinner rodando.
+  - Se a aba ativa for ela mesma a que está executando nativamente (no caso de Codex/Claude), o daemon preserva a animação nativa sem interferência.
+  - Quando todas as abas daquela janela concluem o trabalho e ficam ociosas, o spinner para e o título limpo é fixado.
+- Arquivos afetados:
+  - `terminal/agy-title-daemon.py` (código atualizado do daemon universal)
+  - `config-sistema.txt` (este histórico)
+- Validação:
+  - Serviço `antigravity-tab-daemon.service` reiniciado via `systemctl --user restart`.
+  - Verificação com `hyprctl clients` confirmou o status correto e a animação ativa tanto em janelas com Antigravity quanto em janelas com Codex/Claude.
+
