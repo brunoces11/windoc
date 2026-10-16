@@ -1175,7 +1175,8 @@ Item {
             var dim = (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
             offset += dim
         }
-        if (root.showWorkspaces && index > 0) {
+        var appsIndex = root.leftWidgetsList.indexOf("omarchy.apps")
+        if (root.showWorkspaces && (appsIndex === -1 ? (index > 0) : (index > appsIndex))) {
             offset += root.workspacesDimension
         }
         return offset
@@ -1353,7 +1354,7 @@ Item {
                         var removedWidgets = []
                         for (var owi = 0; owi < oldDockWidgets.length; owi++) {
                             var ow = oldDockWidgets[owi]
-                            if (ow && ow !== "omarchy.apps" && newDockWidgets.indexOf(ow) === -1) {
+                            if (ow && ow !== "omarchy.apps" && ow !== "omarchy.menu" && newDockWidgets.indexOf(ow) === -1) {
                                 removedWidgets.push(ow)
                             }
                         }
@@ -1362,14 +1363,14 @@ Item {
                         }
                         for (var nwi = 0; nwi < newDockWidgets.length; nwi++) {
                             var nw = newDockWidgets[nwi]
-                            if (nw && nw !== "omarchy.apps" && !root.windowsTaskbarMode) {
+                            if (nw && nw !== "omarchy.apps" && nw !== "omarchy.menu" && !root.windowsTaskbarMode) {
                                 root.widgetSavedPositions = DockModel.switchDockWidgetInBar(root.shell, nw, [], root.widgetSavedPositions || {}, shellConfigFile)
                             }
                         }
                         root.dockWidgets = newDockWidgets
                     }
                 } else if (root.widgetsEnabled) {
-                    root.dockWidgets = ["omarchy.apps"]
+                    root.dockWidgets = ["omarchy.menu", "omarchy.apps"]
                 }
                 if (s.systemTray !== undefined && typeof s.systemTray === "object") {
                     if (s.systemTray.enabled !== undefined) root.systemTrayEnabled = (s.systemTray.enabled === true)
@@ -1496,12 +1497,12 @@ Item {
         root.widgetsEnabled = true
         var currentSaved = JSON.parse(JSON.stringify(root.widgetSavedPositions || {}))
 
-        if (widgetId !== "omarchy.apps" && !root.windowsTaskbarMode) {
+        if (widgetId !== "omarchy.apps" && widgetId !== "omarchy.menu" && !root.windowsTaskbarMode) {
             var prevIds = []
             if (root.dockWidgets && root.dockWidgets.length > 0) {
                 for (var i = 0; i < root.dockWidgets.length; i++) {
                     var prevId = root.dockWidgets[i]
-                    if (prevId && prevId !== "omarchy.apps" && prevId !== widgetId) {
+                    if (prevId && prevId !== "omarchy.apps" && prevId !== "omarchy.menu" && prevId !== widgetId) {
                         prevIds.push(prevId)
                     }
                 }
@@ -1517,7 +1518,7 @@ Item {
     function removeDockWidget(widgetId, targetRegion) {
         var next = DockModel.removeWidgetFromDockList(root.dockWidgets, widgetId)
         root.dockWidgets = next.slice()
-        if (widgetId !== "omarchy.apps" && !root.windowsTaskbarMode) {
+        if (widgetId !== "omarchy.apps" && widgetId !== "omarchy.menu" && !root.windowsTaskbarMode) {
             var currentSaved = JSON.parse(JSON.stringify(root.widgetSavedPositions || {}))
             currentSaved = DockModel.switchDockWidgetInBar(root.shell, "", [widgetId], currentSaved, shellConfigFile)
             root.widgetSavedPositions = currentSaved
@@ -1530,7 +1531,7 @@ Item {
     // enabled bar-widget plugin. Returns null when the widget is not registered,
     // leaving getWidgetSource() to cover the hardcoded first-party panels.
     function getWidgetComponent(widgetId) {
-        if (!widgetId || widgetId === "omarchy.apps" || root.isClockWidget(widgetId) || widgetId === "omarchy.weather") return null
+        if (!widgetId || widgetId === "omarchy.apps" || widgetId === "omarchy.menu" || root.isClockWidget(widgetId) || widgetId === "omarchy.weather") return null
         if (!root.barWidgetRegistry) return null
         var widgets = root.barWidgetRegistry.widgets || {}
         var entry = widgets[widgetId]
@@ -1538,7 +1539,7 @@ Item {
     }
 
     function getWidgetSource(widgetId) {
-        if (!widgetId || widgetId === "omarchy.apps") return ""
+        if (!widgetId || widgetId === "omarchy.apps" || widgetId === "omarchy.menu") return ""
         if (root.isClockWidget(widgetId)) {
             return "file:///usr/share/omarchy/shell/plugins/panels/clock/Panel.qml"
         }
@@ -1743,6 +1744,7 @@ Item {
     function getWidgetIcon(widgetId, item) {
         var _rev = root.widgetIconRevision
         if (!widgetId) return "󰒓"
+        if (widgetId === "omarchy.menu") return "\ue900"
         if (widgetId === "omarchy.apps") return "󰀻"
         if (widgetId === "omarchy.monitor") {
             return (root.screenCount > 1) ? "󰍺" : "󰍹"
@@ -1847,6 +1849,14 @@ Item {
             }
             return
         }
+        if (widgetId === "omarchy.menu") {
+            if (mouse && mouse.button === Qt.RightButton) {
+                Util.execDetached("xdg-terminal-exec")
+            } else {
+                Util.execDetached("omarchy-menu toggle root")
+            }
+            return
+        }
         if (widgetId === "omarchy.apps") {
             if (mouse && mouse.button === Qt.RightButton) {
                 Util.execDetached("omarchy-menu toggle root")
@@ -1895,6 +1905,14 @@ Item {
         if (root.isEditMode) {
             if (mouse && mouse.button === Qt.RightButton) {
                 root.isEditMode = false
+            }
+            return
+        }
+        if (widgetId === "omarchy.menu") {
+            if (mouse && mouse.button === Qt.RightButton) {
+                Util.execDetached("xdg-terminal-exec")
+            } else {
+                Util.execDetached("omarchy-menu toggle root")
             }
             return
         }
@@ -3216,6 +3234,7 @@ Item {
 
     function getWidgetTooltip(widgetId, loaderItem) {
         if (!widgetId) return ""
+        if (widgetId === "omarchy.menu") return "Menu Omarchy"
         if (widgetId === "omarchy.apps") return "Iniciar"
         if (root.isClockWidget(widgetId)) {
             return Qt.formatDate(new Date(), "dddd, d 'de' MMMM 'de' yyyy")
@@ -3511,7 +3530,7 @@ Item {
                                     var _ic = it ? (it.icon || it.displayText || it.playIcon || "") : ""
                                     return root.getWidgetIcon(modelData, it)
                                 }
-                                fontFamily: (leftWidgetLoader.item && leftWidgetLoader.item.fontFamily) ? leftWidgetLoader.item.fontFamily : ((leftWidgetLoader.item && leftWidgetLoader.item.font && leftWidgetLoader.item.font.family) ? leftWidgetLoader.item.font.family : Style.font.family)
+                                fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((leftWidgetLoader.item && leftWidgetLoader.item.fontFamily) ? leftWidgetLoader.item.fontFamily : ((leftWidgetLoader.item && leftWidgetLoader.item.font && leftWidgetLoader.item.font.family) ? leftWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
                                 color: leftWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
                                 Behavior on color { ColorAnimation { duration: 120 } }
@@ -3933,7 +3952,7 @@ Item {
                                     var _ic = it ? (it.icon || it.displayText || it.playIcon || "") : ""
                                     return root.getWidgetIcon(modelData, it)
                                 }
-                                fontFamily: (rightWidgetLoader.item && rightWidgetLoader.item.fontFamily) ? rightWidgetLoader.item.fontFamily : ((rightWidgetLoader.item && rightWidgetLoader.item.font && rightWidgetLoader.item.font.family) ? rightWidgetLoader.item.font.family : Style.font.family)
+                                fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((rightWidgetLoader.item && rightWidgetLoader.item.fontFamily) ? rightWidgetLoader.item.fontFamily : ((rightWidgetLoader.item && rightWidgetLoader.item.font && rightWidgetLoader.item.font.family) ? rightWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
                                 color: rightWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
                                 Behavior on color { ColorAnimation { duration: 120 } }

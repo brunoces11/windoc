@@ -952,3 +952,29 @@ Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
   posicionamento milimétrico na barra inferior; reinicialização do shell via `omarchy restart shell`;
   verificação de processos do Quickshell (`quickshell -n -p /usr/share/omarchy/shell`);
   `hyprctl configerrors` com zero erros.
+
+48. TRANSFERÊNCIA DO MENU OMARCHY DA BARRA SUPERIOR PARA A BARRA INFERIOR (WINDOC)
+Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
+
+- Arquivos afetados: `shell/shell.json`, `shell/dock-settings.json`, `dock/DockWidgets.js`,
+  `dock/DockPanel.qml`, `dock/BarWidget.qml`, `dock/tests/tst_DockWidgets.qml` e este histórico.
+- Antes: O botão do Menu Omarchy (`omarchy.menu`) permanecia isolado no canto superior esquerdo
+  da barra superior (`shell.json`). Na barra inferior (WinDoc), o canto inferior esquerdo continha
+  o botão de aplicativos (`omarchy.apps`) seguido diretamente pelos botões de números dos workspaces.
+- Depois:
+  * Removido `omarchy.menu` da barra superior em `shell/shell.json`, deixando o lado esquerdo da barra limpo (`left: []`).
+  * Adicionado `omarchy.menu` aos `dockWidgets` da barra inferior em `shell/dock-settings.json` e `dock/BarWidget.qml`.
+  * Atualizado o algoritmo de layout em `dock/DockWidgets.js` (`getDockWidgetLayout` e `addWidgetToDockList`) para
+    posicionar estritamente o menu Omarchy (`omarchy.menu`) como o primeiro elemento da extrema esquerda, seguido
+    pelo botão do menu de aplicativos/programas (`omarchy.apps`).
+  * Atualizado o `dock/DockPanel.qml` com o glifo oficial do Omarchy (`\ue900`), tipografia (`omarchy`), tooltip padrão
+    ("Menu Omarchy"), e ações de clique (clique esquerdo aciona `omarchy-menu toggle root`; clique direito aciona o terminal `xdg-terminal-exec`).
+  * Ajustado o cálculo de offset em `getLeftWidgetOffset` para que o botão de programas (`omarchy.apps`) se posicione
+    imediatamente ao lado do menu Omarchy, e os números dos workspaces (`DockWorkspaces`) fiquem imediatamente à direita do botão de programas.
+  * Ordem final exata da esquerda para a direita no canto inferior esquerdo:
+    1. Menu Omarchy (ícone do sistema)
+    2. Menu Iniciar / Programas instalados (`omarchy.apps`)
+    3. Conjunto de botões numéricos dos workspaces (1, 2, 3, 4, 5...)
+- Verificações: Testes automatizados executados e aprovados via Node e unittest (`26 passed`); validação de formatação
+  `git diff --check` sem erros; Quickshell reiniciado com sucesso via `omarchy restart shell`; captura de tela (`grim`)
+  e inspeção visual confirmando que a barra superior esquerda ficou limpa e os 3 elementos estão na ordem exata na barra inferior.

@@ -10,11 +10,7 @@
           "id": "omarchy.system-update"
         }
       ],
-      "left": [
-        {
-          "id": "omarchy.menu"
-        }
-      ],
+      "left": [],
       "right": [
         {
           "id": "omarchy.tray"

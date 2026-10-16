@@ -75,7 +75,7 @@ function switchDockWidgetInBar(shell, newWidgetId, prevWidgetIds, savedPositions
         // 1. Return all previous widgets back to bar
         for (var p = 0; p < prevWidgetIds.length; p++) {
             var prevId = prevWidgetIds[p];
-            if (!prevId || prevId === "omarchy.apps" || prevId === newWidgetId) continue;
+            if (!prevId || prevId === "omarchy.apps" || prevId === "omarchy.menu" || prevId === newWidgetId) continue;
 
             var savedInfo = savedPositions[prevId];
             var defReg = defaultRegions[prevId] || "right";
@@ -151,7 +151,7 @@ function switchDockWidgetInBar(shell, newWidgetId, prevWidgetIds, savedPositions
         }
 
         // 2. If newWidgetId is provided and not omarchy.apps, remove it from bar and snapshot position
-        if (newWidgetId && newWidgetId !== "omarchy.apps") {
+        if (newWidgetId && newWidgetId !== "omarchy.apps" && newWidgetId !== "omarchy.menu") {
             for (var r2 = 0; r2 < regions.length; r2++) {
                 var regionName = regions[r2];
                 var list2 = config.bar.layout[regionName];
@@ -257,7 +257,7 @@ function removeWidgetFromBar(shell, widgetId, savedPositions, shellConfigFile) {
             }
         }
 
-        if (widgetId && widgetId !== "omarchy.apps") {
+        if (widgetId && widgetId !== "omarchy.apps" && widgetId !== "omarchy.menu") {
             if (!Array.isArray(config.plugins)) config.plugins = [];
             var foundInPlugins = false;
             for (var pi = 0; pi < config.plugins.length; pi++) {
@@ -504,15 +504,26 @@ function addWidgetToDockList(dockWidgetsList, widgetId) {
         if (arr[i] === widgetId) arr.splice(i, 1);
     }
 
-    if (widgetId === "omarchy.apps") {
-        // Add omarchy.apps at the front, keep other non-apps widgets (max 1)
-        var others = arr.filter(function(id) { return id && id !== "omarchy.apps"; });
-        return ["omarchy.apps"].concat(others.slice(0, 1));
-    } else {
-        // Add non-apps widget; preserve omarchy.apps if present, cap others at 1
+    if (widgetId === "omarchy.menu") {
         var hasApps = arr.indexOf("omarchy.apps") !== -1;
-        var result = hasApps ? ["omarchy.apps", widgetId] : [widgetId];
-        return result;
+        var others = arr.filter(function(id) { return id && id !== "omarchy.apps" && id !== "omarchy.menu"; });
+        var res = ["omarchy.menu"];
+        if (hasApps) res.push("omarchy.apps");
+        return res.concat(others.slice(0, 1));
+    } else if (widgetId === "omarchy.apps") {
+        var hasMenu = arr.indexOf("omarchy.menu") !== -1;
+        var others = arr.filter(function(id) { return id && id !== "omarchy.apps" && id !== "omarchy.menu"; });
+        var res = [];
+        if (hasMenu) res.push("omarchy.menu");
+        res.push("omarchy.apps");
+        return res.concat(others.slice(0, 1));
+    } else {
+        var hasMenu = arr.indexOf("omarchy.menu") !== -1;
+        var hasApps = arr.indexOf("omarchy.apps") !== -1;
+        var prefix = [];
+        if (hasMenu) prefix.push("omarchy.menu");
+        if (hasApps) prefix.push("omarchy.apps");
+        return prefix.concat([widgetId]);
     }
 }
 
@@ -541,15 +552,20 @@ function getDockWidgetLayout(showAppMenu, appMenuPosition, widgetsEnabled, dockW
     }
 
     var hasApps = (showAppMenu === true) && Array.isArray(dockWidgetsList) && (dockWidgetsList.indexOf("omarchy.apps") !== -1);
+    var hasMenu = Array.isArray(dockWidgetsList) && (dockWidgetsList.indexOf("omarchy.menu") !== -1);
 
     // Left side:
+    // Order: [1] omarchy.menu (if present), [2] omarchy.apps (if left), then any other left widgets
+    if (hasMenu) {
+        leftWidgets.push("omarchy.menu");
+    }
     if (hasApps && appPos === "left") {
         leftWidgets.push("omarchy.apps");
     }
     if (otherPos === "left") {
         var listL = Array.isArray(dockWidgetsList) ? dockWidgetsList : [];
         for (var i = 0; i < listL.length; i++) {
-            if (listL[i] && listL[i] !== "omarchy.apps") {
+            if (listL[i] && listL[i] !== "omarchy.apps" && listL[i] !== "omarchy.menu") {
                 leftWidgets.push(listL[i]);
             }
         }
@@ -559,7 +575,7 @@ function getDockWidgetLayout(showAppMenu, appMenuPosition, widgetsEnabled, dockW
     if (otherPos === "right") {
         var listR = Array.isArray(dockWidgetsList) ? dockWidgetsList : [];
         for (var j = 0; j < listR.length; j++) {
-            if (listR[j] && listR[j] !== "omarchy.apps") {
+            if (listR[j] && listR[j] !== "omarchy.apps" && listR[j] !== "omarchy.menu") {
                 rightWidgets.push(listR[j]);
             }
         }

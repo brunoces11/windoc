@@ -51,7 +51,7 @@ BarWidget {
     }
   }
 
-  property var dockWidgets: ["omarchy.apps"]
+  property var dockWidgets: ["omarchy.menu", "omarchy.apps"]
   property string appMenuPosition: "left"
   property string widgetPosition: "right"
   property var widgetSavedPositions: ({})
@@ -138,11 +138,11 @@ BarWidget {
     if (!root.widgetsEnabled) {
       s.dockWidgets = []
     } else if (Array.isArray(s.dockWidgets) && s.dockWidgets.length > 0) {
-      s.dockWidgets = s.dockWidgets.slice(0, 2)
+      s.dockWidgets = s.dockWidgets.slice(0, 3)
     } else if (Array.isArray(root.dockWidgets) && root.dockWidgets.length > 0) {
-      s.dockWidgets = root.dockWidgets.slice(0, 2)
+      s.dockWidgets = root.dockWidgets.slice(0, 3)
     } else {
-      s.dockWidgets = ["omarchy.apps"]
+      s.dockWidgets = ["omarchy.menu", "omarchy.apps"]
     }
 
     settingsFile.setText(JSON.stringify(s, null, 2) + "\n")

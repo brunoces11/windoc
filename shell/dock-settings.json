@@ -18,6 +18,7 @@
   "appMenuPosition": "left",
   "widgetPosition": "right",
   "dockWidgets": [
+    "omarchy.menu",
     "omarchy.apps"
   ],
   "systemTray": {
