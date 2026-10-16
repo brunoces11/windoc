@@ -1758,6 +1758,7 @@ Item {
         property color urgent: Color.urgent
         property color muted: Color.muted
         property color accent: Color.accent
+        property color background: Color.bar.background
         property color popupBackground: Color.popups.background
         property bool foregroundAnimationEnabled: true
         property string fontFamily: Style.font.family

@@ -1044,3 +1044,26 @@ Data: 16/10/2026. Estado: versão 0.1.0 implementada e validada; aleatório do A
 - Estado restaurado após testes: mesma faixa, pausada perto de 0:40, volume individual
   100%, volume do sistema intacto, barra superior desativada e pin de Rede preservado.
 - Limites: aleatório no Amberol original indisponível; multimonitor e vertical não validados.
+
+
+52. PAINEL AMBEROL MAIS COMPACTO E FUNDO CINZA MAIS CLARO
+Data: 16/10/2026. Estado: aplicado e validado visualmente em runtime.
+
+- Arquivos afetados: amberol-deskband/BarWidget.qml, components/DeskbandCapsule.qml,
+  components/AmberolController.js, manifest.json, README.md, preview.png e expectativa
+  de largura em tests/mpris_runtime.py; dock/DockPanel.qml, DIRETRIZES_DE_DESIGN.txt
+  e este histórico. Submódulo atualizado para a versão 0.1.1.
+- Antes: cápsula de 340px no dock, 280px no topo, teto de 480px, espaços de 4px e
+  fundo levemente tingido pela cor do tema com alpha 0.055.
+- Depois: largura de 265.2px no dock, 218.4px no topo e teto de 374.4px (redução
+  de 22%). Espaços horizontais de 3.4px (redução de 15%); área de texto recalculada
+  para acomodar todos os controles. Mínimos funcionais de 240px e 200px, respectivamente.
+- Fundo convertido para cinza neutro com brilho ponderado da superfície anterior
+  multiplicado por 1.10. A dock informa sua cor real ao componente para preservar
+  o cálculo com o tema. Não foram alterados os tamanhos dos ícones ou o popup.
+- Validações: symlink existente e arquivos reais no WinDoc conferidos; shell
+  recarregado e respondendo; diagnóstico do componente confirmou 265.2px; captura
+  inspecionada mostrou todos os controles visíveis e sem sobreposição. Log do
+  carregamento sem novos erros QML; diffs sem erros de formatação.
+- A mudança de Rede na bandeja já existente antes desta tarefa permanece preservada
+  e fora do commit desta personalização.

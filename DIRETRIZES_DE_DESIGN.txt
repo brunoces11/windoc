@@ -160,11 +160,12 @@
 # ------------------------------------------------------------------------------
 # [COMPONENTE 05] AMBEROL DESKBAND
 # ------------------------------------------------------------------------------
-# Cápsula única no host da dock: largura padrão de 340px, altura de 42px; margens
-# internas da superfície de 2px, raio de até 12px, fundo na cor do texto com alpha
-# 0.055 e borda de 1px com alpha 0.12. Miniatura de 28px; título de 11px, artista
+# Cápsula única no host da dock: largura padrão de 265.2px, altura de 42px; margens
+# internas da superfície de 2px, raio de até 12px, fundo cinza neutro com brilho
+# 10% maior que a composição anterior (alpha 0.055 sobre a barra), e borda de 1px
+# com alpha 0.12. Espaçamento horizontal de 3.4px (antes 4px, redução de 15%). Miniatura de 28px; título de 11px, artista
 # de 10px; botões de 26x28px. Texto segue a fonte do host, com reticências e tooltip.
-# Na barra superior de 24px: largura padrão de 280px, miniatura de 18px, texto
+# Na barra superior de 24px: largura padrão de 218.4px, miniatura de 18px, texto
 # de 10px em uma linha e botões de 22x20px. Não aumentar a altura global da barra.
 # Popup: 320x390px, raio de 10px, borda de 1px com alpha 0.28, cor do popup do
 # host, padding lateral de 16px e superior de 14px; capa de 156px. Título de
@@ -173,3 +174,9 @@
 # A cápsula mantém a faixa pausada; recolhe em 160ms quando não há faixa. Progresso
 # atualiza a cada 500ms apenas com popup aberto e reprodução ativa. Sem marquee
 # contínuo ou blur global. Aleatório sem suporte funcional deve aparecer desativado.
+
+# Ajuste de 16/10/2026: larguras padrão e teto reduzidos em 22%:
+# dock 340 -> 265.2px; topo 280 -> 218.4px; teto configurável 480 -> 374.4px.
+# Preservar mínimos funcionais de 240px no dock e 200px no modo compacto.
+# Converter o brilho ponderado da antiga superfície para cinza e multiplicar por
+# 1.10; o host informa a cor real da barra para manter o cálculo coerente com o tema.
