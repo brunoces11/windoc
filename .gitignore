@@ -12,6 +12,9 @@ __pycache__/
 # Logs temporários
 *.log
 
+# Estado dinâmico e privado da restauração do Workspace 1
+PERSISTIR_WORKSPACE/ESTADO_LOCAL/
+
 # Arquivos do sistema operacional
 .DS_Store
 Thumbs.db

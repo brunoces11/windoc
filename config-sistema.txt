@@ -1204,3 +1204,13 @@ Data: 16/10/2026. Estado: implementado e validado.
 - Alinhamento dos glifos agora usa toda a caixa interna do botão com centralização horizontal e vertical explícita, incluindo a seta de expansão.
 - Arquivos: `amberol-deskband/components/DeskbandButton.qml`, `DeskbandCapsule.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
 - Validação: 7 testes Python do instalador e 13 testes QML aprovados; shell reiniciado, ping confirmado e log sem novos erros QML.
+
+
+61. PERSISTIR WORKSPACE 1 E RETOMAR SESSÕES DE AGENTES POR ID
+Data: 16/10/2026. Estado: implementação instalada; quatro sessões Codex identificadas, Antigravity ainda parcialmente identificável nesta captura.
+
+- Adicionado `PERSISTIR_WORKSPACE/WORKSPACE1.py`: inventaria janelas do workspace 1 pelo IPC do Hyprland, salva a topologia nativa do Kitty e repõe no login as janelas/tabs capturadas. O monitor atualiza a captura a cada oito segundos e conserva o último estado por 60 segundos quando o workspace esvazia.
+- Retomadas de Codex (`codex resume ID`), Antigravity (`agy --conversation ID`) e Claude Code (`claude --resume ID`) usam o ID UUID da sessão. O título serve apenas como possível pista de bootstrap do ID; nunca é chave de restauração. Associações locais são vinculadas ao PID e ao horário de início do processo. IDs ambíguos ou ausentes falham fechados e restauram a aba em shell, sem escolher uma conversa por aproximação.
+- O callback do título nativo do Antigravity registra o ID recebido junto ao processo `agy`. O estado, os IDs e os arquivos Kitty ficam em `PERSISTIR_WORKSPACE/ESTADO_LOCAL/`, modo privado, ignorados pelo Git. O código e a configuração do monitor ficam versionados no WinDoc.
+- Autostart do Hyprland inicia o monitor no login. Aplicações gráficas têm inventário e restauração básica configurada para Chromium, Sublime Text e Nautilus; recuperar arquivo específico do Sublime ou conteúdo interno de aplicativos requer adaptador próprio.
+- Validação: Python compilado; snapshot real encontrou 2 janelas Kitty e 6 painéis de agentes (Codex 4/4 identificados; Antigravity 0/2 na última captura); permissões 0700/0600 e regra gitignore verificadas; `git diff --check`, `luac -p` e `hyprctl configerrors` aprovados. Restauração integral não foi disparada na sessão ativa para evitar duplicar janelas; fluxo de boot não foi testado por reinicialização.
