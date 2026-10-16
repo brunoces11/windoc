@@ -33,6 +33,8 @@ o.bind("SUPER + F1", "Amberol: play/pause", "gdbus call --session --dest org.mpr
 o.bind("SUPER + F2", "Diminuir volume", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")
 o.bind("SUPER + F3", "Aumentar volume", "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+")
 o.bind("SUPER + F4", "Alternar mudo", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+o.bind("SUPER + F6", "Amberol: faixa anterior", "gdbus call --session --dest org.mpris.MediaPlayer2.io.bassi.Amberol --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.Previous")
+o.bind("SUPER + F8", "Amberol: próxima faixa", "gdbus call --session --dest org.mpris.MediaPlayer2.io.bassi.Amberol --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.Next")
 -- o.bind("SUPER + PERIOD", nil, "omarchy-shell shell toggle omarchy.emojis")
 
 -- Use Dolphin instead of the default Nautilus file manager.

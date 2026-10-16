@@ -1267,3 +1267,11 @@ Data: 16/10/2026. Estado: implementado e validado.
 - Não foi necessário instalar dependências: `gdbus` e `wpctl` já estão disponíveis. As funções não dependem de playerctl.
 - Arquivos: `hyprland/bindings.lua` e este histórico.
 - Validação: MPRIS do Amberol confirma o método PlayPause; `hyprctl reload` e `hyprctl configerrors` aprovados; quatro atalhos aparecem ativos com modificador Super. O comando wpctl é fornecido pelo WirePlumber instalado; não foi alterado o estado atual de reprodução ou volume durante a validação.
+
+
+66. ATALHOS PARA TROCAR DE FAIXA NO AMBEROL
+Data: 16/10/2026. Estado: implementado e validado.
+
+- Super+F6 chama Previous do MPRIS do Amberol; Super+F8 chama Next. Funcionam globalmente no Hyprland enquanto o Amberol estiver aberto.
+- Arquivos: `hyprland/bindings.lua` e este histórico.
+- Validação: Super+F6 e Super+F8 registrados ativos com modificador Super; `hyprctl reload` e `hyprctl configerrors` aprovados. O Amberol está aberto e expõe os métodos MPRIS Previous/Next; não alterei a faixa durante a validação.
