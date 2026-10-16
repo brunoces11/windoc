@@ -1138,7 +1138,7 @@ Data: 16/10/2026. Estado: implementado e validado em runtime.
 - O popup deixou de repetir capa e comandos e agora apresenta a lista rolável da playlist PLS salva pelo Amberol. Lê novamente ao abrir, observa atualizações do arquivo e também procura o cache Flatpak. Exibe nomes de arquivo e ordem salva, sem alegar que representa a próxima fila após shuffle; Amberol não publica TrackList nem uma ação confiável para saltar à faixa.
 - Shuffle permanece indisponível para Amberol 2026.1 porque o MPRIS do programa não implementa o comando; o botão continua desativado para evitar falso estado.
 - Arquivos: `amberol-deskband/components/DeskbandCapsule.qml`, `DeskbandPopup.qml`, `DeskbandSlider.qml`, `BarWidget.qml`, `AmberolController.js`, testes QML, manifesto e README; `DIRETRIZES_DE_DESIGN.txt`; `RELATORIO_AMBEROL_DESKBAND.md`; este log.
-- Validação: 7 testes do instalador, 9 verificações QML, 26 testes do host, compilação Python e preflight do instalador aprovados; shell reiniciado e ping confirmado; popup real exibiu as 41 faixas do cache e foi inspecionado visualmente; logs sem novos erros QML. Player permaneceu pausado e popup fechado ao fim.
+- Validação: 7 testes do instalador, 12 verificações QML, 26 testes do host, compilação Python e preflight do instalador aprovados; shell reiniciado e ping confirmado; popup real exibiu as 41 faixas do cache e foi inspecionado visualmente; logs sem novos erros QML. Player permaneceu pausado e popup fechado ao fim.
 
 56. TÍTULO DINÂMICO E LOADER ANIMADO NA ABA DO HYPRLAND PARA ANTIGRAVITY CLI
 Data: 16/10/2026. Estado: implementado, integrado e validado em runtime.
