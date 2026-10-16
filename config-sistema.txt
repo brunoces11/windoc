@@ -1256,3 +1256,14 @@ Data: 16/10/2026. Estado: hooks instalados e verificados; restauração protegid
 - Estado e snapshots seguem em `PERSISTIR_WORKSPACE/ESTADO_LOCAL/`, com diretório privado e exclusão do Git. Os arquivos de configuração Codex/Claude ficam adotados em `adotados/` e registrados no manifesto.
 - Validação: compilação Python, JSON dos três provedores, vínculos dos dois arquivos adotados, testes isolados de estados vazio/ativo/limpeza, formatos de IDs e mapeamento de restauração para os três agentes; `git diff --check` aprovado. Captura ao vivo identificou 3/3 painéis Codex e 1/2 Antigravity; um painel Antigravity segue sem ID verificável, portanto a captura real fica incompleta e o último estado completo é preservado. Não havia Claude Code aberto. Reinicialização completa não foi simulada.
 
+
+
+65. ATALHOS GLOBAIS PARA AMBEROL E VOLUME
+Data: 16/10/2026. Estado: implementado e validado.
+
+- Super+F1 alterna play/pause do Amberol via MPRIS, global no Hyprland enquanto o Amberol estiver aberto.
+- Super+F2 reduz o volume do dispositivo de saída padrão em 5%; Super+F3 aumenta em 5%, limitado a 100%; Super+F4 alterna o mudo do dispositivo padrão via WirePlumber/wpctl.
+- F6/F8 não foram vinculadas, conforme a prioridade indicada; não há alteração de velocidade ou reprodução reversa.
+- Não foi necessário instalar dependências: `gdbus` e `wpctl` já estão disponíveis. As funções não dependem de playerctl.
+- Arquivos: `hyprland/bindings.lua` e este histórico.
+- Validação: MPRIS do Amberol confirma o método PlayPause; `hyprctl reload` e `hyprctl configerrors` aprovados; quatro atalhos aparecem ativos com modificador Super. O comando wpctl é fornecido pelo WirePlumber instalado; não foi alterado o estado atual de reprodução ou volume durante a validação.
