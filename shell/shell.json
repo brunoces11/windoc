@@ -2,26 +2,9 @@
   "bar": {
     "centerAnchor": "",
     "layout": {
-      "center": [
-        {
-          "id": "omarchy.keyboard-layout"
-        },
-        {
-          "id": "omarchy.system-update"
-        }
-      ],
+      "center": [],
       "left": [],
-      "right": [
-        {
-          "id": "omarchy.tray"
-        },
-        {
-          "id": "omarchy.bluetooth"
-        },
-        {
-          "id": "omarchy.power"
-        }
-      ]
+      "right": []
     },
     "position": "top",
     "transparent": false

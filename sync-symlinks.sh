@@ -24,7 +24,8 @@ for f in bindings.lua looknfeel.lua hyprland.lua input.lua monitors.lua autostar
 done
 
 # 3. Omarchy Shell
-mkdir -p "$HOME/.config/omarchy"
+mkdir -p "$HOME/.config/omarchy" "$HOME/.local/state/omarchy/toggles"
+touch "$HOME/.local/state/omarchy/toggles/bar-off"
 for f in shell.json dock-settings.json dock-pinned.json; do
   if [ -f "$PROJECT_DIR/shell/$f" ]; then
     ln -sfn "$PROJECT_DIR/shell/$f" "$HOME/.config/omarchy/$f"

@@ -978,3 +978,15 @@ Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
 - Verificações: Testes automatizados executados e aprovados via Node e unittest (`26 passed`); validação de formatação
   `git diff --check` sem erros; Quickshell reiniciado com sucesso via `omarchy restart shell`; captura de tela (`grim`)
   e inspeção visual confirmando que a barra superior esquerda ficou limpa e os 3 elementos estão na ordem exata na barra inferior.
+
+49. DESATIVAÇÃO COMPLETA DA BARRA SUPERIOR DO OMARCHY
+Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
+
+- Arquivos afetados: `shell/shell.json`, `sync-symlinks.sh`, `config-sistema.txt` e toggle de estado `~/.local/state/omarchy/toggles/bar-off`.
+- Antes: A barra superior (`omarchy-bar`) permanecia ativa ocupando 24 pixels de espaço reservado no topo da tela (`reserved: 0 24 0 50`), contendo listas residuais de layout em `shell.json` mesmo com as funções já migradas para a barra inferior (WinDoc).
+- Depois:
+  * Desativada por completo a barra superior ativando a flag nativa do sistema `bar-off` em `~/.local/state/omarchy/toggles/bar-off`, o que estaciona a barra fora da tela (`y: -24`) e desativa sua zona de exclusão (`exclusionMode: ExclusionMode.Ignore`).
+  * Esvaziadas todas as seções residuais do layout da barra (`center: []`, `left: []`, `right: []`) em `shell/shell.json`.
+  * Atualizado o script `sync-symlinks.sh` para garantir a preservação do toggle `bar-off` em caso de ressincronização.
+  * O espaço reservado no topo do monitor passou a ser 0 pixels (`reserved: 0 0 0 50`), liberando 100% da área útil superior da tela para janelas e aplicativos.
+- Verificações: Testes unitários executados e aprovados (`26 passed`); validação de formatação `git diff --check` sem erros; Quickshell reiniciado com sucesso via `omarchy restart shell`; `hyprctl layers` confirmando `omarchy-bar` fora da tela (`y: -24`); `hyprctl monitors` confirmando topo zerado (`reserved: 0 0 0 50`); capturas de tela inspecionadas atestando ausência total da barra superior.
