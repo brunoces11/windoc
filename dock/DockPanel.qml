@@ -138,6 +138,7 @@ Item {
         function setAutohideEdgeDepth(val: string): string { var n = parseInt(val, 10); if (!isNaN(n) && n >= 1 && n <= 64) { root.autohideEdgeDepth = n; root.saveSettings(); } return "ok" }
         function setShowFolderTitles(val: string): string { root.showFolderTitles = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
         function setShowBadges(val: string): string { root.showBadges = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
+        function setShowTooltips(val: string): string { root.showTooltips = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
         function setOverlayMode(val: string): string { root.overlayMode = (val === "true" || val === "1"); root.saveSettings(); return "ok" }
         function toggleTray(): string { root.toggleTrayOverflow(); return "ok" }
         function openTraySettings(): string { root.openSystemTraySettings(); return "ok" }
@@ -416,6 +417,7 @@ Item {
     readonly property int effectiveAutohideEdgeDepth: Math.max(4, Math.min(64, root.autohideEdgeDepth))
     property bool showFolderTitles: true
     property bool showBadges: true
+    property bool showTooltips: true
     property bool glassmorphism: false
     property real blurOpacity: 0.68
     property bool windowsTaskbarMode: true
@@ -1306,6 +1308,11 @@ Item {
                 if (s.showBadges !== undefined) {
                     root.showBadges = (s.showBadges === true)
                 }
+                if (s.showTooltips !== undefined) {
+                    root.showTooltips = (s.showTooltips === true)
+                } else {
+                    root.showTooltips = true
+                }
                 if (s.glassmorphism !== undefined) {
                     root.glassmorphism = (s.glassmorphism === true)
                 }
@@ -1388,6 +1395,7 @@ Item {
             autohideEdgeDepth: root.autohideEdgeDepth,
             showFolderTitles: root.showFolderTitles,
             showBadges: root.showBadges,
+            showTooltips: root.showTooltips,
             glassmorphism: root.glassmorphism,
             blurOpacity: root.blurOpacity,
             windowsTaskbarMode: root.windowsTaskbarMode,
@@ -1686,8 +1694,8 @@ Item {
         property bool foregroundAnimationEnabled: true
         property string fontFamily: Style.font.family
         property var activePopout: null
-        function showTooltip(item, text) {}
-        function hideTooltip(item) {}
+        function showTooltip(item, text) { root.showDockTooltip(item, text) }
+        function hideTooltip(item) { root.hideDockTooltip(item) }
         function requestPopout(key) { activePopout = key }
         function releasePopout(key) { if (activePopout === key) activePopout = null }
         function isBarWidgetOpen(id) { return false }
@@ -3158,20 +3166,53 @@ Item {
     property var activeRightTooltipTarget: null
     property string activeRightTooltipText: ""
 
-    function showRightTooltip(item, text) {
-        if (!item || !text) {
-            hideRightTooltip(item)
+    function showDockTooltip(item, text) {
+        if (!item || !text || !root.showTooltips) {
+            hideDockTooltip(item)
             return
         }
         activeRightTooltipTarget = item
         activeRightTooltipText = text
     }
 
-    function hideRightTooltip(item) {
+    function hideDockTooltip(item) {
         if (activeRightTooltipTarget === item || !item) {
             activeRightTooltipTarget = null
             activeRightTooltipText = ""
         }
+    }
+
+    function showRightTooltip(item, text) {
+        showDockTooltip(item, text)
+    }
+
+    function hideRightTooltip(item) {
+        hideDockTooltip(item)
+    }
+
+    function showTooltip(item, text) {
+        showDockTooltip(item, text)
+    }
+
+    function hideTooltip(item) {
+        hideDockTooltip(item)
+    }
+
+    function getWidgetTooltip(widgetId, loaderItem) {
+        if (!widgetId) return ""
+        if (widgetId === "omarchy.apps") return "Iniciar"
+        if (root.isClockWidget(widgetId)) {
+            return Qt.formatDate(new Date(), "dddd, d 'de' MMMM 'de' yyyy")
+        }
+        if (loaderItem && loaderItem.tooltipText) {
+            return loaderItem.tooltipText
+        }
+        for (var i = 0; i < root.defaultTrayWidgetsList.length; i++) {
+            if (root.defaultTrayWidgetsList[i].id === widgetId) {
+                return root.defaultTrayWidgetsList[i].name
+            }
+        }
+        return widgetId
     }
 
     readonly property var dockWindow: {
@@ -3509,7 +3550,15 @@ Item {
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                             cursorShape: root.isEditMode ? Qt.ArrowCursor : Qt.PointingHandCursor
+                            onEntered: {
+                                var txt = root.getWidgetTooltip(modelData, leftWidgetLoader.item)
+                                root.showDockTooltip(leftWidgetSlotMouse, txt)
+                            }
+                            onExited: {
+                                root.hideDockTooltip(leftWidgetSlotMouse)
+                            }
                             onClicked: function(mouse) {
+                                root.hideDockTooltip(leftWidgetSlotMouse)
                                 root.activateWidget(modelData, leftWidgetLoader.item, leftWidgetSlotRoot, mouse)
                             }
                         }
@@ -3541,6 +3590,7 @@ Item {
                     model: root.dockItems
 
                     DockItem {
+                        dockPanel: root
                         itemData: modelData
                         itemIndex: index
                         totalCount: root.dockItems.length
@@ -3889,16 +3939,14 @@ Item {
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                             cursorShape: root.isEditMode ? Qt.ArrowCursor : Qt.PointingHandCursor
                             onEntered: {
-                                var txt = root.isClockWidget(modelData)
-                                    ? Qt.formatDate(new Date(), "dddd, d 'de' MMMM 'de' yyyy")
-                                    : (rightWidgetLoader.item && rightWidgetLoader.item.tooltipText ? rightWidgetLoader.item.tooltipText : modelData)
-                                root.showRightTooltip(rightWidgetSlotMouse, txt)
+                                var txt = root.getWidgetTooltip(modelData, rightWidgetLoader.item)
+                                root.showDockTooltip(rightWidgetSlotMouse, txt)
                             }
                             onExited: {
-                                root.hideRightTooltip(rightWidgetSlotMouse)
+                                root.hideDockTooltip(rightWidgetSlotMouse)
                             }
                             onClicked: function(mouse) {
-                                root.hideRightTooltip(rightWidgetSlotMouse)
+                                root.hideDockTooltip(rightWidgetSlotMouse)
                                 root.activateWidget(modelData, rightWidgetLoader.item, rightWidgetSlotRoot, mouse)
                             }
                         }
@@ -3909,10 +3957,20 @@ Item {
 
                 PopupWindow {
                     id: rightTooltipPopup
-                    visible: root.activeRightTooltipTarget !== null && root.activeRightTooltipText !== "" && !root.trayOverflowOpened && !calendarPopup.opened
+                    visible: root.showTooltips && root.activeRightTooltipTarget !== null && root.activeRightTooltipText !== "" && !root.trayOverflowOpened && !calendarPopup.opened && rightTooltipPopup.targetBelongsToLayer(root.activeRightTooltipTarget, dockLayer)
                     color: "transparent"
                     implicitWidth: Math.ceil(bubble.implicitWidth)
                     implicitHeight: Math.ceil(bubble.implicitHeight)
+
+                    function targetBelongsToLayer(target, layer) {
+                        if (!target || !layer) return false
+                        var cur = target
+                        while (cur) {
+                            if (cur === layer || cur === layer.contentItem) return true
+                            cur = cur.parent
+                        }
+                        return false
+                    }
 
                     function updatePosition() {
                         var target = root.activeRightTooltipTarget
@@ -3923,8 +3981,13 @@ Item {
                         var rx = targetCenterX - (popupW / 2)
                         if (rx + popupW > dockLayer.width - 6) rx = dockLayer.width - popupW - 6
                         if (rx < 6) rx = 6
+                        if (isNaN(rx)) return
                         rightTooltipAnchor.rect.x = Math.round(rx)
                         rightTooltipAnchor.rect.y = root.systemTrayPopupAnchorY
+                    }
+
+                    onImplicitWidthChanged: {
+                        rightTooltipPopup.updatePosition()
                     }
 
                     Connections {

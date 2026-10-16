@@ -8,6 +8,7 @@
   "autohideEdgeDepth": 1,
   "showFolderTitles": true,
   "showBadges": true,
+  "showTooltips": true,
   "glassmorphism": false,
   "blurOpacity": 0.68,
   "windowsTaskbarMode": true,

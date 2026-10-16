@@ -21,6 +21,7 @@ BarWidget {
   property string visibleWorkspace: "all"
   property bool showFolderTitles: true
   property bool showBadges: true
+  property bool showTooltips: true
   property bool widgetsEnabled: true
   readonly property bool settingsOpen: settingsWindow.open
   property bool isSavingSettings: false
@@ -83,6 +84,9 @@ BarWidget {
         if (s && s.showBadges !== undefined) {
           root.showBadges = (s.showBadges === true)
         }
+        if (s && s.showTooltips !== undefined) {
+          root.showTooltips = (s.showTooltips === true)
+        }
         if (s && s.widgetsEnabled !== undefined) {
           root.widgetsEnabled = (s.widgetsEnabled === true)
         }
@@ -121,6 +125,7 @@ BarWidget {
     s.visibleWorkspace = root.visibleWorkspace
     s.showFolderTitles = root.showFolderTitles
     s.showBadges = root.showBadges
+    s.showTooltips = root.showTooltips
     s.widgetsEnabled = root.widgetsEnabled
     s.appMenuPosition = root.appMenuPosition || s.appMenuPosition || "left"
     s.widgetPosition = root.widgetPosition || s.widgetPosition || "right"
@@ -257,6 +262,14 @@ BarWidget {
     saveSettings()
     if (root.bar && typeof root.bar.run === "function") {
       root.bar.run("omarchy-shell rosakodu.dock setShowBadges " + (val ? "true" : "false"))
+    }
+  }
+
+  function setShowTooltips(val) {
+    root.showTooltips = val
+    saveSettings()
+    if (root.bar && typeof root.bar.run === "function") {
+      root.bar.run("omarchy-shell rosakodu.dock setShowTooltips " + (val ? "true" : "false"))
     }
   }
 

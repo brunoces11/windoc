@@ -894,3 +894,35 @@ Data: 16/10/2026. Estado: implementado, instalado no sistema e validado no dock.
 - Verificações: Validação de sintaxe JSON em `shell/dock-pinned.json` e
   `shell/dock-settings.json`; `git diff --check` aprovado; shell reiniciado via
   `omarchy restart shell` com confirmação de execução limpa no Quickshell.
+
+46. ATIVAÇÃO PADRÃO DE TOOLTIPS EM TODOS OS ÍCONES DA BARRA INFERIOR (APLICATIVOS E WIDGETS)
+Data: 16/10/2026. Estado: implementado, integrado por padrão, testado e validado em runtime.
+
+- Arquivos afetados: `dock/DockItem.qml`, `dock/DockPanel.qml`, `dock/BarWidget.qml`,
+  `shell/dock-settings.json` e este histórico.
+- Antes: O dock exibia tooltips com o estilo padrão do Windows e posicionamento estrito
+  (gap padrão de 6px) apenas para os elementos da extremidade direita (bandeja, relógio e
+  mostrar desktop). Os ícones de aplicativos fixados e em execução na barra (`DockItem`),
+  bem como widgets à esquerda (menu Iniciar/`omarchy.apps`), não exibiam balão de dica
+  (tooltip) ao passar o cursor sobre eles.
+- Depois:
+  * Ativada a configuração padrão de tooltips (`showTooltips: true`) persistida em
+    `shell/dock-settings.json`, com suporte total a leitura/gravação em `DockPanel.qml`
+    e controle via IPC (`setShowTooltips`).
+  * Integrada a exibição automática de tooltip em todos os aplicativos da barra
+    (`dock/DockItem.qml`), exibindo o nome amigável e localizado de cada aplicativo
+    (`itemData.name` com fallbacks para `appId`/`id`) ao passar o mouse (`onEntered`),
+    com ocultação imediata ao sair (`onExited`), clicar (`onClicked`/`onPressed`),
+    iniciar arrasto (`onIsAnyDraggingChanged`) ou abrir a lista de múltiplas janelas
+    (`onWindowListOpenChanged`).
+  * Conectado o suporte a tooltips nos widgets do lado esquerdo da barra (`DockPanel.qml`),
+    exibindo "Iniciar" para o botão do menu de aplicativos (`omarchy.apps`) e nomes
+    formatados para outros widgets.
+  * Centralizado o cálculo de posicionamento e verificação de contenção por monitor
+    (`targetBelongsToLayer`), garantindo que o balão surja exatamente 6 pixels acima
+    do glifo do ícone sobrevoado (`rect.y = 12`) em estrita conformidade com as
+    especificações do catálogo `DIRETRIZES_DE_DESIGN.txt`.
+- Verificações: Testes unitários executados e aprovados (`26 passed`); `git diff --check`
+  aprovado com zero advertências de formatação; Quickshell reiniciado com sucesso via
+  `omarchy restart shell`; camada `omarchy-dock` verificada ativa via `hyprctl layers`;
+  respostas IPC confirmadas (`ping` e `setShowTooltips`).

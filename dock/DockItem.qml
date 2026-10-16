@@ -16,6 +16,8 @@ Item {
     property int totalCount: 1
     property string barPosition: "bottom"
     property var shell: null
+    property var dockPanel: null
+    readonly property var parentDock: dockPanel
     property real slotSize: 42
     property real iconBaseSize: 24
     property int systemBorderSize: Style.normalBorderWidth > 0 ? Style.normalBorderWidth : 2
@@ -26,6 +28,55 @@ Item {
     property int dockDragActiveIndex: -1
     readonly property bool isAnyDragging: dockDragActiveIndex >= 0 || isDragging
     property bool showBadges: true
+
+    function getTooltipText() {
+        if (!root.itemData) return ""
+        if (root.itemData.name && String(root.itemData.name).trim() !== "") {
+            return String(root.itemData.name).trim()
+        }
+        if (root.itemData.appId && String(root.itemData.appId).trim() !== "") {
+            return String(root.itemData.appId).trim()
+        }
+        if (root.itemData.id && String(root.itemData.id).trim() !== "") {
+            return String(root.itemData.id).trim()
+        }
+        return ""
+    }
+
+    function showTooltip() {
+        if (root.dockPanel && typeof root.dockPanel.showRightTooltip === "function") {
+            if (!root.windowListOpen && !root.isEditMode && !root.isAnyDragging) {
+                var txt = root.getTooltipText()
+                if (txt !== "") {
+                    root.dockPanel.showRightTooltip(root, txt)
+                }
+            }
+        }
+    }
+
+    function hideTooltip() {
+        if (root.dockPanel && typeof root.dockPanel.hideRightTooltip === "function") {
+            root.dockPanel.hideRightTooltip(root)
+        }
+    }
+
+    onWindowListOpenChanged: {
+        if (root.windowListOpen) {
+            root.hideTooltip()
+        }
+    }
+
+    onIsAnyDraggingChanged: {
+        if (root.isAnyDragging) {
+            root.hideTooltip()
+        }
+    }
+
+    onIsEditModeChanged: {
+        if (root.isEditMode) {
+            root.hideTooltip()
+        }
+    }
 
     signal itemLeftClicked(var itemData)
     signal itemRightClicked(var itemData, var itemItem)
@@ -626,6 +677,7 @@ Item {
             mouseArea.forceActiveFocus()
             windowListCloseTimer.stop()
             if (root.canShowWindowList && !root.windowListOpen) windowListOpenTimer.restart()
+            root.showTooltip()
         }
 
         Keys.onRightPressed: function(event) {
@@ -680,6 +732,7 @@ Item {
         }
 
         onPressed: function(mouse) {
+            root.hideTooltip()
             root.closeWindowList()
             didDrag = false
             didLongPress = false
@@ -792,6 +845,7 @@ Item {
         }
 
         onExited: {
+            root.hideTooltip()
             windowListOpenTimer.stop()
             if (root.windowListOpen) windowListCloseTimer.restart()
             longPressTimer.stop()
@@ -802,6 +856,7 @@ Item {
         }
 
         onCanceled: {
+            root.hideTooltip()
             longPressTimer.stop()
             didLongPress = false
             if (root.isDragging) {
@@ -826,6 +881,7 @@ Item {
         }
 
         onClicked: function(mouse) {
+            root.hideTooltip()
             longPressTimer.stop()
             if (didDrag || didLongPress) {
                 didLongPress = false
@@ -875,6 +931,7 @@ Item {
         }
 
         onDoubleClicked: function(mouse) {
+            root.hideTooltip()
             if (mouse.button === Qt.LeftButton) {
                 clickEffectAnim.restart()
                 if (root.itemData && root.itemData.isStack) {
