@@ -163,9 +163,11 @@
 # Cápsula única no host da dock: largura padrão de 265.2px, altura de 42px; margens
 # internas da superfície de 2px, raio de até 12px, fundo cinza neutro com brilho
 # 15% maior que a superfície anterior (alpha 0.055 sobre a barra), e borda de 1px
-# com alpha 0.12. Espaçamento horizontal de 3.4px (antes 4px, redução de 15%). Miniatura de 28px; título de 11px, artista
-# de 10px; botões de 26x28px. Texto segue a fonte do host, com reticências e tooltip.
-# Na barra superior de 24px: largura padrão de 218.4px, miniatura de 18px, texto
+# com alpha 0.12. Espaçamento horizontal de 3.4px (antes 4px, redução de 15%).
+# Título de 11px e artista de 8px (redução de 20%); botões de 26x24px.
+# Sem miniatura de capa na cápsula: usar esse espaço
+# para o título e artista. Texto segue a fonte do host, com reticências e tooltip.
+# Na barra superior de 24px: largura padrão de 218.4px, sem miniatura, texto
 # de 10px em uma linha e botões de 22x20px. Não aumentar a altura global da barra.
 # Progresso na dock: abaixo dos controles, dentro dos 42px existentes; trilho de
 # 3px, knob de 8px, área interativa de 10px e preenchimento na cor de destaque.

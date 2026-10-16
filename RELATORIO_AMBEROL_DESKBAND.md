@@ -127,6 +127,12 @@ O risco de alterar a integridade do Linux é baixo no escopo de configurações 
 
 A revisão rastreou os caminhos que conectam player, host, configuração e widgets; não representa auditoria linha a linha de todos os módulos não relacionados do WinDoc. Nenhuma funcionalidade do futuro Deskband pode ser declarada concluída a partir desta investigação.
 
+## 9. Seleção de faixa e remoção da capa
+
+O D-Bus do Amberol 2026.1 anuncia `HasTrackList=false` e `SupportedUriSchemes=[]`. `OpenUri` aparece na interface MPRIS genérica e no binding do Quickshell, mas `src/audio/mpris_controller.rs` não registra o handler `open_uri`. A aplicação exporta as ações `shortcuts`, `background-play`, `quit` e `about`; a janela exporta apenas `enable-recoloring`, sem a ação interna `win.skip-to`. Abrir um caminho pela aplicação acrescenta arquivos à fila e não seleciona confiavelmente uma faixa já presente. Portanto, o requisito de escolher uma faixa pelo clique precisa de suporte adicional no Amberol; o plugin independente não consegue implementá-lo com segurança sozinho.
+
+Na cápsula, a miniatura de álbum foi retirada para ampliar o espaço textual. A fonte do artista passou de 10px para 8px (20%). A seleção por clique permanece pendente de uma API ou ação suportada pelo player.
+
 
 ## 7. Implementação posterior: versão 0.1.0
 

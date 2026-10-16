@@ -1161,3 +1161,13 @@ Data: 16/10/2026. Estado: implementado, integrado e validado em runtime.
   - Função interativa testada via `bash -i -c 'type agy'`.
   - Atualização de títulos via OSC testada e confirmada via `hyprctl clients` em runtime, refletindo instantaneamente na barra de abas do Hyprland.
 
+57. AMPLIAR O TEXTO DO AMBEROL DESKBAND E INVESTIGAR SELEÇÃO DE FAIXA
+Data: 16/10/2026. Estado: ajuste visual validado; seleção de faixa aguarda aprovação para ampliar o escopo ao Amberol.
+
+- Removida a miniatura de capa da cápsula do player para ampliar o espaço disponível ao título. A fonte secundária do artista foi reduzida de 10px para 8px (20%).
+- A lista do popup foi investigada para permitir tocar uma música pelo clique. Amberol 2026.1 declara `HasTrackList=false` e `SupportedUriSchemes=[]`; embora exponha a interface MPRIS genérica `OpenUri`, o controlador do player não conecta essa ação. O D-Bus GTK não expõe a ação interna `win.skip-to`. Abrir um arquivo pela aplicação acrescenta-o à fila e não seleciona uma faixa já carregada. Não foi implementado um clique que aparentaria funcionar sem trocar a música.
+- Para concluir a seleção direta será necessária uma API de playlist/faixa no Amberol ou patch correspondente do próprio player, além do escopo atual do plugin externo.
+- Arquivos: `amberol-deskband/components/DeskbandCapsule.qml`, `README.md`, `DIRETRIZES_DE_DESIGN.txt`, `RELATORIO_AMBEROL_DESKBAND.md` e este histórico.
+- Validação: 12 testes QML, 7 testes do instalador, 26 testes da dock e preflight aprovados; shell reiniciado e ping confirmado; cápsula inspecionada em screenshot sem capa, título ampliado e artista menor. Amberol permaneceu pausado. A revisão do popup retirou o destaque de hover para não sugerir seleção que ainda não funciona.
+- Não há checkout do código-fonte Amberol no computador; o executável instalado é o pacote Arch `amberol 2026.1-1`. A solução de seleção exigiria obter/manter um fork ou patch do player, fora do plugin externo originalmente definido.
+
