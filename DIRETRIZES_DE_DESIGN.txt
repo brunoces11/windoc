@@ -193,3 +193,10 @@
 # destaque azul para o título que corresponde ao título MPRIS atual. A comparação
 # usa nomes normalizados porque Amberol não publica a URI da faixa via MPRIS;
 # duplicatas de título podem tornar o destaque ambíguo.
+
+
+# Ajuste de 16/10/2026 — cápsula do Amberol mais compacta
+# Espaçamento horizontal da cápsula reduzido em 35%: 3.4px -> 2.21px, aproximando
+# os cinco controles e preservando o tamanho dos botões. Título reduzido em 1px
+# em ambos os modos (11 -> 10px na dock; 10 -> 9px no topo). Espaçamento entre
+# título e artista reduzido em 7%: 1px -> 0.93px.
