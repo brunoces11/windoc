@@ -186,3 +186,10 @@
 # Preservar mínimos funcionais de 240px no dock e 200px no modo compacto.
 # Converter o brilho ponderado da antiga superfície para cinza e multiplicar por
 # 1.265 (15% acima do fator anterior 1.10); o host informa a cor real da barra.
+
+
+# Ajuste de 16/10/2026 — lista do Amberol mais compacta
+# Linhas da playlist no popup: altura de 27px e espaçamento vertical de 1px;
+# destaque azul para o título que corresponde ao título MPRIS atual. A comparação
+# usa nomes normalizados porque Amberol não publica a URI da faixa via MPRIS;
+# duplicatas de título podem tornar o destaque ambíguo.

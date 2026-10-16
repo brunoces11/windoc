@@ -1171,3 +1171,13 @@ Data: 16/10/2026. Estado: ajuste visual validado; seleção de faixa aguarda apr
 - Validação: 12 testes QML, 7 testes do instalador, 26 testes da dock e preflight aprovados; shell reiniciado e ping confirmado; cápsula inspecionada em screenshot sem capa, título ampliado e artista menor. Amberol permaneceu pausado. A revisão do popup retirou o destaque de hover para não sugerir seleção que ainda não funciona.
 - Não há checkout do código-fonte Amberol no computador; o executável instalado é o pacote Arch `amberol 2026.1-1`. A solução de seleção exigiria obter/manter um fork ou patch do player, fora do plugin externo originalmente definido.
 
+
+
+58. COMPACTAR PLAYLIST E DESTACAR FAIXA ATUAL NO AMBEROL DESKBAND
+Data: 16/10/2026. Estado: ajuste visual implementado; clique para selecionar faixa continua indisponível no Amberol instalado.
+
+- Linhas do popup reduzidas de 34px para 27px e espaçamento entre elas de 2px para 1px, reduzindo aproximadamente pela metade a distância vertical entre centros das músicas. Margens horizontais também ficaram menores.
+- A faixa atual recebe fundo e contorno azuis quando o título MPRIS normalizado corresponde ao nome da faixa na playlist. A comparação é aproximada e pode destacar mais de uma faixa quando há títulos repetidos.
+- Seleção por clique não foi ativada porque Amberol 2026.1 não expõe uma ação MPRIS funcional para saltar para uma faixa da fila. OpenUri não está ligado ao controlador do player, e abrir novamente o arquivo apenas adiciona/ignora duplicatas; simular clique daria uma função enganosa. Uma seleção confiável requer uma API ou patch no próprio Amberol, com compilação e validação do player modificado. Não há Rust/Cargo instalado nesta máquina para validar esse patch agora.
+- Arquivos: `amberol-deskband/components/DeskbandPopup.qml`, `AmberolController.js`, `tests/tst_PlayerSelection.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
+- Validação: 7 testes Python do instalador, 13 testes QML e 26 testes de regressão da dock aprovados; shell reiniciado, ping confirmado e log sem novos erros QML. Symlink do plugin para o repositório WinDoc confirmado.
