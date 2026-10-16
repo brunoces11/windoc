@@ -1,32 +1,67 @@
 #!/usr/bin/env bash
 set -euo pipefail
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_PATH="$(realpath -e -- "${BASH_SOURCE[0]}")"
+REPO_DIR="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd -P)"
 ACTION="${1:-status}"
 case "$ACTION" in
   status|st) git -C "$REPO_DIR" status -sb ;;
   symlinks|links) "$REPO_DIR/sync-symlinks.sh" ;;
   adopt)
-    [ "$#" -ge 2 ] || { echo "Uso: windoc adopt CAMINHO" >&2; exit 2; }
-    source_arg="$2"
-    source_path="$(realpath -m -- "$source_arg")"
-    case "$source_path" in "$HOME"/*) ;; *) echo "Por segurança, a adoção aceita apenas caminhos dentro de HOME." >&2; exit 2 ;; esac
-    [ -e "$source_path" ] && [ ! -L "$source_path" ] || { echo "Origem deve existir e não pode ser symlink: $source_path" >&2; exit 2; }
+    # WinDocAdoptRule: consultar WINDOC_ADOPT_RULES.md antes de customizar o sistema.
+    # O agente valida/adota o arquivo antes de editar e depois registra/versiona a mudança.
+    [ "$#" -eq 2 ] || { echo "Uso: windoc adopt CAMINHO (regras: $REPO_DIR/WINDOC_ADOPT_RULES.md)" >&2; exit 2; }
+    source_path="$(realpath -ms -- "$2")"
+    case "$source_path" in *$'\t'*|*$'\n'*|*$'\r'*) echo "Nome incompatível com o manifesto TSV." >&2; exit 2 ;; esac
+    [ -e "$source_path" ] || { echo "Origem deve existir: $source_path" >&2; exit 2; }
+    resolved_path="$(realpath -e -- "$source_path")"
+    case "$resolved_path" in
+      "$REPO_DIR"|"$REPO_DIR"/*)
+        echo "[OK] Já incorporado ao WinDoc: $source_path -> $resolved_path"
+        exit 0
+        ;;
+    esac
+    case "$source_path" in "$REPO_DIR"/*) echo "Arquivo do WinDoc aponta para fora do projeto; revise o vínculo." >&2; exit 2 ;; esac
+    [ ! -L "$source_path" ] || { echo "Symlink externo ao WinDoc; revise o destino antes de adotar." >&2; exit 2; }
+    case "$source_path" in "$HOME"/*) ;; *) echo "A adoção automática aceita apenas HOME; consulte WINDOC_ADOPT_RULES.md para arquivos de sistema." >&2; exit 2 ;; esac
+    case "$resolved_path" in "$(realpath -e -- "$HOME")"/*) ;; *) echo "Origem resolve para fora de HOME." >&2; exit 2 ;; esac
+    case "$REPO_DIR/" in "$resolved_path/"*) echo "Não é possível adotar uma pasta que contém o próprio WinDoc." >&2; exit 2 ;; esac
+    manifest="$REPO_DIR/symlinks.tsv"
+    [ -f "$manifest" ] && [ ! -L "$manifest" ] && [ -w "$manifest" ] || { echo "Manifesto ausente ou sem acesso de escrita." >&2; exit 1; }
+    lock_path="$(git -C "$REPO_DIR" rev-parse --path-format=absolute --git-path windoc-adopt.lock)"
+    exec 9>"$lock_path"
+    flock -n 9 || { echo "Outra adoção está em andamento." >&2; exit 1; }
     relative="${source_path#"$HOME"/}"
     repo_path="adotados/$relative"
     target="$REPO_DIR/$repo_path"
-    [ ! -e "$target" ] || { echo "Já existe no WinDoc: $repo_path" >&2; exit 2; }
+    [ ! -e "$target" ] && [ ! -L "$target" ] || { echo "Já existe no WinDoc: $repo_path" >&2; exit 2; }
+    if git -C "$REPO_DIR" check-ignore -q -- "$repo_path"; then
+      echo "O Git ignora esse caminho; revise as regras antes de adotar: $repo_path" >&2
+      exit 2
+    fi
+    if awk -F '\t' -v origin="~/$relative" -v dest="$repo_path" '$1 == origin || $2 == dest {found=1} END {exit !found}' "$manifest"; then
+      echo "O manifesto já contém esse vínculo; restaure ou revise a entrada existente." >&2
+      exit 2
+    fi
+    manifest_tmp="$(mktemp "$REPO_DIR/.WINDOC_ADOPT.XXXXXX")"
+    trap 'rm -f -- "$manifest_tmp"' EXIT
+    cat "$manifest" > "$manifest_tmp"
+    printf '\n~/%s\t%s\n' "$relative" "$repo_path" >> "$manifest_tmp"
     mkdir -p "$(dirname "$target")"
     mv -- "$source_path" "$target"
-    if ! ln -s -- "$target" "$source_path"; then
+    if ! ln -s -- "$target" "$source_path" || ! [ "$(readlink -f "$source_path")" = "$(readlink -f "$target")" ]; then
+      [ ! -L "$source_path" ] || rm -- "$source_path"
       mv -- "$target" "$source_path"
-      echo "Falha ao criar o link; arquivo restaurado." >&2
+      echo "Falha ao criar/validar o link; arquivo restaurado." >&2
       exit 1
     fi
-    manifest="$REPO_DIR/symlinks.tsv"
-    touch "$manifest"
-    printf '~/%s\t%s\n' "$relative" "$repo_path" >> "$manifest"
-    [ -L "$source_path" ] && [ "$(readlink -f "$source_path")" = "$(readlink -f "$target")" ] || { echo "Validação falhou." >&2; exit 1; }
-    echo "Adotado e validado: $source_path -> $repo_path"
+    if ! mv -f -- "$manifest_tmp" "$manifest"; then
+      rm -- "$source_path"
+      mv -- "$target" "$source_path"
+      echo "Falha ao registrar o vínculo; arquivo restaurado." >&2
+      exit 1
+    fi
+    [ -L "$source_path" ] && [ "$(readlink -f "$source_path")" = "$target" ] && awk -F '\t' -v origin="~/$relative" -v dest="$repo_path" '$1 == origin && $2 == dest {found=1} END {exit !found}' "$manifest" || { echo "Validação final falhou." >&2; exit 1; }
+    echo "[OK] Adotado e registrado: $source_path -> $repo_path"
     ;;
   install)
     exec "$REPO_DIR/install.sh" "${@:2}"

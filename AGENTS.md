@@ -40,12 +40,22 @@ O projeto adota uma arquitetura onde **todos os arquivos de configuração do si
 
 Todo agente de IA (Antigravity, Codex ou similar) que atue neste repositório **DEVE** seguir rigorosamente as seguintes diretivas antes de executar qualquer intervenção:
 
-### REGRA 1: Verificação Prévia de Symlink (OBRIGATÓRIO)
-> **Toda vez que o usuário solicitar qualquer customização de interface, terminal, tema ou sistema cujo arquivo alvo ainda NÃO resida dentro da estrutura deste projeto (`~/Desktop/windoc/`), o agente DEVE, ANTES DE EDITAR O ARQUIVO:**
-1. Mover o arquivo de configuração original para a subpasta temática correspondente dentro de `~/Desktop/windoc/` (ex: `hyprland/`, `shell/`, `dock/`, `terminal/`, etc.).
-2. Criar imediatamente o link simbólico (`ln -sfn`) apontando do caminho esperado pelo sistema (ex: `~/.config/...`) para o arquivo dentro do projeto.
-3. Adicionar o novo link ao script `sync-symlinks.sh`.
-4. Somente após a criação e validação do symlink, realizar a edição solicitada diretamente no arquivo dentro do projeto.
+### REGRA 1: WinDocAdoptRule — incorporação antes de customizar (OBRIGATÓRIO)
+> **Em toda solicitação autorizada de customização do Linux, Omarchy, Hyprland,
+> interface, terminal, aplicativos, plugins ou serviços, consultar primeiro
+> [`WINDOC_ADOPT_RULES.md`](WINDOC_ADOPT_RULES.md).**
+1. Verificar se cada arquivo afetado já está no WinDoc ou se o caminho do sistema
+   resolve para ele. Se já estiver incorporado, validar o vínculo existente e
+   editar no projeto, sem mover novamente nem criar outro link/registro.
+2. Caso contrário, executar `windoc adopt CAMINHO` antes de editar. O arquivo real
+   fica em `adotados/`, o symlink fica no sistema e o vínculo entra em `symlinks.tsv`,
+   que já é lido por `sync-symlinks.sh`. Para arquivos novos, criar um arquivo vazio,
+   adotar e validar antes de escrever a configuração.
+3. Para arquivos fora de HOME, arquivos com segredos ou componentes incompatíveis
+   com symlinks, seguir o tratamento específico do protocolo. Não forçar vínculos.
+4. Após a customização, validar, registrar, commitar e enviar conforme as regras
+   seguintes. Não exigir que o usuário peça a adoção ou o versionamento novamente.
+Pedidos somente de análise ou parecer não acionam mudanças reais.
 
 ### REGRA 2: Registro Incremental em `config-sistema.txt` (OBRIGATÓRIO)
 > **Toda nova solicitação, modificação, ajuste ou adição realizada a pedido do usuário DEVE ser registrada de forma incremental no arquivo `config-sistema.txt`, localizado na raiz deste projeto.**

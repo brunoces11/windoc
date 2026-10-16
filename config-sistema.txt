@@ -818,3 +818,35 @@ Data: 15/10/2026. Estado: scripts implementados; inventário de pacotes pendente
   adicionais; plugins externos não são instalados sem origem e versão declaradas.
 - Verificações: validação de sintaxe shell, diff e instalação local do CLI;
   a adoção de dados reais e instalação de pacotes não foram executadas.
+
+43. ATIVAR WINDOCADOPTRULE NAS INSTRUÇÕES GLOBAIS E CORRIGIR ADOÇÃO
+Data: 16/10/2026. Estado: implementado e verificado em ambientes temporários.
+
+- Arquivos afetados: `WINDOC_ADOPT_RULES.md`, `AGENTS.md`, `scripts/windoc`,
+  `README.md`, este histórico e o `~/.codex/AGENTS.md` global, cujo caminho real
+  é `~/Desktop/SESSION/S_CODEX/AGENTS.md`. As demais instruções globais foram
+  preservadas. O arquivo global completo não foi copiado para o repositório.
+- Antes: a regra de incorporação só estava no projeto, não exigia usar o CLI e
+  o comando instalado via symlink calculava incorretamente a raiz do WinDoc.
+  Adotar novamente um vínculo podia mover seu arquivo para uma estrutura aninhada.
+- Depois: a seção global WinDocAdoptRule determina consultar o protocolo antes
+  de customizar configurações persistentes do Linux/Omarchy/Hyprland em qualquer
+  diretório. O agente deve verificar se cada arquivo já está incorporado, validar
+  o vínculo ou adotar antes de editar, e depois validar/registrar/commitar/enviar.
+  O arquivo real fica no WinDoc e o symlink no caminho utilizado pelo sistema.
+- CLI: resolve o próprio symlink, reconhece vínculos existentes, rejeita symlinks
+  externos, nomes incompatíveis com TSV, caminhos ignorados pelo Git e a pasta
+  ancestral do projeto. Prepara o manifesto antes de mover e recupera a origem
+  se a criação/validação do link ou a gravação do registro falhar. Adoções são
+  serializadas por um lock dentro dos metadados Git.
+- Escopo: o gatilho é a solicitação autorizada ao agente, sem monitorar o disco.
+  Pareceres não autorizam mudanças reais. Arquivos novos, caminhos fora de HOME,
+  permissões, segredos e componentes incompatíveis com symlinks estão tratados
+  no protocolo. Dependências serão registradas incrementalmente nas customizações.
+- Verificações: sintaxe Bash e diff; CLI real via symlink e reconhecimento do
+  input.lua existente sem modificá-lo. Em cópias temporárias: adoção e restauração
+  de arquivo com espaços, repetição sem duplicação, pasta e arquivo interno,
+  recusa de symlink externo/manifesto inválido/arquivo ignorado/caminho fora de
+  HOME/nome com tabulação/pasta ancestral, e recuperação após falha simulada ao
+  gravar o manifesto. Todos passaram; cópias removidas. Nenhuma configuração
+  de Hyprland/Quickshell foi alterada ou recarregada nesta tarefa.

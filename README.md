@@ -56,9 +56,18 @@ Para verificar ou restaurar todos os links a qualquer momento:
 `windoc adopt CAMINHO` incorpora um arquivo ou diretório que esteja dentro da
 pasta pessoal: move-o para `adotados/`, cria o symlink no local original e
 registra a relação em `symlinks.tsv`, usada por `sync-symlinks.sh`. A adoção
-recusa destinos fora de HOME e não substitui um item já existente no WinDoc.
+reconhece arquivos já incorporados sem movê-los novamente. Para arquivos novos,
+crie um arquivo vazio e adote antes de escrever sua configuração. A movimentação
+automática aceita apenas HOME e não substitui um item já existente no WinDoc.
 Plugins e extensões de terceiros ainda precisam ter origem e versão declaradas;
 não são baixados automaticamente.
+
+A seção global `WinDocAdoptRule` em `~/.codex/AGENTS.md` instrui o agente a consultar
+[WINDOC_ADOPT_RULES.md](WINDOC_ADOPT_RULES.md) e o `AGENTS.md` do projeto antes de
+customizar o Linux/Omarchy, mesmo trabalhando fora deste repositório. O agente
+verifica/adota os arquivos antes da edição e conclui registro, commit e push após
+validar a customização. A regra é acionada pela solicitação ao agente; não há
+monitor de arquivos adotando alterações feitas manualmente por outros programas.
 
 ---
 
