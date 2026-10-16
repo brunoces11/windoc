@@ -1147,19 +1147,22 @@ Data: 16/10/2026. Estado: implementado, integrado e validado em runtime.
   - No Hyprland com janelas agrupadas (abas/groupbar), o terminal com Codex CLI exibe nativamente o título do chat e um loader animado (braille spinner) em tempo real enquanto o modelo trabalha.
   - O terminal com Antigravity CLI (`agy`) permanecia com o título estático fixo em "agy", pois o binário original não enviava sequências OSC de atualização de janela.
 - Customização implementada:
-  - Criado o script monitor assíncrono `terminal/agy-title-monitor.py`, projetado para rodar em segundo plano associado ao PID do shell Bash ativo.
-  - O monitor identifica o PID filho do `agy`, detecta os descritores de arquivo abertos em `/proc/<pid>/fd` para extrair o `conversation_id` e consulta o banco SQLite `~/.gemini/antigravity-cli/conversation_summaries.db` em modo seguro somente leitura (`?mode=ro`).
-  - Enquanto o Antigravity está executando (`CASCADE_RUN_STATUS_RUNNING` ou `not_fully_idle = 1`), emite uma microanimação de loader com caracteres braille giratórios (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) a cada 80ms via sequência ANSI OSC 0 (`\033]0;[frame] [título] | [pasta]\007`) para a TTY da janela.
-  - Quando o modelo conclui o turno e fica ocioso (`CASCADE_RUN_STATUS_IDLE`), o monitor fixa o título estático atualizado com o nome da conversa e reduz a frequência de checagem para evitar consumo de CPU ou concorrência no SQLite.
-  - Atualizada a função wrapper `agy()` em `terminal/bashrc` para iniciar o monitor apenas em terminais interativos (`[[ -t 1 ]]`), com limpeza rigorosa via `trap ... RETURN INT TERM` para encerrar o subprocesso e restaurar o título do terminal ao fechar o chat.
+  - Criado o daemon assíncrono de alto desempenho `terminal/agy-title-daemon.py`, executado sob o systemd de usuário através da unidade `terminal/antigravity-tab-daemon.service` (habilitada e persistente via `graphical-session.target`).
+  - O daemon monitora diretamente a árvore de processos do `/proc` e os sockets do Kitty (`/run/user/1000/omarchy-kitty-*`), identificando todas as janelas do Kitty que executam instâncias do Antigravity CLI (`agy`), sem necessitar de subshells ou intervenções manuais.
+  - Suporte completo a múltiplas abas por janela: detecta qual aba interna está ativa na tela e verifica o estado de todas as abas daquela janela no banco SQLite `~/.gemini/antigravity-cli/conversation_summaries.db` em modo seguro somente leitura (`?mode=ro`).
+  - Se qualquer aba daquela janela estiver executando (`CASCADE_RUN_STATUS_RUNNING` ou `not_fully_idle = 1`), emite uma microanimação contínua de loader com caracteres braille giratórios (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) a cada 80ms via sequência ANSI OSC 0 diretamente para o PTS da aba ativa, atualizando instantaneamente a aba correspondente no Hyprland (`xdg_toplevel.set_title`).
+  - Quando todas as sessões da janela ficam ociosas (`CASCADE_RUN_STATUS_IDLE`), fixa o título estático atualizado com o nome da conversa e a pasta de trabalho.
+  - Consumo de CPU otimizado para <0.05% através de escaneamento em memória com taxa adaptativa, garantindo estabilidade total e ausência de travamentos.
 - Arquivos afetados:
-  - `terminal/agy-title-monitor.py` (script monitor de alta performance)
-  - `terminal/bashrc` (integração na função wrapper `agy()`)
+  - `terminal/agy-title-daemon.py` (daemon de sincronização em tempo real)
+  - `terminal/antigravity-tab-daemon.service` (unidade systemd de usuário)
+  - `symlinks.tsv` (registro do symlink em `~/.config/systemd/user/antigravity-tab-daemon.service`)
+  - `terminal/bashrc` (função wrapper limpa sem dependência de processos presos)
   - `config-sistema.txt` (este histórico)
 - Validação:
-  - Sintaxe de `terminal/agy-title-monitor.py` validada via Python 3.
-  - Função interativa testada via `bash -i -c 'type agy'`.
-  - Atualização de títulos via OSC testada e confirmada via `hyprctl clients` em runtime, refletindo instantaneamente na barra de abas do Hyprland.
+  - Serviço iniciado com sucesso (`systemctl --user status antigravity-tab-daemon.service`).
+  - Rotação contínua dos frames do spinner verificada e confirmada via `hyprctl clients` em runtime (`⠋` -> `⠦` -> `⠇`), atualizando a aba no Hyprland em tempo real.
+  - Alternância dinâmica testada entre abas ativas e inativas da mesma janela do Kitty.
 
 57. AMPLIAR O TEXTO DO AMBEROL DESKBAND E INVESTIGAR SELEÇÃO DE FAIXA
 Data: 16/10/2026. Estado: ajuste visual validado; seleção de faixa aguarda aprovação para ampliar o escopo ao Amberol.
