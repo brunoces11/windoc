@@ -19,10 +19,17 @@
     },
     {
       "id": "amberol-deskband"
+    },
+    {
+      "id": "brunoma.notifications"
     }
   ],
   "version": 1,
   "disabledPlugins": [
-    "omarchy.agents"
+    "omarchy.agents",
+    "omarchy.notifications"
+  ],
+  "cloneSourceRestores": [
+    "brunoma.notifications"
   ]
 }

@@ -2,6 +2,8 @@ import os
 import re
 import json
 import sqlite3
+from kitty.fast_data_types import add_timer, remove_timer
+
 from kitty.tab_bar import (
     DrawData,
     ExtraData,
@@ -21,6 +23,38 @@ ICON_TERMINAL = "\ue795"     #  nf-dev-terminal
 
 # Ativação do ícone dinâmico por agente/modelo (False = ícone padrão , True = dinâmico 󰍲/✦/󰚩/󰘐)
 USE_DYNAMIC_ICONS = False
+
+
+AGY_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+
+def animate_agy_titles(timer_id):
+    """Anima apenas títulos de trabalho nativos; cada painel mantém sua identidade."""
+    boss = get_boss()
+    if boss is None:
+        return
+    state = boss._windoc_agy_title_animation
+    state["frame"] = (state["frame"] + 1) % len(AGY_FRAMES)
+    for window in tuple(boss.window_id_map.values()):
+        title = window.title
+        if (not window.override_title and len(title) > 2
+                and title[0] in AGY_FRAMES and title[1:].startswith(" Antigravity")):
+            boss.call_remote_control(window, (
+                "set-window-title", "--temporary", "--match", f"id:{window.id}",
+                "--", AGY_FRAMES[state["frame"]] + title[1:],
+            ))
+
+
+def install_agy_title_animation():
+    boss = get_boss()
+    if boss is None:
+        return
+    previous = getattr(boss, "_windoc_agy_title_animation", None)
+    if previous is not None:
+        remove_timer(previous["timer"])
+    state = {"frame": 0}
+    boss._windoc_agy_title_animation = state
+    state["timer"] = add_timer(animate_agy_titles, 0.12, True)
 
 
 def get_tab_process_info(tab_id: int):
@@ -122,6 +156,8 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
         or "antigravity" in t_lower
     )
     if is_agy:
+        if raw_title and raw_title.strip().lower() not in ("agy", "antigravity"):
+            return ICON_AGY, raw_title if "Antigravity" in raw_title else f"Antigravity: {raw_title}"
         agy_title = get_agy_conversation_title(pid)
         if agy_title:
             return ICON_AGY, f"Antigravity: {agy_title}"
@@ -225,3 +261,6 @@ def draw_title(data: dict) -> str:
         return data.get("title", "")
     except Exception:
         return ""
+
+
+install_agy_title_animation()

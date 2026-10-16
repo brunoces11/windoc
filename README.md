@@ -76,6 +76,29 @@ monitor de arquivos adotando alterações feitas manualmente por outros programa
 
 ---
 
+## Títulos do Antigravity no Kitty e no Hyprland
+
+`ANTIGRAVITY_TITLE.py` formata o título nativo com o nome da conversa e a pasta.
+O Antigravity fornece o identificador e o estado; o banco é consultado somente
+pelo identificador recebido, em modo de leitura e com espera limitada. Enquanto
+há trabalho, `terminal/tab_bar.py` anima o indicador a cada 120 ms, inclusive em
+abas internas ocultas. O título externo acompanha a aba interna selecionada.
+
+`./install.sh` aplica a integração quando `agy` está instalado. Para reaplicar
+somente essa preferência, execute `python3 ANTIGRAVITY_TITLE.py --install` na
+raiz do WinDoc. Sessões já abertas podem ativá-la com `/title on`; o arquivo
+sozinho não é recarregado automaticamente. Não é necessário encerrar conversas.
+
+Exceção do WinDocAdoptRule: `~/.gemini/antigravity-cli/settings.json` permanece
+um arquivo físico, porque o Antigravity substitui symlinks ao salvar opções.
+A configuração sanitizada e seu procedimento de aplicação estão no próprio
+formatador, cujo modo `--install` mescla apenas `title`, preserva permissões e
+demais preferências e valida a gravação. Preferências pessoais não entram no Git.
+Dependências: Kitty com barra customizada e Python 3 (`python` no Arch), já
+presentes no Omarchy desta instalação; nenhum pacote adicional foi instalado.
+
+---
+
 ## 🤖 Diretrizes para Agentes de IA
 
 Consulte o arquivo [`AGENTS.md`](AGENTS.md) para as regras de negócio mandatórias sobre adição de novos arquivos ao projeto, criação prévia de symlinks e registro incremental em `config-sistema.txt`.

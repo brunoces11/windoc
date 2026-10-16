@@ -1067,3 +1067,65 @@ Data: 16/10/2026. Estado: aplicado e validado visualmente em runtime.
   carregamento sem novos erros QML; diffs sem erros de formatação.
 - A mudança de Rede na bandeja já existente antes desta tarefa permanece preservada
   e fora do commit desta personalização.
+
+
+53. TÍTULOS DINÂMICOS DO ANTIGRAVITY NAS ABAS DO KITTY E DO HYPRLAND
+Data: 16/10/2026. Estado: implementado e validado; ativação de sessões em uso
+fica para /title on, sem interromper trabalho ou substituir entrada pendente.
+
+- Arquivos: ANTIGRAVITY_TITLE.py, terminal/tab_bar.py, install.sh, README.md e
+  este histórico. O vínculo ~/.config/kitty/tab_bar.py já resolvia para o WinDoc
+  e foi validado antes da edição. O novo formatador é usado diretamente no projeto.
+- Antes: o Hyprland recebia apenas agy; o desenho customizado das abas internas
+  consultava o banco antes de aproveitar o título nativo e descartava atividade.
+- Depois: a interface nativa title fornece conversation_id e agent_state; o
+  formatador lê apenas a conversa correspondente, limpa controles do texto e
+  limita o tempo de espera do SQLite a 25 ms. Falhas de banco preservam um título
+  genérico com estado e pasta. Confirmação pendente e tarefas são consideradas
+  quando esses campos estiverem disponíveis na versão do CLI.
+- A animação usa um único temporizador de 120 ms por processo Kitty e o controle
+  remoto interno com títulos temporários, sem processos auxiliares ou consultas
+  ao banco por quadro. Atualiza somente o prefixo de atividade do Antigravity;
+  títulos manuais, Codex e demais aplicativos permanecem sob seu próprio controle.
+  Recarregar a configuração remove o temporizador anterior, evitando duplicação.
+- Exceção técnica validada de WINDOC_ADOPT_RULES: /title off substituiu o symlink
+  do settings.json em ambiente isolado. Por isso o settings real permanece físico
+  e privado, e o WinDoc versiona somente a configuração sanitizada e o aplicador
+  --install no formatador. install.sh reaplica esse bloco ao restaurar o sistema;
+  preserva as demais preferências e o modo do arquivo, sem versionar dados pessoais.
+- Validação isolada: resposta real, execução sleep 12 e cancelamento por Escape;
+  o estado voltou de working para idle. Duas instâncias de Kitty com IDs repetidos,
+  múltiplas abas, janelas ocultas, troca de aba/título, ociosidade, título manual,
+  retorno ao shell e recarga passaram sem erros de carregamento. Leituras de quatro
+  conversas distintas passaram; instalação, idempotência e recusa de JSON inválido
+  também foram verificadas em namespace isolado, sem alterar preferências reais.
+- Aplicação: settings real mesclado e verificado; três instâncias Kitty recarregadas
+  sem reinício; título nativo confirmado em uma sessão real ociosa. Sessões com foco
+  ou em processamento não receberam comandos de ativação. Novas sessões já usam
+  a configuração; nas antigas basta /title on quando estiverem livres.
+- Dependências já presentes: Antigravity CLI 1.4.0, Kitty 0.48.2 e Python 3 (pacote
+  python do Arch). Nenhum pacote instalado. Testes temporários fora do repositório.
+
+
+54. BOTÃO DE FECHAMENTO (X) NOS POP-UPS DE NOTIFICAÇÃO DO SISTEMA
+Data: 16/10/2026. Estado: aplicado e validado visualmente em runtime.
+
+- Contexto e rotina identificada:
+  - O pop-up no canto superior direito é executado pelo serviço de notificações do Quickshell/Omarchy (`org.freedesktop.Notifications`).
+  - Quando o chat responde ou aplicativos web/mensageiros emitem alertas, uma notificação D-Bus padrão é enviada ao serviço.
+  - Quando um processo do Hyprland ou do sistema falha, o script `/usr/bin/omarchy-crash-watch` detecta o coredump no journald e executa `omarchy-notification-send --urgency critical "Process crashed: $comm" "Click to diagnose with AI"`.
+  - Como notificações críticas (`urgency=2`) têm duração indefinida (`durationFor = 0`) e o card não possuía botão visual de fechar (apenas clique com botão direito ou clique esquerdo para rodar o comando de diagnóstico), o pop-up permanecia fixo na tela sobrepondo janelas.
+- Customização implementada:
+  - O plugin nativo `omarchy.notifications` foi clonado para o espaço de usuário como `brunoma.notifications` (`omarchy plugin clone omarchy.notifications`), desativando o embutido e adotado no WinDoc conforme o protocolo `WINDOC_ADOPT_RULES.md`.
+  - Arquivo customizado: `adotados/.config/omarchy/plugins/brunoma.notifications/components/NotificationCard.qml`.
+  - Adicionado botão de fechar ("✕") no canto superior direito do card, com realce ao passar o mouse (`Style.hoverFillFor`), cursor apontador e disparo direto do sinal `root.closeRequested()`, que executa `service.dismissPopup(cardSlot.index)`.
+  - Ajustada a margem direita do conteúdo de texto (`RowLayout`) de `Style.space(12)` para `Style.space(34)` para garantir que títulos ou textos longos não colidam com o botão.
+- Arquivos afetados:
+  - `adotados/.config/omarchy/plugins/brunoma.notifications/` (código completo do plugin adotado)
+  - `shell/shell.json` (ativação de `brunoma.notifications` e desativação de `omarchy.notifications`)
+  - `symlinks.tsv` (registro do symlink `~/.config/omarchy/plugins/brunoma.notifications`)
+  - `config-sistema.txt` (este histórico)
+- Validação:
+  - `omarchy plugin validate` aprovado com código 0 no repositório.
+  - Recarregamento do shell via `omarchy-restart-shell` sem erros nos logs do Quickshell.
+  - Notificações de teste validadas e transição de estado conferida.
