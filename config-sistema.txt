@@ -850,3 +850,32 @@ Data: 16/10/2026. Estado: implementado e verificado em ambientes temporários.
   HOME/nome com tabulação/pasta ancestral, e recuperação após falha simulada ao
   gravar o manifesto. Todos passaram; cópias removidas. Nenhuma configuração
   de Hyprland/Quickshell foi alterada ou recarregada nesta tarefa.
+
+44. MOVER OS SEIS INDICADORES DO OMARCHY PARA A SYSTEM ICON TRAY INFERIOR
+Data: 16/10/2026. Estado: implementado, recarregado e conferido visualmente.
+
+- Arquivos afetados: shell/shell.json, shell/dock-settings.json,
+  dock/DockPanel.qml, dock/SystemTrayIndicators.js,
+  dock/components/SystemIconTray.qml,
+  dock/components/TrayOverflowPopup.qml,
+  dock/components/SystemTraySettingsModal.qml, README.md,
+  system_icon_tray_plan.md e DIRETRIZES_DE_DESIGN.txt.
+- Identificação conferida nos indicadores instalados do Omarchy: ScreenRecording,
+  Reminder, Dictation (Voxtype), StayAwake, Dnd e NightLight.
+- Antes: os seis eram agrupados pelo widget omarchy.indicators no lado esquerdo
+  da barra superior. A barra inferior conhecia apenas cinco itens de bandeja.
+- Depois: omarchy.indicators foi removido do layout superior; os seis foram
+  adicionados ao catálogo, modal e overflow da System Icon Tray, e fixados por
+  padrão na barra inferior. A configuração permite desafixar qualquer um; os
+  ocultos retornam ao overflow sem duplicação.
+- Ações preservadas: Screen Recording inicia pelo menu de captura ou para uma
+  gravação ativa; Reminder abre os lembretes existentes ou o formulário vazio;
+  Dictation abre as configurações de Voxtype; StayAwake, Dnd e NightLight
+  alternam seus estados pelos comandos nativos do Omarchy. Cliques não fecham
+  o overflow.
+- Validações: JSON da barra e das preferências parseado; git diff --check
+  aprovado; ações e metadados conferidos com os seis indicadores instalados.
+  Quickshell recarregado, camada omarchy-dock confirmada ativa e screenshot
+  conferida: seis ícones aparecem na barra inferior, sem o grupo de indicadores
+  no layout superior. O log desta recarga não reporta erro QML/Dock. Cliques
+  físicos individuais não foram simulados.

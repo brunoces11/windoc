@@ -25,6 +25,11 @@ Um "Windows slim e turbinado", construído sobre o Omarchy.
 ## System Icon Tray
 
 A bandeja fica na barra inferior, no espaço reservado à direita junto ao relógio.
+Ela também reúne Screen Recording, lembretes, Dictation/Voxtype, Stay Awake,
+Allow Notifications e Daylight/Night Light. Esses seis controles deixam a barra
+superior e aparecem fixados inicialmente na barra inferior; cada ação preserva
+o comportamento do indicador original. O modal de configurações permite
+fixar/desafixar qualquer um, e os desfixados ficam no overflow (^).
 Ela agrupa os widgets de áudio, rede, consumo de agentes, modo de janela, clima e
 display. Os itens fixados aparecem na barra; os demais ficam no overflow em grade,
 com configurações acessíveis pelo ícone de engrenagem. Os painéis nativos são

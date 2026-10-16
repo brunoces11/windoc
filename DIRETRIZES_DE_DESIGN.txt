@@ -136,4 +136,23 @@
 #   - Header / Título / Tipografia
 #   - Comportamento de Foco e Fechamento (ESC / Click Outside)
 #
+# ------------------------------------------------------------------------------
+# [COMPONENTE 04] SEIS FUNÇÕES NA SYSTEM ICON TRAY
+# ------------------------------------------------------------------------------
+# As funções removidas de omarchy.indicators aparecem no catálogo e como pins
+# iniciais da System Icon Tray, na barra inferior. Preserve o mesmo estilo visual:
+# glifo de 17px no overflow e 17px nos slots da barra; espaçamento de 2px; tooltip
+# a 6px do ícone, seguindo COMPONENTES 01 e 02. Não criar uma segunda barra, painel
+# ou cópia das ações. IDs/ícones/títulos vivem em dock/SystemTrayIndicators.js.
+#
+# Ordem inicial na barra inferior:
+#   Screen Recording, Set Reminder, Dictation (Voxtype), Stay Awake,
+#   Allow Notifications, Daylight / Night Light.
+# Cada clique conserva a ação de seu indicador Omarchy. A gravação inicia pelo
+# menu de captura e termina quando já está ativa; lembretes abrem a lista quando
+# houver itens e o formulário quando estiver vazia. Voxtype abre sua configuração.
+# Os três controles de estado alternam, respectivamente, idle, silêncio de
+# notificações e Night Light. Itens desfixados continuam disponíveis no overflow.
+# O clique mantém o overflow aberto, conforme o comportamento dos demais itens.
+#
 # ==============================================================================

@@ -96,7 +96,7 @@ PanelWindow {
                     }
 
                     Text {
-                        text: "Selecione quais ícones devem aparecer fixados na barra de tarefas. Os demais ficam acessíveis pelo menu (^)."
+                        text: "Selecione quais ícones e funções ficam fixados na barra inferior. Os demais ficam acessíveis pelo menu (^)."
                         font.family: Style.font.family
                         font.pixelSize: 12
                         color: Color.composed("popups.text-muted", "popups.text-muted-alpha", Color.text, 0.65)

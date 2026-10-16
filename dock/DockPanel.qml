@@ -10,6 +10,7 @@ import qs.Commons
 import qs.Ui
 import "DockModel.js" as DockModel
 import "DockSettings.js" as DockSettings
+import "SystemTrayIndicators.js" as TrayIndicators
 import "components"
 
 Item {
@@ -868,8 +869,10 @@ Item {
         { id: "brunoma.agents", name: "Agentes de IA", icon: "󰚩", desc: "Consumo de créditos e limites dos modelos de IA" },
         { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" },
         { id: "omarchy.monitor", name: "Telas e Display", icon: "󰍹", desc: "Brilho, escala e configurações dos monitores" }
-    ]
-    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "omarchy.weather", "omarchy.monitor"]
+    ].concat(TrayIndicators.items.map(function(item) {
+        return { id: item.id, name: item.name, icon: item.icon, desc: item.description }
+    }))
+    readonly property var allSystemTrayWidgetIds: ["omarchy.audio", "omarchy.network", "brunoma.agents", "omarchy.weather", "omarchy.monitor"].concat(TrayIndicators.items.map(function(item) { return item.id }))
     property string activeTrayPanelId: ""
     property string pendingTrayPanelId: ""
     property bool pendingFloatingSettings: false
@@ -1076,6 +1079,24 @@ Item {
         }
         root.systemTrayPinnedWidgets = current
         root.saveSettings()
+    }
+
+    function runSystemTrayIndicator(widgetId) {
+        if (!TrayIndicators.contains(widgetId)) return false
+        if (widgetId === "omarchy.indicator.screen-recording") {
+            Quickshell.execDetached(["bash", "-lc", "if pgrep --quiet -f '^gpu-screen-recorder'; then omarchy-capture-screenrecording --stop-recording; else omarchy-menu toggle trigger.capture.screenrecord; fi"])
+        } else if (widgetId === "omarchy.indicator.reminder") {
+            Quickshell.execDetached(["bash", "-lc", "count=$(omarchy-reminder show --json | jq -r '.count // 0'); if [[ $count =~ ^[0-9]+$ ]] && ((count > 0)); then omarchy-reminder show; else omarchy-reminder -i; fi"])
+        } else if (widgetId === "omarchy.indicator.dictation") {
+            Quickshell.execDetached(["omarchy-voxtype-config"])
+        } else if (widgetId === "omarchy.indicator.idle") {
+            Quickshell.execDetached(["omarchy", "toggle", "idle"])
+        } else if (widgetId === "omarchy.indicator.notifications") {
+            Quickshell.execDetached(["omarchy", "toggle", "notification", "silencing"])
+        } else if (widgetId === "omarchy.indicator.nightlight") {
+            Quickshell.execDetached(["omarchy", "toggle", "nightlight"])
+        }
+        return true
     }
 
     function openSystemTraySettings() {

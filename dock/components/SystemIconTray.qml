@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import ".."
+import "../SystemTrayIndicators.js" as TrayIndicators
 
 Item {
     id: trayRoot
@@ -24,6 +25,8 @@ Item {
     }
 
     function getPinnedWidgetTitle(widgetId) {
+        var indicator = TrayIndicators.itemForId(widgetId)
+        if (indicator) return indicator.name
         if (widgetId === "omarchy.audio") return "Volume e Áudio"
         if (widgetId === "omarchy.network") return "Rede e Conexões"
         if (widgetId === "brunoma.agents") return "Agentes de IA"
@@ -128,6 +131,8 @@ Item {
                         anchors.centerIn: parent
                         textFormat: Text.PlainText
                         text: {
+                            var indicator = TrayIndicators.itemForId(modelData)
+                            if (indicator) return indicator.icon
                             if (modelData === "omarchy.audio") {
                                 if (dockPanel && dockPanel.pipewireSinkMuted) return "󰝟"
                                 var vol = dockPanel ? dockPanel.pipewireSinkVolume : 0.5
@@ -172,6 +177,10 @@ Item {
                             }
                             if (mouse.button === Qt.RightButton && modelData === "omarchy.audio") {
                                 Util.execDetached("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")
+                                return
+                            }
+                            if (TrayIndicators.contains(modelData)) {
+                                trayRoot.dockPanel.runSystemTrayIndicator(modelData)
                                 return
                             }
                             if (trayRoot.dockPanel && typeof trayRoot.dockPanel.toggleTrayWidget === "function") {

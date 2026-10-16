@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import ".."
+import "../SystemTrayIndicators.js" as TrayIndicators
 
 PanelWindow {
     id: overflowWindow
@@ -158,7 +159,7 @@ PanelWindow {
                 }
             }
         }
-    ]
+    ].concat(TrayIndicators.overflowItems(dockPanel))
 
     // Mutual Exclusion & Deduplication Rule:
     // Any widget pinned/visible on the taskbar is strictly excluded from the overflow popup.

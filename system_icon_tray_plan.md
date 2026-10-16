@@ -1,6 +1,13 @@
 # System Icon Tray — plano e histórico de implementação
 
-> **Estado atual (14/10/2026):** o escopo minimalista e as instruções de suas
+> **Estado atual (16/10/2026):** além da integração descrita abaixo, os seis
+> indicadores Dictation, ScreenRecording, Reminder, NightLight, Dnd e StayAwake
+> foram removidos do widget da barra superior e integrados à System Icon Tray
+> inferior. Todos ficam fixados inicialmente, podem ser reorganizados pelo modal
+> e executam as ações dos indicadores Omarchy. Consulte a entrada atualizada no
+> config-sistema.txt e no DIRETRIZES_DE_DESIGN.txt.
+>
+> **Histórico do plano:** o escopo minimalista e as instruções de suas
 > etapas abaixo foram supersedidos pela implementação funcional. O pedido mais
 > recente exige retirar `omarchy.monitor` da barra superior e abrir os painéis
 > nativos dos ícones da bandeja. A bandeja de apps de terceiros (`omarchy.tray`)
