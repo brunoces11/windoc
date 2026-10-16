@@ -19,7 +19,8 @@
   "widgetPosition": "right",
   "dockWidgets": [
     "omarchy.menu",
-    "omarchy.apps"
+    "omarchy.apps",
+    "amberol-deskband"
   ],
   "systemTray": {
     "enabled": true,

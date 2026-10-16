@@ -16,6 +16,9 @@
   "plugins": [
     {
       "id": "rosakodu.dock"
+    },
+    {
+      "id": "amberol-deskband"
     }
   ],
   "version": 1,

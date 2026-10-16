@@ -1012,3 +1012,35 @@ Data: 16/10/2026. Estado: documentação validada; implementação do Deskband p
 - Limites: comandos do player, cápsula, popup e instalador ainda não implementados
   nem validados funcionalmente. Confiança estimada: 95% no ambiente local e 85%
   na distribuição para versões suportadas. Nenhuma configuração de runtime alterada.
+
+
+51. AMBEROL DESKBAND NA BARRA DE TAREFAS
+Data: 16/10/2026. Estado: versão 0.1.0 implementada e validada; aleatório do Amberol original indisponível.
+
+- Arquivos afetados: submódulo amberol-deskband, .gitmodules, dock/DockPanel.qml,
+  dock/components/WidgetPickerPopup.qml, shell/shell.json, shell/dock-settings.json,
+  symlinks.tsv, sync-symlinks.sh, AGENTS.md, DIRETRIZES_DE_DESIGN.txt e relatório técnico.
+- Antes: não havia cápsula do player; os widgets alojados eram ícones com tamanho fixo.
+- Depois: cápsula com capa, título/artista, anterior/play/próxima e popup com seek e
+  volume individual. Faixa pausada permanece disponível; ausência de faixa recolhe
+  a cápsula. No topo há apresentação compacta; ativação final mantida apenas na dock.
+- Plugin independente com licença MIT, manifesto bar-widget, controlador QML MPRIS,
+  componentes reutilizáveis, instalador/remoção reversíveis e testes isolados.
+- Deskband host API 1 exibe o conteúdo completo, encaminha cliques internos, mede a
+  largura e evita sobreposição dos aplicativos à direita. Catálogo oferece o Deskband.
+- Correção da análise anterior: Amberol 2026.1 anuncia Volume/Shuffle graváveis, mas
+  ignora esses setters e não implementa SetPosition. Volume usa somente seus streams
+  PipeWire e seek usa Seek relativo. Aleatório permanece desativado no Amberol original;
+  eventual alteração do player foi apresentada ao usuário como ampliação de escopo.
+- Restauração: código real no submódulo dentro do WinDoc, revisão fixada e symlink
+  do plugin em symlinks.tsv. sync-symlinks.sh inicializa o submódulo quando ausente.
+- Dependências de runtime já presentes: Quickshell 0.3.1 com MPRIS/PipeWire/QtQuick.Effects,
+  Omarchy 4.0.4 e Python 3; nenhum pacote do sistema foi instalado. PyGObject é opcional
+  para a verificação de ciclo de vida em D-Bus isolado, também já disponível.
+- Validação: sete cenários do instalador; testes QML de seleção e formatação; lifecycle
+  MPRIS em barramento isolado; 116 verificações existentes da dock; instalação, remoção
+  e reinstalação reais. Comandos no Amberol e cliques Wayland nos botões/sliders passaram.
+  Capturas inspecionadas; logs do shell sem novos erros QML no carregamento final.
+- Estado restaurado após testes: mesma faixa, pausada perto de 0:40, volume individual
+  100%, volume do sistema intacto, barra superior desativada e pin de Rede preservado.
+- Limites: aleatório no Amberol original indisponível; multimonitor e vertical não validados.

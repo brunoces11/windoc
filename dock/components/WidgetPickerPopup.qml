@@ -448,6 +448,7 @@ PanelWindow {
                     spacing: 4
 
                     readonly property var standardWidgets: [
+                        { id: "amberol-deskband", name: "Amberol Deskband", icon: "󰝚", defaultRegion: "right" },
                         { id: "omarchy.clock", name: "Clock & Calendar", icon: "󰥔", defaultRegion: "center" },
                         { id: "omarchy.weather", name: "Weather", icon: "󰖐", defaultRegion: "center" },
                         { id: "omarchy.indicators", name: "Indicators", icon: "󰂚", defaultRegion: "center" },
@@ -475,7 +476,10 @@ PanelWindow {
                             var w = standardWidgets[i]
                             // Only show installed widgets
                             var isInstalled = true
-                            if (pickerWindow.shell && pickerWindow.shell.pluginRegistry && pickerWindow.shell.pluginRegistry.installedPlugins) {
+                            if (w.id === "amberol-deskband") {
+                                var catalogue = pickerWindow.root ? pickerWindow.root.barWidgetRegistry : null
+                                isInstalled = !!(catalogue && catalogue.widgets && catalogue.widgets[w.id])
+                            } else if (pickerWindow.shell && pickerWindow.shell.pluginRegistry && pickerWindow.shell.pluginRegistry.installedPlugins) {
                                 isInstalled = (pickerWindow.shell.pluginRegistry.installedPlugins[w.id] !== undefined)
                             }
                             if (!isInstalled) continue

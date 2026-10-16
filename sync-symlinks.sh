@@ -8,6 +8,13 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> Verificando e sincronizando symlinks a partir de: $PROJECT_DIR"
 
+# Inicializar a revisão fixada do plugin antes de restaurar seu vínculo.
+if [ -f "$PROJECT_DIR/.gitmodules" ] && [ ! -f "$PROJECT_DIR/amberol-deskband/manifest.json" ]; then
+  git -C "$PROJECT_DIR" submodule update --init --recursive -- amberol-deskband
+  [ -f "$PROJECT_DIR/amberol-deskband/manifest.json" ] || { echo "Falha ao restaurar Amberol Deskband." >&2; exit 1; }
+  echo "  [OK] Submódulo Amberol Deskband restaurado e validado"
+fi
+
 # 1. Dock Plugin
 mkdir -p "$HOME/.config/omarchy/plugins"
 ln -sfn "$PROJECT_DIR/dock" "$HOME/.config/omarchy/plugins/rosakodu.dock"

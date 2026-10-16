@@ -43,8 +43,16 @@ O projeto adota uma arquitetura onde **todos os arquivos de configuração do si
 - **Vínculos locais:** `~/.config/omarchy/plugins/rosakodu.dock` e `~/.config/omarchy/plugins/brunoma.windoc` resolvem para a mesma pasta `dock/`. `brunoma.windoc` é um caminho alternativo local; o manifesto continua declarando `rosakodu.dock`. Não habilitar os dois caminhos como se fossem implementações independentes.
 - **Pontos de entrada:** `dock/DockPanel.qml` implementa o serviço e a barra inferior; `dock/BarWidget.qml` implementa o botão de configuração da dock na barra superior.
 - **Preservação da origem:** manter o crédito e a licença MIT de rosakodu ao redistribuir o código derivado. Atualizações do projeto original exigem revisão das customizações locais.
-- **Limite atual para novas integrações:** o carregamento genérico de widgets existe, mas os slots comuns escondem o componente original e exibem um ícone de tamanho fixo. Uma cápsula interativa de largura variável exige adaptação do host; um symlink sozinho não implementa esse suporte.
+- **Integração de cápsulas:** `dock/DockPanel.qml` oferece Deskband host API 1 para `amberol-deskband`: conteúdo completo visível, largura reativa e eventos nos controles internos. Os demais widgets conservam o alojamento por ícone. Preservar esse contrato ao atualizar a dock original.
 - **Investigação Amberol Deskband:** consultar `RELATORIO_AMBEROL_DESKBAND.md` para o fluxo de integração, versões observadas, correções propostas e verificações ainda pendentes.
+
+### 2.2. Amberol Deskband
+
+- Repositório independente: https://github.com/brunoces11/amberol-deskband, integrado em `amberol-deskband/` como submódulo Git com revisão fixada. Os arquivos reais ficam no WinDoc; o caminho `~/.config/omarchy/plugins/amberol-deskband` é um symlink registrado em `symlinks.tsv`.
+- Na restauração, inicializar o submódulo antes de restaurar o symlink. Alterações no plugin exigem commit/push no repositório do plugin e atualização do gitlink no WinDoc.
+- O controle principal usa MPRIS. Amberol 2026.1 ignora os setters de Volume e Shuffle e não implementa SetPosition: volume usa apenas seus streams PipeWire, seek usa Seek relativo e aleatório fica indisponível no player original. Não confundir presença de propriedade no D-Bus com comando funcionalmente implementado.
+- Preservar a configuração de visibilidade da barra superior e as entradas alheias ao plugin durante instalação e remoção.
+
 
 ---
 

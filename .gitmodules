@@ -1,0 +1,3 @@
+[submodule "amberol-deskband"]
+	path = amberol-deskband
+	url = https://github.com/brunoces11/amberol-deskband.git

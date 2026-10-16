@@ -1,5 +1,7 @@
 # Investigação técnica: Amberol Deskband
 
+Registro histórico da análise inicial; a implementação posterior está na seção 7.
+
 Data: 16/10/2026. Escopo: rastreamento do fluxo de integração do player até as duas barras, identificação da origem da dock e revisão dos quatro pontos do plano. A única alteração persistente desta tarefa é documental. O plugin ainda não foi implementado, instalado ou publicado.
 
 ## 1. Origem e ambiente confirmado
@@ -124,3 +126,17 @@ O risco de alterar a integridade do Linux é baixo no escopo de configurações 
 - Documentação MPRIS Quickshell: https://quickshell.org/docs/v0.3.0/types/Quickshell.Services.Mpris/MprisPlayer/ (referência da série 0.3, cruzada com a API instalada 0.3.1).
 
 A revisão rastreou os caminhos que conectam player, host, configuração e widgets; não representa auditoria linha a linha de todos os módulos não relacionados do WinDoc. Nenhuma funcionalidade do futuro Deskband pode ser declarada concluída a partir desta investigação.
+
+
+## 7. Implementação posterior: versão 0.1.0
+
+O plugin foi implementado em repositório independente, dentro do WinDoc como submódulo, e ativado na dock. O host agora permite a cápsula visível com largura reativa, botões internos e popup; o alinhamento central dos aplicativos respeita o espaço ocupado à direita. A entrada foi acrescentada ao seletor de widgets. A ativação na barra superior foi verificada no host real com o topo ainda oculto, e a apresentação compacta também foi exercitada isoladamente. Ao terminar, o plugin permaneceu somente no dock e o topo continuou desligado.
+
+As verificações funcionais corrigiram uma premissa da análise inicial: embora o D-Bus anuncie propriedades graváveis, **Amberol 2026.1 ignora Volume e Shuffle e não implementa SetPosition**. Isso foi observado no player e confirmado no código oficial de `src/audio/mpris_controller.rs`, referência `2026.1`:
+https://gitlab.gnome.org/World/amberol/-/blob/2026.1/src/audio/mpris_controller.rs
+
+Volume passou a usar exclusivamente os streams PipeWire identificados como Amberol; o volume do dispositivo principal foi comparado antes/depois e permaneceu intacto. Seek usa a operação MPRIS relativa. Quando uma troca de faixa pausada ainda não criou stream/decoder, os controles dependentes aguardam sua inicialização. O aleatório está desativado no Amberol original; foi apresentada ao usuário a alternativa de ampliar o escopo para alterar o próprio player. Outros players continuam usando suas capacidades MPRIS.
+
+Verificações concluídas: sete cenários de instalação/remoção isolados; seleção e formatação em QML; ciclo MPRIS real em barramento isolado (ausência, player vazio, faixa, pausa, desaparecimento e reconexão); regressões existentes da dock; instalação, remoção e reinstalação reais; play/pause, próxima/anterior, seek e volume no Amberol. Cliques reais na cápsula, chevron, área externa, slider de progresso e volume foram exercitados por ponteiro Wayland temporário. Capturas foram inspecionadas para confirmar a ausência de sobreposição entre aplicativos e player.
+
+A música original foi restaurada, pausada perto de 0:40, com volume individual em 100%. A preferência de bandeja preexistente com Rede foi preservada. O futuro suporte a aleatório no Amberol exige uma decisão de ampliação de escopo; não é anunciado como funcional nesta versão. Múltiplos monitores e orientação vertical continuam fora do escopo validado.

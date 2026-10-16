@@ -25,6 +25,7 @@ Item {
     // getWidgetSource() can no longer resolve another plugin's entry point.
     // Declaring this makes the host inject the widget-catalogue facade, whose
     // snapshot still carries every registered widget's Component.
+    readonly property int deskbandApiVersion: 1
     property var barWidgetRegistry: null
     readonly property int widgetRegistryRevision: barWidgetRegistry ? barWidgetRegistry.revision : 0
 
@@ -119,6 +120,9 @@ Item {
         function close(): string { root.close(); return "ok" }
         function toggle(): string { root.toggle(); return "ok" }
         function refresh(): string { return root.refresh() }
+        function deskband(action: string, value: string): string {
+            return root.deskbandAction(action, value)
+        }
         function openWidgetPicker(): string {
             root.openWidgetPicker()
             return "ok"
@@ -567,6 +571,41 @@ Item {
     readonly property bool dockRevealed: root.dockAvailable && !root.shouldSlideOut
 
     property var loadedWidgetItems: []
+
+    function isInlineWidget(widgetId) { return widgetId === "amberol-deskband" }
+
+    function inlineWidgetFor(widgetId) {
+        for (var i = 0; i < root.loadedWidgetItems.length; i++) {
+            var item = root.loadedWidgetItems[i]
+            if (item && item.moduleName === widgetId && item.deskbandInline === true) return item
+        }
+        return null
+    }
+
+    function deskbandAction(action, value) {
+        var item = root.inlineWidgetFor("amberol-deskband")
+        if (!item) return JSON.stringify({ available: false })
+        var controller = item.controller
+        var handled = true
+        if (action === "popup") item.togglePanel()
+        else if (action === "close") item.close()
+        else if (action === "playPause") handled = controller.togglePlaying()
+        else if (action === "previous") handled = controller.previous()
+        else if (action === "next") handled = controller.next()
+        else if (action === "shuffle") handled = controller.toggleShuffle()
+        else if (action === "volume") handled = controller.setVolume(Number(value), controller.player)
+        else if (action === "seek") handled = controller.seekTo(Number(value), controller.trackKey)
+        else if (action !== "status") handled = false
+        return JSON.stringify({ available: true, handled: handled, visible: item.visible,
+            volume: controller.volume, volumeBackend: controller.volumeBackend,
+            width: item.implicitWidth, opened: item.opened, playing: controller.playing,
+            player: controller.player ? controller.player.dbusName : "", title: controller.title })
+    }
+
+    function releaseHostedWidget(item) {
+        if (!item) return
+        root.loadedWidgetItems = root.loadedWidgetItems.filter(function(candidate) { return candidate && candidate !== item })
+    }
 
     property string currentMinuteString: Qt.formatDateTime(new Date(), "dddd HH:mm")
     property string currentHourString: Qt.formatDateTime(new Date(), "HH")
@@ -1131,8 +1170,8 @@ Item {
         }
         return widgets
     }
-    readonly property bool hasLeftWidgets: leftWidgetsList.length > 0 || (root.showWorkspaces && root.workspacesDimension > 0)
-    readonly property bool hasRightWidgets: rightWidgetsList.length > 0
+    readonly property bool hasLeftWidgets: leftWidgetsWidth > 0
+    readonly property bool hasRightWidgets: rightWidgetsWidth > 0
     readonly property bool hasWidgets: hasLeftWidgets || hasRightWidgets
 
     function isClockWidget(widgetId) {
@@ -1158,6 +1197,10 @@ Item {
         : root.slotSize
 
     function getRightWidgetDimension(id) {
+        if (root.isInlineWidget(id)) {
+            var item = root.inlineWidgetFor(id)
+            return !root.isVertical && item && item.visible ? Math.max(0, item.implicitWidth) : 0
+        }
         if (!root.isVertical) {
             if (root.isClockWidget(id)) return root.clockSlotWidth
             if (root.isTrayWidget(id)) return root.traySlotWidth
@@ -1172,7 +1215,7 @@ Item {
         var offset = 0
         for (var i = 0; i < index; i++) {
             var id = root.leftWidgetsList[i]
-            var dim = (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+            var dim = root.getRightWidgetDimension(id)
             offset += dim
         }
         var appsIndex = root.leftWidgetsList.indexOf("omarchy.apps")
@@ -1196,7 +1239,7 @@ Item {
         if (leftWidgetsList.length > 0) {
             for (var i = 0; i < leftWidgetsList.length; i++) {
                 var id = leftWidgetsList[i]
-                total += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                total += root.getRightWidgetDimension(id)
             }
         }
         if (root.showWorkspaces) {
@@ -1206,7 +1249,7 @@ Item {
     }
 
     readonly property real rightWidgetsWidth: {
-        if (!hasRightWidgets) return 0
+        if (rightWidgetsList.length === 0) return 0
         var total = 0
         for (var i = 0; i < rightWidgetsList.length; i++) {
             var id = rightWidgetsList[i]
@@ -1539,6 +1582,8 @@ Item {
     }
 
     function getWidgetSource(widgetId) {
+        // Wait for the shared registry while the host scans plugins.
+        if (root.isInlineWidget(widgetId)) return ""
         if (!widgetId || widgetId === "omarchy.apps" || widgetId === "omarchy.menu") return ""
         if (root.isClockWidget(widgetId)) {
             return "file:///usr/share/omarchy/shell/plugins/panels/clock/Panel.qml"
@@ -1593,11 +1638,16 @@ Item {
 
     function configureHostedWidget(item, widgetId, anchorItem, trayHosted) {
         if (!item) return
-        if (root.loadedWidgetItems.indexOf(item) === -1) root.loadedWidgetItems.push(item)
+        var firstMount = root.loadedWidgetItems.indexOf(item) === -1
+        if (firstMount) root.loadedWidgetItems = root.loadedWidgetItems.concat([item])
         if ("bar" in item) item.bar = dockBarContext
         if ("shell" in item) item.shell = root.shell
         if ("widgetId" in item) item.widgetId = widgetId
         if ("moduleName" in item) item.moduleName = widgetId
+        if (root.isInlineWidget(widgetId)) {
+            if (firstMount && item.openedChanged) item.openedChanged.connect(function() { root.evaluateHoverState() })
+            return
+        }
 
         function applyToPanel(p) {
             if (!p) return
@@ -1708,6 +1758,7 @@ Item {
         property color urgent: Color.urgent
         property color muted: Color.muted
         property color accent: Color.accent
+        property color popupBackground: Color.popups.background
         property bool foregroundAnimationEnabled: true
         property string fontFamily: Style.font.family
         property var activePopout: null
@@ -3455,10 +3506,11 @@ Item {
 
                     Item {
                         id: leftWidgetSlotRoot
+                        Component.onDestruction: root.releaseHostedWidget(leftWidgetLoader.item)
                         required property string modelData
                         required property int index
 
-                        readonly property real widgetSlotDimension: (root.isClockWidget(modelData) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                        readonly property real widgetSlotDimension: root.getRightWidgetDimension(modelData)
                         readonly property real widgetPos: root.getLeftWidgetOffset(index)
                         x: root.isVertical ? 0 : widgetPos
                         y: root.isVertical ? widgetPos : 0
@@ -3469,8 +3521,8 @@ Item {
                         Item {
                             id: leftWidgetWrapper
                             anchors.centerIn: parent
-                            width: (root.isClockWidget(modelData) && !root.isVertical) ? (leftWidgetSlotRoot.width - 10) : root.iconBaseSize
-                            height: (root.isClockWidget(modelData) && root.isVertical) ? (root.slotSize - 8) : root.iconBaseSize
+                            width: root.isInlineWidget(modelData) ? leftWidgetSlotRoot.width : ((root.isClockWidget(modelData) && !root.isVertical) ? (leftWidgetSlotRoot.width - 10) : root.iconBaseSize)
+                            height: root.isInlineWidget(modelData) ? root.slotSize : ((root.isClockWidget(modelData) && root.isVertical) ? (root.slotSize - 8) : root.iconBaseSize)
                             scale: root.isEditMode ? 0.82 : 1.0
                             Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
@@ -3515,7 +3567,7 @@ Item {
 
                             DockGlyph {
                                 id: leftWidgetGlyph
-                                visible: !root.isClockWidget(modelData)
+                                visible: !root.isClockWidget(modelData) && !root.isInlineWidget(modelData)
                                 anchors.centerIn: parent
                                 width: root.iconBaseSize
                                 height: root.iconBaseSize
@@ -3539,7 +3591,7 @@ Item {
                             Loader {
                                 id: leftWidgetLoader
                                 anchors.fill: parent
-                                opacity: 0.0
+                                opacity: root.isInlineWidget(modelData) ? 1.0 : 0.0
                                 // source and sourceComponent clear one another, so pick one
                                 // imperatively instead of binding both. This runs on every
                                 // registry revision (dozens during shell start-up); re-assigning
@@ -3581,6 +3633,7 @@ Item {
 
                         MouseArea {
                             id: leftWidgetSlotMouse
+                            visible: !root.isInlineWidget(modelData)
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
@@ -3613,7 +3666,7 @@ Item {
                         var appsOffset = 0
                         for (var i = 0; i < root.leftWidgetsList.length; i++) {
                             var id = root.leftWidgetsList[i]
-                            appsOffset += (root.isClockWidget(id) && !root.isVertical) ? root.clockSlotWidth : root.slotSize
+                            appsOffset += root.getRightWidgetDimension(id)
                             if (id === "omarchy.apps") break
                         }
                         return appsOffset > 0 ? appsOffset : root.slotSize
@@ -3679,7 +3732,8 @@ Item {
                             if (root.taskbarAppAlignment === "right") {
                                 return Math.max(leftMinimum, dockContent.width - root.rightWidgetsWidth - root.rightSeparatorSize - root.itemsWidth)
                             }
-                            return Math.max(leftMinimum, (dockContent.width - root.itemsWidth) / 2)
+                            var rightMaximum = Math.max(leftMinimum, dockContent.width - root.rightWidgetsWidth - root.rightSeparatorSize - root.itemsWidth)
+                            return Math.max(leftMinimum, Math.min(rightMaximum, (dockContent.width - root.itemsWidth) / 2))
                         }
                         readonly property int visualSlot: (root.dockDragActiveIndex === index) ? index : root.getDockVisualSlot(index, root.dockDragActiveIndex, root.dockDragTargetIndex)
                         x: root.isVertical ? 0 : (appBaseOffset + visualSlot * root.slotSize)
@@ -3821,6 +3875,7 @@ Item {
 
                     Item {
                         id: rightWidgetSlotRoot
+                        Component.onDestruction: root.releaseHostedWidget(rightWidgetLoader.item)
                         required property string modelData
                         required property int index
 
@@ -3891,8 +3946,8 @@ Item {
                             id: rightWidgetWrapper
                             visible: !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
                             anchors.centerIn: parent
-                            width: (root.isClockWidget(modelData) && !root.isVertical) ? (rightWidgetSlotRoot.width - 10) : root.iconBaseSize
-                            height: (root.isClockWidget(modelData) && root.isVertical) ? (root.slotSize - 8) : root.iconBaseSize
+                            width: root.isInlineWidget(modelData) ? rightWidgetSlotRoot.width : ((root.isClockWidget(modelData) && !root.isVertical) ? (rightWidgetSlotRoot.width - 10) : root.iconBaseSize)
+                            height: root.isInlineWidget(modelData) ? root.slotSize : ((root.isClockWidget(modelData) && root.isVertical) ? (root.slotSize - 8) : root.iconBaseSize)
                             scale: root.isEditMode ? 0.82 : 1.0
                             Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
@@ -3937,7 +3992,7 @@ Item {
 
                             DockGlyph {
                                 id: rightWidgetGlyph
-                                visible: !root.isClockWidget(modelData) && !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
+                                visible: !root.isClockWidget(modelData) && !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData) && !root.isInlineWidget(modelData)
                                 anchors.centerIn: parent
                                 width: root.iconBaseSize
                                 height: root.iconBaseSize
@@ -3961,7 +4016,7 @@ Item {
                             Loader {
                                 id: rightWidgetLoader
                                 anchors.fill: parent
-                                opacity: 0.0
+                                opacity: root.isInlineWidget(modelData) ? 1.0 : 0.0
                                 function applyWidgetSource() {
                                     if (root.isTrayWidget(modelData) || root.isDesktopWidget(modelData)) return
                                     var comp = root.getWidgetComponent(modelData)
@@ -3999,7 +4054,7 @@ Item {
 
                         MouseArea {
                             id: rightWidgetSlotMouse
-                            visible: !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData)
+                            visible: !root.isTrayWidget(modelData) && !root.isDesktopWidget(modelData) && !root.isInlineWidget(modelData)
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton

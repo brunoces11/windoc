@@ -156,3 +156,20 @@
 # O clique mantém o overflow aberto, conforme o comportamento dos demais itens.
 #
 # ==============================================================================
+
+# ------------------------------------------------------------------------------
+# [COMPONENTE 05] AMBEROL DESKBAND
+# ------------------------------------------------------------------------------
+# Cápsula única no host da dock: largura padrão de 340px, altura de 42px; margens
+# internas da superfície de 2px, raio de até 12px, fundo na cor do texto com alpha
+# 0.055 e borda de 1px com alpha 0.12. Miniatura de 28px; título de 11px, artista
+# de 10px; botões de 26x28px. Texto segue a fonte do host, com reticências e tooltip.
+# Na barra superior de 24px: largura padrão de 280px, miniatura de 18px, texto
+# de 10px em uma linha e botões de 22x20px. Não aumentar a altura global da barra.
+# Popup: 320x390px, raio de 10px, borda de 1px com alpha 0.28, cor do popup do
+# host, padding lateral de 16px e superior de 14px; capa de 156px. Título de
+# 13px e artista de 11px. Afastamento de 6px da cápsula; no dock abre para cima.
+# Sliders: trilho de 4px, knob de 12px e preenchimento na cor de destaque.
+# A cápsula mantém a faixa pausada; recolhe em 160ms quando não há faixa. Progresso
+# atualiza a cada 500ms apenas com popup aberto e reprodução ativa. Sem marquee
+# contínuo ou blur global. Aleatório sem suporte funcional deve aparecer desativado.
