@@ -990,3 +990,25 @@ Data: 16/10/2026. Estado: implementado, validado e funcional em runtime.
   * Atualizado o script `sync-symlinks.sh` para garantir a preservação do toggle `bar-off` em caso de ressincronização.
   * O espaço reservado no topo do monitor passou a ser 0 pixels (`reserved: 0 0 0 50`), liberando 100% da área útil superior da tela para janelas e aplicativos.
 - Verificações: Testes unitários executados e aprovados (`26 passed`); validação de formatação `git diff --check` sem erros; Quickshell reiniciado com sucesso via `omarchy restart shell`; `hyprctl layers` confirmando `omarchy-bar` fora da tela (`y: -24`); `hyprctl monitors` confirmando topo zerado (`reserved: 0 0 0 50`); capturas de tela inspecionadas atestando ausência total da barra superior.
+
+
+50. ORIGEM DA DOCK E INVESTIGAÇÃO DO AMBEROL DESKBAND
+Data: 16/10/2026. Estado: documentação validada; implementação do Deskband pendente.
+
+- Arquivos afetados: AGENTS.md, RELATORIO_AMBEROL_DESKBAND.md e este histórico.
+- Antes: AGENTS.md listava os vínculos da dock sem identificar seu repositório original;
+  o plano do Deskband pressupunha cápsula embutida sem especificar as adaptações do host.
+- Depois: origem registrada como Omarchy Dock, de rosakodu, repositório
+  https://github.com/rosakodu/omarchy-dock, ID rosakodu.dock, versão local declarada
+  1.8.32, licença MIT. Os dois vínculos da dock resolvem para a mesma pasta customizada.
+- Investigação dos quatro pontos: rastreados catálogo, Loaders invisíveis, slots fixos,
+  captura de cliques, dimensionamento, popup/autohide, seletor e limite de um widget
+  extra; conferidos versões e acesso restrito aos serviços do shell; propostos acesso
+  MPRIS direto em QML e adaptação do host; definidos instalação, remoção e aceitação.
+- Verificações: versões Omarchy 4.0.4-1, Quickshell 0.3.1-1 e Amberol 2026.1-1;
+  introspecção D-Bus e leitura isolada em Quickshell confirmaram o Amberol e suas
+  capacidades de controles, posição/duração, volume e shuffle. O teste temporário
+  foi removido e não alterou reprodução. Links locais e referências foram conferidos.
+- Limites: comandos do player, cápsula, popup e instalador ainda não implementados
+  nem validados funcionalmente. Confiança estimada: 95% no ambiente local e 85%
+  na distribuição para versões suportadas. Nenhuma configuração de runtime alterada.

@@ -34,6 +34,18 @@ O projeto adota uma arquitetura onde **todos os arquivos de configuração do si
 └── .gitignore                            <-- Filtros para manter o repositório limpo
 ```
 
+### 2.1. Origem do código da dock e identidade do WinDoc
+
+- **Projeto original:** Omarchy Dock, de **rosakodu**.
+- **Repositório de origem:** https://github.com/rosakodu/omarchy-dock
+- **Identificador canônico do plugin:** `rosakodu.dock`; o manifesto local declara versão `1.8.32` e licença MIT.
+- **Código customizado usado nesta máquina:** `~/Desktop/windoc/dock/`. O WinDoc incorpora e modifica esse código; não se deve presumir que ele permaneça idêntico ao projeto original ou que a versão do manifesto identifique todas as alterações locais.
+- **Vínculos locais:** `~/.config/omarchy/plugins/rosakodu.dock` e `~/.config/omarchy/plugins/brunoma.windoc` resolvem para a mesma pasta `dock/`. `brunoma.windoc` é um caminho alternativo local; o manifesto continua declarando `rosakodu.dock`. Não habilitar os dois caminhos como se fossem implementações independentes.
+- **Pontos de entrada:** `dock/DockPanel.qml` implementa o serviço e a barra inferior; `dock/BarWidget.qml` implementa o botão de configuração da dock na barra superior.
+- **Preservação da origem:** manter o crédito e a licença MIT de rosakodu ao redistribuir o código derivado. Atualizações do projeto original exigem revisão das customizações locais.
+- **Limite atual para novas integrações:** o carregamento genérico de widgets existe, mas os slots comuns escondem o componente original e exibem um ícone de tamanho fixo. Uma cápsula interativa de largura variável exige adaptação do host; um symlink sozinho não implementa esse suporte.
+- **Investigação Amberol Deskband:** consultar `RELATORIO_AMBEROL_DESKBAND.md` para o fluxo de integração, versões observadas, correções propostas e verificações ainda pendentes.
+
 ---
 
 ## 3. Regras Mandatórias para Agentes de IA
