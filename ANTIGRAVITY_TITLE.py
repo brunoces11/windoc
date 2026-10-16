@@ -1,7 +1,6 @@
 """Formata o título nativo do Antigravity; stdout contém somente o título."""
 
 import json
-import fcntl
 import os
 import re
 import shlex
@@ -10,7 +9,6 @@ import stat
 import sys
 import tempfile
 import unicodedata
-import time
 from contextlib import closing
 from pathlib import Path
 
@@ -37,70 +35,40 @@ def conversation_title(conversation_id):
         return ""
 
 
-def record_active_session(conversation_id):
-    """Record the exact conversation ID against its owning agy process."""
-    if not isinstance(conversation_id, str) or not re.fullmatch(
-        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", conversation_id
-    ):
+def record_active_session(payload):
+    """Bind the callback's exact conversation ID to Kitty's window identity."""
+    if not isinstance(payload, dict):
         return
-    pid = os.getppid()
-    agent_pid = None
-    agent_start_ticks = None
-    for _ in range(8):
-        try:
-            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").lower()
-            stat = Path(f"/proc/{pid}/stat").read_text()
-            stat_fields = stat[stat.rfind(")") + 2 :].split()
-            parent = int(stat_fields[1])
-        except (OSError, ValueError, IndexError):
-            break
-        tokens = cmdline.decode(errors="ignore").split()
-        names = {Path(token.strip("'\"")).name.lower() for token in tokens}
-        if "agy" in names or "antigravity" in names:
-            agent_pid = pid
-            agent_start_ticks = stat_fields[19] if len(stat_fields) > 19 else None
-            break
-        if parent <= 1 or parent == pid:
-            break
-        pid = parent
-    if not agent_pid:
-        return
-
-    state_dir = Path(__file__).resolve().parent / "PERSISTIR_WORKSPACE" / "ESTADO_LOCAL"
-    registry = state_dir / "AGENT_IDS.json"
     try:
-        state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with (state_dir / "AGENT_IDS.lock").open("a+") as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            current = json.loads(registry.read_text()) if registry.exists() else {}
-            current[str(agent_pid)] = {
-                "agent": "antigravity",
-                "session_id": conversation_id,
-                "start_ticks": agent_start_ticks,
-                "id_method": "agent-native-session-callback",
-                "updated_at": int(time.time()),
-            }
-            temporary = None
-            try:
-                with tempfile.NamedTemporaryFile(mode="w", dir=state_dir, prefix=".agent-ids-", delete=False) as out:
-                    temporary = Path(out.name)
-                    os.fchmod(out.fileno(), 0o600)
-                    json.dump(current, out, ensure_ascii=False, sort_keys=True)
-                    out.write("\n")
-                    out.flush()
-                    os.fsync(out.fileno())
-                os.replace(temporary, registry)
-            finally:
-                if temporary is not None:
-                    temporary.unlink(missing_ok=True)
-    except (OSError, ValueError, TypeError):
+        conversation_id = payload.get("conversation_id")
+        transcript = None
+        if isinstance(conversation_id, str) and conversation_id:
+            transcript = str(
+                Path.home() / ".gemini/antigravity-cli/brain" / conversation_id
+                / ".system_generated/logs/transcript.jsonl"
+            )
+        active = payload.get("agent_state") in {
+            "thinking", "working", "tool_use", "running", "busy"
+        } or (isinstance(payload.get("task_count"), int) and payload.get("task_count", 0) > 0)
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "PERSISTIR_WORKSPACE"))
+        from AGENT_SESSION_HOOK import record_session
+
+        record_session(
+            "antigravity",
+            conversation_id,
+            "TitleUpdate",
+            transcript_path=transcript,
+            user_turn=active,
+            method="antigravity-native-title-payload",
+        )
+    except (ImportError, OSError, TypeError, ValueError):
         return
 
 
 def format_title(payload):
     if not isinstance(payload, dict):
         return "✦ Antigravity"
-    record_active_session(payload.get("conversation_id"))
+    record_active_session(payload)
     topic = conversation_title(payload.get("conversation_id"))
     cwd = payload.get("cwd")
     workspace = payload.get("workspace")

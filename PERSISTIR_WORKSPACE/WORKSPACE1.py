@@ -25,7 +25,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "ESTADO_LOCAL"
+if os.environ.get("WORKSPACE1_STATE_DIR"):
+    STATE_DIR = Path(os.environ["WORKSPACE1_STATE_DIR"])
 STATE_FILE = STATE_DIR / "WORKSPACE1.json"
+CAPTURE_FILE = STATE_DIR / "LATEST_CAPTURE.json"
 AGENT_IDS_FILE = STATE_DIR / "AGENT_IDS.json"
 LOCK_FILE = STATE_DIR / "WORKSPACE1.lock"
 WORKSPACE_ID = 1
@@ -83,7 +86,7 @@ def process_environ(pid: int) -> dict[str, str]:
             continue
         key, value = entry.split(b"=", 1)
         name = key.decode(errors="ignore")
-        if name in {"CODEX_HOME", "HOME"}:
+        if name in {"CODEX_HOME", "HOME", "KITTY_PID", "KITTY_WINDOW_ID"}:
             result[name] = value.decode(errors="ignore")
     return result
 
@@ -205,40 +208,49 @@ def codex_session_id(pid: int) -> tuple[str | None, str]:
         return None, "codex-log-schema-unavailable"
 
 
-def antigravity_bootstrap_id(title: str, cwd: str) -> str | None:
-    """Resolve an already-open legacy tab once; only a unique exact DB title is accepted."""
-    if "Antigravity:" not in title:
-        return None
-    topic = title.split("Antigravity:", 1)[1].split("|", 1)[0].strip()
-    if not topic:
-        return None
-    db = Path.home() / ".gemini/antigravity-cli/conversation_summaries.db"
+def pane_registry_record(agent: str, kitty_pid: int, kitty_window_id: int) -> dict[str, Any] | None:
     try:
-        with sqlite3.connect(db.as_uri() + "?mode=ro", uri=True, timeout=0.05) as conn:
-            rows = conn.execute(
-                "SELECT conversation_id, workspace_uris FROM conversation_summaries WHERE title=?",
-                (topic,),
-            ).fetchall()
-        matches = [row[0] for row in rows if UUID_RE.fullmatch(str(row[0])) and (not row[1] or cwd in row[1])]
-        return matches[0] if len(matches) == 1 else None
-    except (sqlite3.Error, OSError, ValueError):
-        return None
+        registry = json.loads(AGENT_IDS_FILE.read_text())
+        record = registry.get(f"kitty:{kitty_pid}:{kitty_window_id}")
+        if (record and record.get("agent") == agent
+                and record.get("kitty_start_ticks") == process_start_ticks(kitty_pid)):
+            return record
+    except (OSError, ValueError, AttributeError):
+        pass
+    return None
 
 
-def session_id_for(agent: str, process: dict[str, Any], *, title: str = "", cwd: str = "") -> tuple[str | None, str]:
+def session_id_for(
+    agent: str,
+    process: dict[str, Any],
+    *,
+    kitty_pid: int,
+    kitty_window_id: int,
+    title: str = "",
+    cwd: str = "",
+) -> tuple[str | None, str, str]:
     pid = int(process.get("pid") or 0)
     start_ticks = process_start_ticks(pid)
     argv = process_command(process)
+    pane_record = pane_registry_record(agent, kitty_pid, kitty_window_id)
+    if pane_record:
+        if pane_record.get("state") == "empty" and not pane_record.get("has_user_turn"):
+            return None, str(pane_record.get("id_method") or "agent-session-start"), "empty"
+        pane_id = pane_record.get("session_id")
+        if valid_agent_session_id(agent, pane_id):
+            return str(pane_id), str(pane_record.get("id_method") or "official-agent-hook"), "active"
+        if pane_record.get("has_user_turn"):
+            return None, str(pane_record.get("id_method") or "agent-session-id-missing"), "unresolved"
     direct = uuid_from_args(argv)
     if direct:
         register_session_id(agent, pid, direct, start_ticks, "process-arguments")
-        return direct, "process-arguments"
+        return direct, "process-arguments", "active"
     try:
         registered = json.loads(AGENT_IDS_FILE.read_text()).get(str(pid), {})
         registered_id = registered.get("session_id") if registered.get("agent") == agent else None
         if (isinstance(registered_id, str) and UUID_RE.fullmatch(registered_id)
                 and start_ticks and registered.get("start_ticks") == start_ticks):
-            return registered_id, str(registered.get("id_method") or "process-session-registry")
+            return registered_id, str(registered.get("id_method") or "process-session-registry"), "active"
     except (OSError, ValueError, AttributeError):
         pass
     targets = process_fd_targets(pid) + process_mapped_files(pid)
@@ -246,33 +258,44 @@ def session_id_for(agent: str, process: dict[str, Any], *, title: str = "", cwd:
         for target in targets:
             normalized = target.removesuffix(" (deleted)")
             match = re.search(r"/(?:presence/([0-9a-f-]{36})\.lock|conversations/([0-9a-f-]{36})\.db(?:-shm|-wal)?)$", normalized)
+            if not match:
+                match = re.search(
+                    r"/brain/([0-9a-f-]{36})/\.system_generated/logs/transcript\.jsonl$",
+                    normalized,
+                )
             if match:
-                session_id = match.group(1) or match.group(2)
+                session_id = next((group for group in match.groups() if group), "")
                 if UUID_RE.fullmatch(session_id):
                     register_session_id(agent, pid, session_id, start_ticks, "process-session-file")
-                    return session_id, "process-session-file"
-        bootstrap_id = antigravity_bootstrap_id(title, cwd)
-        if bootstrap_id:
-            register_session_id(agent, pid, bootstrap_id, start_ticks, "unique-bootstrap-match")
-            return bootstrap_id, "unique-bootstrap-match"
-        return None, "antigravity-session-file-unavailable"
+                    return session_id, "process-session-file", "active"
+        return None, "antigravity-session-file-unavailable", "unresolved"
     if agent == "claude-code":
         for target in targets:
             match = re.search(r"/projects/.*/([0-9a-f-]{36})\.jsonl(?: \(deleted\))?$", target)
             if match and UUID_RE.fullmatch(match.group(1)):
                 register_session_id(agent, pid, match.group(1), start_ticks, "process-open-transcript")
-                return match.group(1), "process-open-transcript"
-        return None, "claude-transcript-not-open"
+                return match.group(1), "process-open-transcript", "active"
+        return None, "claude-transcript-not-open", "unresolved"
     if agent == "codex":
         session_id, method = codex_session_id(pid)
         if session_id:
             register_session_id(agent, pid, session_id, start_ticks, method)
-        return session_id, method
-    return None, "adapter-not-installed"
+        return session_id, method, "active" if session_id else "unresolved"
+    return None, "adapter-not-installed", "unresolved"
+
+
+def valid_agent_session_id(agent: str, session_id: Any) -> bool:
+    if not isinstance(session_id, str) or not session_id or len(session_id) > 256:
+        return False
+    if any(ord(char) < 33 or ord(char) == 127 for char in session_id):
+        return False
+    if agent in {"codex", "antigravity"}:
+        return bool(UUID_RE.fullmatch(session_id))
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,255}", session_id))
 
 
 def resume_command(agent: str, session_id: str) -> list[str] | None:
-    if not UUID_RE.fullmatch(session_id):
+    if not valid_agent_session_id(agent, session_id):
         return None
     commands = {
         "codex": ["codex", "resume", session_id],
@@ -285,7 +308,7 @@ def resume_command(agent: str, session_id: str) -> list[str] | None:
 def agent_records(kitty_pid: int, tree: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
     records: dict[int, dict[str, Any]] = {}
     for os_window in tree:
-        for tab in os_window.get("tabs", []):
+        for tab_index, tab in enumerate(os_window.get("tabs", [])):
             for window in tab.get("windows", []):
                 proc = foreground_process(window)
                 if not proc:
@@ -293,13 +316,24 @@ def agent_records(kitty_pid: int, tree: list[dict[str, Any]]) -> dict[int, dict[
                 agent = detect_agent(process_command(proc))
                 if not agent:
                     continue
-                session_id, method = session_id_for(
-                    agent, proc, title=str(window.get("title") or ""), cwd=str(window.get("cwd") or "")
+                window_id = int(window["id"])
+                session_id, method, state = session_id_for(
+                    agent,
+                    proc,
+                    kitty_pid=kitty_pid,
+                    kitty_window_id=window_id,
+                    title=str(window.get("title") or ""),
+                    cwd=str(window.get("cwd") or ""),
                 )
-                records[int(window["id"])] = {
+                records[window_id] = {
                     "agent": agent,
                     "session_id": session_id,
                     "id_method": method,
+                    "state": state,
+                    "kitty_tab_index": tab_index,
+                    "kitty_tab_title": str(tab.get("title") or ""),
+                    "kitty_window_id": window_id,
+                    "cwd": str(window.get("cwd") or ""),
                     "pid": int(proc.get("pid") or 0),
                     "start_ticks": process_start_ticks(int(proc.get("pid") or 0)),
                 }
@@ -332,14 +366,17 @@ def patch_native_session(text: str, records: dict[int, dict[str, Any]]) -> tuple
         record = records.get(int(payload.get("id", -1)))
         if record:
             command = resume_command(record["agent"], record.get("session_id") or "")
-            if command:
+            if command and record.get("state") == "active":
                 payload["cmd_at_shell_startup"] = shlex.join(command)
             else:
-                # An unidentified agent must never silently open an arbitrary/latest chat.
+                # Empty and unresolved agents must never open an arbitrary/latest chat.
                 payload.pop("cmd_at_shell_startup", None)
             parts[token_index] = "kitty-unserialize-data=" + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
             line = "launch " + " ".join(shlex.quote(token) for token in parts[1:])
-            summary.append({k: record[k] for k in ("agent", "session_id", "id_method")})
+            summary.append({k: record[k] for k in (
+                "agent", "session_id", "id_method", "state", "kitty_tab_index",
+                "kitty_tab_title", "kitty_window_id", "cwd",
+            )})
         output.append(line)
     return "\n".join(output) + "\n", summary
 
@@ -373,13 +410,17 @@ def save_kitty_session(pid: int, records: dict[int, dict[str, Any]]) -> tuple[st
         name = f"KITTY-{pid}.session"
         destination = STATE_DIR / name
         atomic_write(destination, rendered.encode(), 0o600)
-        complete = len(found) == len(records) and all(record.get("session_id") for record in found)
+        complete = len(found) == len(records) and all(
+            record.get("state") == "empty"
+            or (record.get("state") == "active" and valid_agent_session_id(record.get("agent", ""), record.get("session_id")))
+            for record in found
+        )
         return name, "ok" if complete else "agent-id-incomplete"
     finally:
         temp.unlink(missing_ok=True)
 
 
-def snapshot() -> dict[str, Any]:
+def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, Any]:
     STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     warnings: list[str] = []
@@ -400,11 +441,16 @@ def snapshot() -> dict[str, Any]:
                 records = agent_records(pid, tree)
                 filename, result = save_kitty_session(pid, records)
                 item.update({"kind": "kitty", "session_file": filename, "agent_sessions": [
-                    {k: v for k, v in record.items() if k in ("agent", "session_id", "id_method")}
+                    {k: v for k, v in record.items() if k in (
+                        "agent", "session_id", "id_method", "state", "kitty_tab_index",
+                        "kitty_tab_title", "kitty_window_id", "cwd",
+                    )}
                     for record in records.values()
                 ]})
                 if result != "ok":
-                    warnings.append(f"kitty {pid}: ao menos uma sessão de agente não foi identificada sem ambiguidade")
+                    unresolved = sum(record.get("state") == "unresolved" for record in records.values())
+                    if unresolved:
+                        warnings.append(f"kitty {pid}: {unresolved} painel(is) ativo(s) sem ID verificável")
             except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
                 item.update({"kind": "kitty", "error": type(error).__name__})
                 warnings.append(f"kitty {pid}: captura nativa falhou ({type(error).__name__})")
@@ -419,15 +465,12 @@ def snapshot() -> dict[str, Any]:
         "updated_at": int(time.time()),
         "windows": rows,
         "warnings": warnings,
+        "complete": not warnings,
     }
-    previous = load_state()
-    if previous:
-        old = {key: value for key, value in previous.items() if key != "updated_at"}
-        new = {key: value for key, value in state.items() if key != "updated_at"}
-        if old == new:
-            return previous
     encoded = (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
-    if not STATE_FILE.exists() or STATE_FILE.read_bytes() != encoded:
+    atomic_write(CAPTURE_FILE, encoded)
+    # Keep the last complete state if any active agent ID or Kitty capture is uncertain.
+    if promote and state["complete"] and (rows or allow_empty):
         atomic_write(STATE_FILE, encoded)
     return state
 
@@ -461,10 +504,22 @@ def restore(state: dict[str, Any]) -> list[str]:
     return restored
 
 
+def restorable_window_count(state: dict[str, Any]) -> int:
+    count = 0
+    for item in state.get("windows", []):
+        if item.get("kind") == "kitty":
+            session = STATE_DIR / str(item.get("session_file", ""))
+            count += int(session.is_file() and session.parent == STATE_DIR)
+        else:
+            command = item.get("restore_command")
+            count += int(isinstance(command, list) and bool(command))
+    return count
+
+
 def load_state() -> dict[str, Any] | None:
     try:
         state = json.loads(STATE_FILE.read_text())
-        if state.get("schema") == 1 and state.get("workspace") == WORKSPACE_ID:
+        if state.get("schema") == 1 and state.get("workspace") == WORKSPACE_ID and state.get("complete", True):
             return state
     except (OSError, ValueError, AttributeError):
         pass
@@ -472,15 +527,21 @@ def load_state() -> dict[str, Any] | None:
 
 
 def status() -> int:
-    state = load_state()
+    try:
+        state = json.loads(CAPTURE_FILE.read_text())
+    except (OSError, ValueError):
+        state = load_state()
     if not state:
         print("Estado local ainda não existe.")
         return 1
     sessions = [a for w in state.get("windows", []) for a in w.get("agent_sessions", [])]
-    known = sum(bool(a.get("session_id")) for a in sessions)
-    print(f"Workspace {WORKSPACE_ID}: {len(state.get('windows', []))} janelas; {known}/{len(sessions)} IDs de sessão de agente capturados.")
+    relevant = [a for a in sessions if a.get("state") != "empty"]
+    known = sum(bool(a.get("session_id")) for a in relevant)
+    empty = sum(a.get("state") == "empty" for a in sessions)
+    label = "completa" if state.get("complete", True) else "incompleta; última completa preservada"
+    print(f"Workspace {WORKSPACE_ID}: captura {label}; {len(state.get('windows', []))} janelas; {known}/{len(relevant)} IDs ativos; {empty} aba(s) vazia(s) ignorada(s).")
     for agent in sorted({a.get("agent", "desconhecido") for a in sessions}):
-        values = [a for a in sessions if a.get("agent") == agent]
+        values = [a for a in sessions if a.get("agent") == agent and a.get("state") != "empty"]
         found = sum(bool(a.get("session_id")) for a in values)
         print(f"{agent}: {found}/{len(values)} IDs identificados")
     for warning in state.get("warnings", []):
@@ -498,10 +559,30 @@ def login_loop() -> int:
         previous = load_state()
         current_boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
         live = workspace_clients()
+        restore_pending = False
+        expected_windows = 0
         if previous and previous.get("boot_id") != current_boot and not live:
-            restore(previous)
-            time.sleep(12)
-        snapshot()
+            expected_windows = restorable_window_count(previous)
+            if expected_windows:
+                restore(previous)
+                restore_pending = True
+                deadline = time.monotonic() + 60
+                while time.monotonic() < deadline:
+                    live = workspace_clients()
+                    if len(live) >= expected_windows:
+                        candidate = snapshot(promote=False)
+                        if candidate.get("complete"):
+                            atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+                            restore_pending = False
+                            break
+                    time.sleep(2)
+                if restore_pending:
+                    snapshot(promote=False)
+        elif live:
+            snapshot(promote=True)
+        else:
+            # An empty startup capture must not erase the previous boot's state.
+            snapshot(promote=False)
         empty_since: float | None = None
         stopping = False
 
@@ -516,11 +597,14 @@ def login_loop() -> int:
                 current = workspace_clients()
                 if current:
                     empty_since = None
-                    snapshot()
+                    candidate = snapshot(promote=not restore_pending)
+                    if restore_pending and len(current) >= expected_windows and candidate.get("complete"):
+                        atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+                        restore_pending = False
                 else:
                     empty_since = empty_since or time.monotonic()
                     if time.monotonic() - empty_since >= EMPTY_GRACE_SECONDS:
-                        snapshot()
+                        snapshot(allow_empty=True, promote=not restore_pending)
             except (OSError, subprocess.SubprocessError, ValueError, KeyError):
                 pass
             time.sleep(POLL_SECONDS)

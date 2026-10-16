@@ -1246,3 +1246,13 @@ Data: 16/10/2026. Estado: implementado e validado.
 - Arquivos: `terminal/tab_bar.py` e este histórico.
 - Validação: compilação Python, `git diff --check` e recarga do `kitty.conf` aprovados. A consulta por PID identificou três abas Antigravity abertas, todas ociosas; nenhuma foi marcada para spinner.
 
+64. CAPTURAR E RETOMAR IDS DE SESSÃO POR PAINEL NO WORKSPACE 1
+Data: 16/10/2026. Estado: hooks instalados e verificados; restauração protegida contra IDs desconhecidos; validação de boot pendente.
+
+- Codex e Claude Code: os arquivos de hooks existentes foram adotados no WinDoc e mesclados preservando os hooks prévios. `SessionStart` e `UserPromptSubmit` registram o ID e o caminho do transcript associado a `KITTY_PID` + `KITTY_WINDOW_ID`.
+- Antigravity: mantido o callback de título existente e adicionado registro por `conversation_id`; hooks de `SessionStart` e `PreInvocation` também registram o ID no painel Kitty exato. Configuração privada continua física e é recriada pelo instalador sanitizado.
+- A retomada usa o comando oficial com ID explícito: `codex resume ID`, `claude --resume ID` ou `agy --conversation ID`. Um painel marcado vazio restaura só o shell; ID desconhecido permanece não resolvido e não escolhe conversa por título ou recência.
+- Captura incompleta gera diagnóstico em `LATEST_CAPTURE.json`, sem substituir `WORKSPACE1.json`, o último estado completo. A associação local usa PID do Kitty, ID do painel e horário de início do Kitty para evitar reutilização acidental de PID.
+- Estado e snapshots seguem em `PERSISTIR_WORKSPACE/ESTADO_LOCAL/`, com diretório privado e exclusão do Git. Os arquivos de configuração Codex/Claude ficam adotados em `adotados/` e registrados no manifesto.
+- Validação: compilação Python, JSON dos três provedores, vínculos dos dois arquivos adotados, testes isolados de estados vazio/ativo/limpeza, formatos de IDs e mapeamento de restauração para os três agentes; `git diff --check` aprovado. Captura ao vivo identificou 3/3 painéis Codex e 1/2 Antigravity; um painel Antigravity segue sem ID verificável, portanto a captura real fica incompleta e o último estado completo é preservado. Não havia Claude Code aberto. Reinicialização completa não foi simulada.
+

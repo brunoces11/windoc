@@ -10,3 +10,7 @@
 
 ~/.config/systemd/user/antigravity-tab-daemon.service	terminal/antigravity-tab-daemon.service
 
+
+~/.codex/hooks.json	adotados/.codex/hooks.json
+
+~/.claude/settings.json	adotados/.claude/settings.json
