@@ -1455,3 +1455,17 @@ Data: 17/10/2026. Estado: implementado, verificado e validado (Etapa 2).
 - Validação técnica: 7 testes do submódulo aprovados; ciclo MPRIS via `dbus-run-session` executado com código 0; recarga no shell confirmada via `omarchy-shell shell rescanPlugins` e `rosakodu.dock refresh`.
 
 
+79. SEPARAÇÃO ESTRITA DE COMANDOS INDEPENDENTES E REINICIALIZAÇÃO DO SHELL
+Data: 17/10/2026. Estado: implementado, verificado e validado em sessão ativa.
+
+- Isolamento absoluto e mútuo entre o Comando A e o Comando B no ícone do Amberol Deskband:
+  - Comando A (Clique simples do mouse sem Alt): Altera exclusivamente a geometria do painel (expande e compacta em loop infinito: Ultra Compacto 42px <-> Compacto 285px). Não executa nenhuma chamada de áudio MPRIS, não dá play e não dá pause.
+  - Comando B (Clique com a tecla Alt pressionada): Altera exclusivamente o estado de reprodução (Play e Pause da música). Não altera a geometria, largura ou estado de expansão/colapso do painel (mantém intacto o modo em que estiver).
+  - A tecla Alt atua como switch determinístico exclusivo (`if (mouse.modifiers & Qt.AltModifier)`).
+  - Removida qualquer expansão automática ao iniciar reprodução no dock, garantindo que o modo Ultra Compacto seja rigorosamente preservado enquanto o usuário toca ou pausa com Alt+Clique.
+  - Shell completamente reiniciado via `omarchy restart shell`, garantindo a aplicação do binário e componentes atualizados da memória sem cache defasado.
+- Arquivos: `amberol-deskband/BarWidget.qml` e este histórico.
+- Validação técnica: 7 testes do submódulo aprovados; ciclo MPRIS via `dbus-run-session` executado com código 0; shell reiniciado com sucesso via `omarchy restart shell`; deskband respondendo ao IPC em tempo real.
+
+
+
