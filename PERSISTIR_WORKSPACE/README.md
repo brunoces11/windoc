@@ -47,9 +47,13 @@ por conteúdo e compartilhados quando o conteúdo continua igual.
 - **Janela:** identidade estável, classe, workspace, PID e início do processo,
   coordenadas e tamanho lógicos, flutuação, tela cheia, monitor e foco.
 - **Grupo Hyprland:** identidades dos membros em ordem, aba ativa, trava, geometria,
-  nome do monitor e algoritmo do layout. Um grupo ocupa uma folha da árvore de tiles.
-- **Layout Dwindle:** árvore reconstruída das divisões observadas, orientações e
-  proporções horizontais/verticais; geometria normal conhecida antes da tela cheia.
+  nome do monitor, algoritmo e tipo do alvo. Até um grupo de uma janela é preservado,
+  pois o Hyprland lhe aplica uma groupbar própria. Cada grupo ocupa uma folha da árvore.
+- **Grid Dwindle:** árvore BSP consultada diretamente no algoritmo nativo do
+  Hyprland: eixo, ordem dos ramos, proporção interna `splitRatio`, caixa de cada
+  nó e área de trabalho. Cada folha aponta para um grupo por IDs estáveis; o
+  grupo conserva ordem das janelas, aba ativa e trava. Posições finais, monitor,
+  escala e área reservada também ficam no manifesto.
 - **Monitor:** nome, descrição, escala, resolução, rotação, posição e área reservada.
   A restauração procura a saída pelo nome e adapta coordenadas à área disponível
   quando o monitor muda. Não força um novo modo de vídeo global.
@@ -61,14 +65,19 @@ por conteúdo e compartilhados quando o conteúdo continua igual.
 
 ## Sequência de restauração
 
-1. O autostart do Hyprland importa o ambiente IPC e inicia o serviço systemd.
+1. O autostart do Hyprland importa o ambiente IPC e inicia o serviço systemd. O
+   serviço compila/carrega o exportador somente de leitura contra o commit exato
+   instalado e confere sua identidade antes de consultar a árvore.
 2. Ao detectar um boot novo, preserva uma captura de recuperação e abre os itens
    ausentes de forma independente. Um item desconhecido não bloqueia os demais.
-3. As novas janelas começam isoladas e flutuantes, evitando agrupamento automático.
+3. As janelas são abertas como tiled e isoladas por regra temporária de grupo.
+   Se a árvore não puder ser reconstruída, o Hyprland ainda as organiza em tiling
+   padrão em vez de deixá-las flutuantes empilhadas.
 4. A API nativa `Group:add` recompõe cada grupo pelas identidades exatas dos membros,
    na ordem registrada. Não usa aproximação por título ou janela vizinha.
-5. Recria as divisões do Dwindle usando preseleção, retorno ao modo tiled e razões
-   de divisão nativas. Janelas flutuantes recebem posição e tamanho explícitos.
+5. Recria os ramos salvos em ordem com preseleção e os `splitRatio` nativos. Se
+   alguma janela estiver ausente, remove somente sua folha e mantém os cortes
+   restantes; janelas originalmente flutuantes recebem posição e tamanho explícitos.
 6. Recupera a aba ativa de cada grupo, trava, tela cheia e foco. Se o layout já
    coincide, uma nova chamada não o desmonta nem duplica janelas.
 7. Confere separadamente abertura, terminais, grupos e geometria. A comparação de
@@ -111,6 +120,15 @@ essa consulta não é injetada automaticamente nos terminais.
 - `RECOVERY.json` e `RECOVERY-<hash>.json`: estado preservado antes de restaurar.
 - `RESTORE_GUARD.json`: pendências e referência para evitar aprender um layout falho.
 - `RESTORE_STATUS.json`: resultados individuais, incluindo conferências por camada.
+- `WORKSPACE_GRID_<hash>.so` e `WORKSPACE_GRID_PLUGIN.json`: exportador compilado e
+  caminho da versão carregada, somente no diretório privado ignorado pelo Git.
+
+`WORKSPACE_GRID_EXPORTER.cpp` lê `CSpace`, o algoritmo Dwindle, os nós BSP e os
+grupos pela API interna desta versão do Hyprland. O script Python exige o mesmo
+commit reportado pelo compositor, instala o binário em `ESTADO_LOCAL/` e valida
+o comando antes da captura. Se os headers, o compilador, o ABI ou o layout não
+corresponderem, a captura é marcada incompleta e usa a inferência antiga como
+fallback; a restauração nunca declara essa inferência como grid nativo.
 
 Gravações usam arquivo temporário, fsync e troca atômica. Locks impedem monitores
 ou restaurações concorrentes. Se um Kitty ficar inacessível, conserva sua última
@@ -118,8 +136,10 @@ sessão nativa somente para a mesma janela, boot, PID e início do processo, mar
 como antiga e pendente. A observação bruta mantém o diagnóstico da falha.
 
 O serviço é iniciado pelo autostart e reiniciado pelo systemd em caso de falha.
-Não requer root, processo por grupo ou dependências extras. Os arquivos imutáveis
-antigos ainda não são removidos automaticamente.
+Não requer root nem processo adicional permanente. A compilação inicial usa `g++`,
+`pkg-config` e os headers do Hyprland instalados nesta máquina; se algum não estiver
+disponível ou o hash divergir, o exportador não é carregado e o snapshot fica parcial.
+Os arquivos imutáveis antigos ainda não são removidos automaticamente.
 
 ## Comandos
 
@@ -139,10 +159,10 @@ No diretório `PERSISTIR_WORKSPACE`:
 
 ## Validação e limites
 
-Em 17/10/2026 passaram 39 testes automatizados. O ciclo nativo isolado capturou,
-fechou e restaurou quatro janelas, três grupos e cinco abas, com divisões horizontal
-e vertical, geometria, ordem dos grupos e seleção conferidas. Outro ciclo validou
-uma janela flutuante e dois grupos. As janelas originais foram preservadas.
+Em 17/10/2026 passaram 45 testes automatizados. O ciclo isolado no Hyprland capturou,
+fechou e restaurou quatro janelas, três grupos (incluindo grupos unitários) e cinco
+abas, com divisões horizontal e vertical, geometria, ordem dos grupos e seleção
+conferidas. As janelas originais foram preservadas.
 
 O monitor ativo foi observado por 65 segundos sem mudanças: não regravou o manifesto
 nem os arquivos Kitty; seu processo consumiu 0,12 segundo de CPU nesse intervalo.
@@ -151,8 +171,11 @@ as cargas. A captura automática do formato novo foi confirmada em 30,5 segundos
 ativos; não houve gravação nos primeiros 15 segundos.
 
 O usuário já confirmou a reabertura de chats em um reboot real da versão anterior.
-A restauração geométrica desta versão passou no ciclo real isolado, mas ainda não
-foi testada em outro reboot completo. Layouts tiled diferentes do Dwindle e
+O exportador foi carregado no compositor instalado e retornou a árvore Dwindle
+ativa com seus cortes, proporções, caixas e membros ordenados dos grupos. A leitura
+nativa e a reprodução da árvore foram validadas ao vivo no workspace isolado; a
+restauração completa após reboot ainda precisa de um teste de ponta a ponta.
+Layouts tiled diferentes do Dwindle e
 arranjos que não possam ser reconstruídos como suas divisões ficam pendentes,
 sem declarar sucesso. Janelas externas compartilhando o mesmo processo Kitty
 continuam sem associação individual completa e usam restauração reduzida.

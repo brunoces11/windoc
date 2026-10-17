@@ -24,6 +24,7 @@ from typing import Any
 
 from AGENT_SESSION_HOOK import transcript_has_user_message
 import WORKSPACE_LAYOUT as layout
+import WORKSPACE_GRID_EXPORTER as grid_exporter
 
 
 ROOT = Path(__file__).resolve().parent
@@ -496,7 +497,7 @@ def application_command(app_class: str) -> list[str] | None:
 
 
 def scene_signature(state: dict[str, Any]) -> str:
-    payload = {k: state.get(k) for k in ("schema", "workspace", "monitors", "groups", "tile_tree", "complete", "warnings")}
+    payload = {k: state.get(k) for k in ("schema", "workspace", "monitors", "groups", "tile_tree", "grid", "complete", "warnings")}
     payload["windows"] = sorted(state.get("windows", []), key=lambda w: w["restore_id"])
     return json.dumps(payload, sort_keys=True)
 
@@ -520,6 +521,32 @@ def save_restore_guard(desired: dict[str, Any], observed: dict[str, Any], result
     atomic_write(STATE_DIR / "RESTORE_GUARD.json", (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode())
 
 
+def valid_native_layout_graph(state: dict[str, Any]) -> bool:
+    grid = state.get("grid")
+    if not isinstance(grid, dict):
+        return False
+    if grid.get("source") != "hyprland-native" or grid.get("layout") != "dwindle":
+        return False
+    groups = state.get("groups", [])
+    tiled = {g.get("id") for g in groups if not g.get("floating")}
+    members = [member for group in groups for member in group.get("members", [])]
+    if len(members) != len(set(members)):
+        return False
+    leaves = set()
+    def walk(node):
+        if not isinstance(node, dict):
+            return
+        if "group" in node:
+            leaves.add(node["group"])
+            return
+        walk(node.get("left"))
+        walk(node.get("right"))
+    walk(state.get("tile_tree"))
+    if not tiled and grid.get("tiled_leaves") == 0:
+        return state.get("tile_tree") is None
+    return bool(tiled) and leaves == tiled and len(leaves) == grid.get("tiled_leaves")
+
+
 def preserve_restore_target(state: dict[str, Any]) -> dict[str, Any]:
     try:
         guard = json.loads((STATE_DIR / "RESTORE_GUARD.json").read_text())
@@ -528,7 +555,12 @@ def preserve_restore_target(state: dict[str, Any]) -> dict[str, Any]:
     if guard.get("boot_id") != boot_id() or not guard.get("pending"):
         return state
     result = copy.deepcopy(state)
-    desired = {w["restore_id"]: w for w in guard["desired"]["windows"]}
+    desired_state = guard.get("desired", {})
+    desired_grid = desired_state.get("grid") if isinstance(desired_state.get("grid"), dict) else {}
+    current_grid = state.get("grid") if isinstance(state.get("grid"), dict) else {}
+    desired_graph_valid = (valid_native_layout_graph(desired_state)
+                           and desired_grid.get("build_id") == current_grid.get("build_id"))
+    desired = {w["restore_id"]: w for w in desired_state.get("windows", [])}
     observed = {w["restore_id"]: w for w in guard["observed"]["windows"]}
     actual = {w["restore_id"]: w for w in result["windows"]}
     for identity, checks in list(guard["pending"].items()):
@@ -544,13 +576,24 @@ def preserve_restore_target(state: dict[str, Any]) -> dict[str, Any]:
         elif initial:
             geo = ("at", "size", "normal_at", "normal_size", "group_members", "group_active", "group_locked",
                    "floating", "fullscreen", "monitor_name", "monitor_area", "layout_name")
-            if not checks.get("geometry") or not checks.get("group"):
+            if desired_graph_valid and (not checks.get("geometry") or not checks.get("group")):
                 if all(current.get(k) == initial.get(k) for k in geo):
                     for key in geo:
                         if key in target:
                             current[key] = copy.deepcopy(target[key])
                 else:
                     checks["geometry"] = checks["group"] = True
+            elif not desired_graph_valid and not checks.get("geometry"):
+                # Keep per-window measurements, but never import stale group edges
+                # into a freshly captured native tree.
+                geometry_only = ("at", "size", "normal_at", "normal_size", "floating", "fullscreen",
+                                 "monitor_name", "monitor_area", "layout_name")
+                if all(current.get(k) == initial.get(k) for k in geometry_only):
+                    for key in geometry_only:
+                        if key in target:
+                            current[key] = copy.deepcopy(target[key])
+                else:
+                    checks["geometry"] = True
             if not checks.get("terminal"):
                 def signature(window):
                     return [[pane_signature(p, expected=True) for p in t["panes"]] for t in window.get("tabs", [])]
@@ -566,11 +609,13 @@ def preserve_restore_target(state: dict[str, Any]) -> dict[str, Any]:
         warning = f"{identity}: restauração pendente; dados desejados anteriores preservados"
         result.setdefault("warnings", []).append(warning)
         result["complete"] = False
-    result["groups"] = layout.groups(result["windows"], result.get("monitors", []))
-    try:
-        result["tile_tree"] = layout.infer_tree([g for g in result["groups"] if not g["floating"]])
-    except (ValueError, TypeError, KeyError):
-        result["tile_tree"] = None
+    if guard.get("pending"):
+        # The guard's desired graph is one internally consistent snapshot. Do
+        # not rebuild group membership from a mix of old targets and live rows.
+        if desired_graph_valid:
+            for key in ("groups", "tile_tree", "grid", "layout_snapshot"):
+                if key in desired_state:
+                    result[key] = copy.deepcopy(desired_state[key])
     atomic_write(STATE_DIR / "RESTORE_GUARD.json", (json.dumps(guard, ensure_ascii=False, sort_keys=True) + "\n").encode())
     return result
 
@@ -621,6 +666,7 @@ def probe_scene(terminal_pids: set[int] | None = None) -> dict[str, Any]:
     live = workspace_clients()
     monitors = layout.monitor_records(hypr_json("monitors"))
     native = layout.metadata(sys.modules[__name__], live) if live else {}
+    grid = grid_exporter.query(WORKSPACE_ID)
     terminals = {}
     for client in live:
         if str(client.get("class", "")).lower() != "kitty":
@@ -636,7 +682,7 @@ def probe_scene(terminal_pids: set[int] | None = None) -> dict[str, Any]:
             terminals[pid] = {"tree": tree, "records": records, "fingerprint": terminal_fingerprint(tree, records)}
         except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
             terminals[pid] = {"error": str(error)}
-    return {"clients": live, "monitors": monitors, "native": native, "terminals": terminals}
+    return {"clients": live, "monitors": monitors, "native": native, "grid": grid, "terminals": terminals}
 
 
 def probe_signature(probe: dict[str, Any], previous: dict[str, Any] | None = None) -> str:
@@ -647,7 +693,7 @@ def probe_signature(probe: dict[str, Any], previous: dict[str, Any] | None = Non
         t = probe["terminals"].get(int(c.get("pid") or 0), {})
         row["terminal"] = t.get("fingerprint", t.get("error", cached.get(int(c.get("pid") or 0))))
         rows.append(row)
-    return json.dumps([sorted(rows, key=lambda r: r["address"]), probe["monitors"], probe["native"]], sort_keys=True)
+    return json.dumps([sorted(rows, key=lambda r: r["address"]), probe["monitors"], probe["native"], probe.get("grid")], sort_keys=True)
 
 
 def snapshot(*, allow_empty: bool = False, promote: bool = True, probe: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -716,10 +762,11 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True, probe: dict[str
                 item["warnings"].append("Aplicativo sem comando de restauração conhecido")
         warnings.extend(f"{item['restore_id']}: {w}" for w in item["warnings"])
         rows.append(item)
-    state = {"schema": 3, "workspace": WORKSPACE_ID, "boot_id": boot_id(),
+    state = {"schema": 4, "workspace": WORKSPACE_ID, "boot_id": boot_id(),
              "updated_at": int(time.time()), "valid": True, "complete": not warnings,
              "windows": rows, "warnings": warnings, "monitors": probe["monitors"]}
-    layout.enrich(state, probe["native"])
+    layout.enrich(state, probe["native"], probe.get("grid"))
+    state["complete"] = not state["warnings"]
     old_capture = load_state(CAPTURE_FILE)
     if not old_capture or scene_signature(old_capture) != scene_signature(state):
         atomic_write(CAPTURE_FILE, (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
@@ -737,7 +784,7 @@ def load_state(path: Path | None = None) -> dict[str, Any] | None:
         return None
     try:
         state = json.loads(path.read_text())
-        if (not isinstance(state, dict) or state.get("schema") not in {1, 2, 3}
+        if (not isinstance(state, dict) or state.get("schema") not in {1, 2, 3, 4}
                 or state.get("workspace") != WORKSPACE_ID or not isinstance(state.get("windows"), list)):
             return None
         if state["schema"] == 1 and not state.get("complete"):
@@ -922,7 +969,9 @@ def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[
                 continue
             command = json.dumps(shlex.join(entry["command"]), ensure_ascii=False)
             # Start isolated: groups and geometry are reconstructed only after opening.
-            dispatch(f'hl.dsp.exec_cmd({command}, {{workspace="{WORKSPACE_ID} silent", float=true, group="barred"}})')
+            # Launch tiled by default. If exact layout reconstruction is unavailable,
+            # Hyprland's native layout still presents the windows instead of stacking floats.
+            dispatch(f'hl.dsp.exec_cmd({command}, {{workspace="{WORKSPACE_ID} silent", group="barred"}})')
             result.update(status="iniciado", action="launch")
             deadline = time.monotonic() + 8
             while time.monotonic() < deadline:
@@ -1009,6 +1058,8 @@ def status() -> int:
         ready = sum(bool(e["command"]) for e in restore_plan(value))
         age = max(0, int(time.time()) - value["updated_at"])
         print(f"{label}: {windows} janelas, {len(value.get('groups', []))} grupos, {tabs} abas, {panes} painéis; {ids}/{len(agents)} IDs; {ready} janelas restauráveis; última alteração salva há {age}s; detecção {'completa' if value.get('complete') else 'parcial'}.")
+        grid = value.get("grid") if isinstance(value.get("grid"), dict) else {}
+        print(f"  Grid: {grid.get('source', 'ausente')}, {grid.get('tiled_leaves', 0)} folhas e {grid.get('split_nodes', 0)} cortes; algoritmo {grid.get('layout', 'desconhecido')}.")
         for warning in value.get("warnings", []):
             print("  PENDÊNCIA:", warning)
     try:
@@ -1043,6 +1094,10 @@ def restoration_in_progress() -> bool:
 
 
 def login_loop() -> int:
+    wait_for_hyprland()
+    _, exporter_error = grid_exporter.ensure_loaded(STATE_DIR, WORKSPACE_ID)
+    if exporter_error:
+        write_restore_status("grid_exporter_unavailable", exporter_error)
     from INTERFACE_MONITOR import monitor
     return monitor(sys.modules[__name__])
 

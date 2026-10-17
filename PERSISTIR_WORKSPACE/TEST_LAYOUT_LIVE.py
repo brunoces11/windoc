@@ -66,6 +66,8 @@ def main():
             results = api.restore(captured, verify_seconds=8)
             if not all(r["status"] == "verificado" for r in results):
                 print(api.RESTORE_STATUS_FILE.read_text())
+                print("grid salvo:", json.dumps({"grid": captured.get("grid"), "tree": captured.get("tile_tree"),
+                                                   "groups": captured.get("groups")}, indent=2))
                 print([(api.window_identity(w), w["at"], w["size"]) for w in api.workspace_clients()])
             assert all(r["status"] == "verificado" for r in results), results
             print("OK: 4 janelas, 3 grupos, 5 abas e divisões horizontal/vertical restaurados com geometria e foco conferidos")

@@ -1544,3 +1544,16 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * Shell recarregado via `omarchy-restart-shell` com código 0 e handshake IPC verificado via `omarchy-shell shell ping` -> `ok`.
   * Validação visual e de runtime confirmando o ícone de volume 7% maior sem afetar os demais.
 
+83. SNAPSHOT NATIVO DO GRID DWINDLE NO WORKSPACE 1
+Data: 17/10/2026. Estado: implementado e validado em teste isolado; reboot completo pendente.
+
+- Antes: o mapa tentava deduzir os cortes do Dwindle pelas caixas visíveis das janelas. Isso perde a proporção original após gaps, bordas e groupbars; uma falha de inferência podia deixar todas as janelas flutuantes.
+- Agora: `PERSISTIR_WORKSPACE/WORKSPACE_GRID_EXPORTER.cpp` exporta, em modo somente leitura, a árvore BSP real de `CSpace`/Dwindle: work area, caixas por nó, eixo e `splitRatio` nativo, folhas, tipo do alvo, membros ordenados, janela ativa e trava dos grupos.
+- `PERSISTIR_WORKSPACE/WORKSPACE_GRID_EXPORTER.py` confere o commit dos headers, inclui os headers usados, o ABI do runtime e o compilador na chave de build, verifica o comando após carregar e guarda o binário/registro somente em `ESTADO_LOCAL/`, ignorado pelo Git. Sem compilador, headers ou hash compatível, a captura fica parcial e usa a inferência antiga como fallback identificada.
+- `WORKSPACE_LAYOUT.py` associa folhas e membros a `restore_id` estáveis e preserva também grupos unitários, que têm groupbar própria. A restauração lê a árvore persistida e suas razões nativas; janelas ausentes são podadas sem alterar os cortes restantes.
+- `WORKSPACE1.py` consulta o exportador na captura, inclui a árvore no detector de mudanças, passa a gravar o schema 4 e abre janelas tiled por padrão. Se uma etapa de replay falhar depois de iniciar, o mecanismo reativa o tiling das folhas gerenciadas; se o exportador falhar antes, o fallback visual é o tiling normal do Hyprland, não janelas flutuantes empilhadas. O guard mantém grupos e árvore do mesmo snapshot consistente, sem inferir uma topologia misturando estado atual e dados antigos.
+- `TEST_WORKSPACE1.py` e `TEST_LAYOUT_LIVE.py` cobrem conversão, validação, grupos unitários, poda e leitura da árvore salva.
+- Validação: 45 testes unitários aprovados; exportador carregado no Hyprland 0.56.2 pelo hash de build e headers; captura real do workspace e ciclo isolado no workspace 85 restauraram quatro janelas, três grupos e cinco abas com posição, grupos e geometria conferidos. O ciclo identificou e corrigiu a groupbar de grupos unitários; também foi coberto o guard antigo com árvore inválida. Nenhuma janela original foi alterada. Ainda falta observar um reboot completo com este novo snapshot nativo.
+- Estado local após a captura: 6 itens no manifesto, 5 comandos restauráveis, 11 abas Kitty, 9 IDs de conversa e 3 folhas tiled ligadas exatamente a 3 grupos. Um PWA Chrome histórico sem comando continua pendente fora da árvore; a captura ao vivo está completa e o manifesto de boot permanece parcial por esse item antigo.
+- Arquivos alterados: `PERSISTIR_WORKSPACE/WORKSPACE_GRID_EXPORTER.cpp`, `WORKSPACE_GRID_EXPORTER.py`, `WORKSPACE_LAYOUT.py`, `WORKSPACE1.py`, `TEST_WORKSPACE1.py`, `TEST_LAYOUT_LIVE.py`, `README.md` e este histórico. A unidade systemd e a configuração do Hyprland existentes foram reutilizadas, sem duplicar links.
+

@@ -294,6 +294,98 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(tree['axis'],0);self.assertEqual(tree['right']['axis'],1)
         self.assertAlmostEqual(tree['ratio'],.59900990099)
 
+    def test_native_grid_maps_exact_tree_boxes_groups_and_order(self):
+        windows = [
+            dict(window('a'*24), address='0x1', at=[10, 10], size=[500, 700], floating=False),
+            dict(window('b'*24), address='0x2', at=[10, 10], size=[500, 700], floating=False),
+            dict(window('c'*24), address='0x3', at=[520, 10], size=[500, 700], floating=False),
+        ]
+        state = {'windows': windows, 'monitors': [], 'warnings': [], 'complete': True}
+        grid = {'layout': 'dwindle', 'build_id': 'build', 'work_area': [0, 0, 1024, 768],
+                'tree': {'kind': 'split', 'axis': 0, 'split_top': False, 'split_ratio': 1.2,
+                         'box': [0, 0, 1024, 768],
+                         'first': {'kind': 'tile', 'box': [0, 0, 614, 768], 'windows': ['0x1', '0x2'],
+                                   'active': '0x2', 'locked': True, 'is_group': True},
+                         'second': {'kind': 'tile', 'box': [614, 0, 410, 768], 'windows': ['0x3'],
+                                    'active': '0x3', 'locked': False, 'is_group': True}}}
+        layout.apply_native_grid(state, grid)
+        self.assertEqual(state['grid']['source'], 'hyprland-native')
+        self.assertAlmostEqual(state['tile_tree']['native_split_ratio'], 1.2)
+        self.assertEqual(state['tile_tree']['box'], [0, 0, 1024, 768])
+        self.assertEqual(state['groups'][0]['members'], ['a'*24, 'b'*24])
+        self.assertEqual(state['groups'][0]['active'], 'b'*24)
+        self.assertTrue(state['groups'][0]['locked'])
+        self.assertTrue(state['groups'][1]['is_group'])  # singleton CGroup keeps its groupbar semantics
+        self.assertEqual(state['windows'][0]['group_members'], ['a'*24, 'b'*24])
+
+    def test_native_grid_rejects_missing_or_repeated_tiles(self):
+        state = {'windows': [dict(window('a'*24), address='0x1', floating=False)], 'monitors': []}
+        duplicate = {'kind': 'split', 'axis': 0, 'split_ratio': 1, 'first':
+                     {'kind': 'tile', 'windows': ['0x1'], 'box': [0, 0, 1, 1]}, 'second':
+                     {'kind': 'tile', 'windows': ['0x1'], 'box': [1, 0, 1, 1]}}
+        with self.assertRaises(ValueError):
+            layout.apply_native_grid(state, {'layout': 'dwindle', 'tree': duplicate})
+
+    def test_native_grid_accepts_workspace_with_only_floating_windows(self):
+        item = dict(window(), address='0x1', at=[20, 30], size=[600, 400], floating=True)
+        state = {'windows': [item], 'monitors': [], 'warnings': []}
+        layout.apply_native_grid(state, {'layout': 'dwindle', 'build_id': 'build',
+                                         'work_area': [0, 0, 1024, 768], 'tree': None})
+        self.assertIsNone(state['tile_tree'])
+        self.assertEqual(state['grid']['source'], 'hyprland-native')
+        self.assertEqual(state['grid']['tiled_leaves'], 0)
+
+    def test_pruning_saved_tree_keeps_original_ratios_and_collapses_missing_leaf(self):
+        tree = {'axis': 0, 'ratio': .6, 'native_split_ratio': 1.2, 'left': {'group': 'kept'},
+                'right': {'axis': 1, 'ratio': .5, 'left': {'group': 'missing'}, 'right': {'group': 'other'}}}
+        pruned = layout.prune_tree(tree, {'kept', 'other'})
+        self.assertEqual(pruned['axis'], 0)
+        self.assertEqual(pruned['ratio'], .6)
+        self.assertEqual(pruned['right'], {'group': 'other'})
+
+    def test_restore_uses_saved_native_tree_without_reinferring_geometry(self):
+        import hashlib
+        from types import SimpleNamespace
+        first, second = 'a'*24, 'b'*24
+        gid_first = hashlib.sha256(first.encode()).hexdigest()[:24]
+        gid_second = hashlib.sha256(second.encode()).hexdigest()[:24]
+        rows = [
+            {'restore_id': first, 'address': '0x1', 'at': [0, 0], 'size': [600, 700], 'floating': False,
+             'fullscreen': 0, 'focus_order': 0, 'monitor_name': 'DP-1'},
+            {'restore_id': second, 'address': '0x2', 'at': [610, 0], 'size': [390, 700], 'floating': False,
+             'fullscreen': 0, 'focus_order': 1, 'monitor_name': 'DP-1'},
+        ]
+        groups = [{'id': gid_first, 'members': [first], 'is_group': False, 'active': first, 'locked': False,
+                   'at': [0, 0], 'size': [600, 700], 'tile_at': [0, 0],
+                   'tile_size': [600, 700], 'floating': False, 'fullscreen': 0, 'layout': 'dwindle'},
+                  {'id': gid_second, 'members': [second], 'is_group': False, 'active': second, 'locked': False,
+                   'at': [610, 0], 'size': [390, 700], 'tile_at': [610, 0],
+                   'tile_size': [390, 700], 'floating': False, 'fullscreen': 0, 'layout': 'dwindle'}]
+        tree = {'axis': 0, 'ratio': .6, 'native_split_ratio': 1.2, 'left': {'group': gid_first},
+                'right': {'group': gid_second}}
+        live = [{'address': '0x1', 'workspace': {'id': 1}, 'focusHistoryID': 0, 'floating': False},
+                {'address': '0x2', 'workspace': {'id': 1}, 'focusHistoryID': 1, 'floating': False}]
+        calls = []
+        api = SimpleNamespace(WORKSPACE_ID=1, clients=lambda: live,
+                              associated_client=lambda item, _live, _boot: next((c for c in live if c['address'] == item['address']), None),
+                              hypr_json=lambda _name: [], dispatch=lambda command: calls.append(command),
+                              run=lambda _args: SimpleNamespace(stdout='ok'))
+        state = {'boot_id': 'boot', 'windows': rows, 'groups': groups, 'tile_tree': tree,
+                 'grid': {'source': 'hyprland-native'}, 'monitors': []}
+        with patch.object(layout, 'infer_tree', side_effect=AssertionError('should use saved tree')):
+            result = layout.restore(api, state)
+        self.assertEqual(result.get('groups'), 2, result)
+        self.assertTrue(any('splitratio 1.20000000 exact' in call for call in calls))
+        calls.clear()
+        def fail_after_staging(command):
+            calls.append(command)
+            if 'splitratio' in command:
+                raise RuntimeError('simulated dispatcher failure')
+        api.dispatch = fail_after_staging
+        failed = layout.restore(api, state)
+        self.assertIn('error', failed)
+        self.assertTrue(any('action="disable"' in call for call in calls[calls.index(next(c for c in calls if 'splitratio' in c))+1:]))
+
     def test_monitor_adaptation_uses_name_and_scale(self):
         group={'at':[100,50],'size':[500,350],'monitor_name':'DP-1','monitor_area':[0,0,1000,700]}
         monitors=[{'id':9,'name':'DP-1','width':2000,'height':1400,'scale':1,'x':0,'y':0}]
@@ -311,5 +403,42 @@ class PersistenceTests(unittest.TestCase):
         changed=copy.deepcopy(observed);changed['windows'][0]['size']=[800,700]
         accepted=ws.preserve_restore_target(changed)
         self.assertEqual(accepted['windows'][0]['size'],[800,700])
+
+    def test_invalid_old_guard_does_not_replace_current_native_tree(self):
+        item = window()
+        item.update(address='0x1', at=[10, 10], size=[900, 700], floating=False,
+                    group_members=[item['restore_id']], group_active=item['restore_id'], group_locked=False)
+        group_id = 'c'*24
+        current_tree = {'group': group_id, 'box': [0, 0, 1024, 768]}
+        current_group = {'id': group_id, 'members': [item['restore_id']], 'is_group': False,
+                         'at': [10, 10], 'size': [900, 700], 'floating': False}
+        actual = {'schema': 4, 'workspace': ws.WORKSPACE_ID, 'boot_id': 'boot', 'updated_at': 2,
+                  'windows': [item], 'groups': [current_group], 'tile_tree': current_tree,
+                  'grid': {'source': 'hyprland-native', 'layout': 'dwindle', 'build_id': 'current-build', 'tiled_leaves': 1},
+                  'complete': True, 'warnings': []}
+        target = copy.deepcopy(actual)
+        target['tile_tree'] = None
+        target['groups'] = []
+        target['grid'] = None
+        observed = copy.deepcopy(actual)
+        guard = {'boot_id': 'boot', 'pending': {item['restore_id']: {}},
+                 'desired': target, 'observed': observed}
+        (ws.STATE_DIR/'RESTORE_GUARD.json').write_text(json.dumps(guard))
+        with patch.object(ws, 'boot_id', return_value='boot'):
+            kept = ws.preserve_restore_target(actual)
+        self.assertEqual(kept['tile_tree'], current_tree)
+        self.assertEqual(kept['groups'], [current_group])
+        self.assertEqual(kept['grid']['source'], 'hyprland-native')
+        old_graph = copy.deepcopy(actual)
+        old_graph['grid']['build_id'] = 'different-compositor-build'
+        old_group_id = 'd'*24
+        old_graph['groups'][0]['id'] = old_group_id
+        old_graph['tile_tree'] = {'group': old_group_id}
+        guard['desired'] = old_graph
+        (ws.STATE_DIR/'RESTORE_GUARD.json').write_text(json.dumps(guard))
+        with patch.object(ws, 'boot_id', return_value='boot'):
+            kept = ws.preserve_restore_target(actual)
+        self.assertEqual(kept['tile_tree'], current_tree)
+        self.assertEqual(kept['grid']['build_id'], actual['grid']['build_id'])
 
 if __name__=='__main__':unittest.main(verbosity=2)

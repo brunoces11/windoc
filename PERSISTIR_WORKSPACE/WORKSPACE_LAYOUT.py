@@ -107,7 +107,119 @@ def infer_tree(items):
     raise ValueError("As divisões observadas não formam uma árvore Dwindle reconstruível")
 
 
-def enrich(state, native=None):
+def _native_tree(node, identities, groups_by_id):
+    if not isinstance(node, dict):
+        raise ValueError("A árvore nativa contém um nó inválido")
+    if node.get("kind") == "split":
+        first = _native_tree(node.get("first"), identities, groups_by_id)
+        second = _native_tree(node.get("second"), identities, groups_by_id)
+        ratio = float(node["split_ratio"])
+        if node.get("axis") not in (0, 1) or not 0.1 <= ratio <= 1.9:
+            raise ValueError("A árvore nativa contém um corte fora dos limites válidos")
+        return {"axis": node["axis"], "ratio": ratio / 2,
+                "native_split_ratio": ratio, "split_top": bool(node.get("split_top")),
+                "box": node.get("box"), "left": first, "right": second}
+    if node.get("kind") != "tile":
+        raise ValueError("A árvore nativa contém um tipo de nó desconhecido")
+    addresses = node.get("windows")
+    members = [identities[address] for address in addresses if address in identities]
+    if not members or len(members) != len(addresses) or len(set(members)) != len(members):
+        raise ValueError("A folha nativa não corresponde a janelas únicas do workspace")
+    group_id = hashlib.sha256("|".join(members).encode()).hexdigest()[:24]
+    if group_id not in groups_by_id:
+        raise ValueError("A folha nativa não possui grupo persistível")
+    return {"group": group_id, "box": node.get("box")}
+
+
+def apply_native_grid(state, grid):
+    """Map the live Dwindle BSP tree and ordered groups to persistent window IDs."""
+    if not isinstance(grid, dict) or grid.get("layout") != "dwindle":
+        raise ValueError("O exportador não retornou uma árvore Dwindle válida")
+
+    by_address = {w.get("address"): w for w in state["windows"] if w.get("address")}
+    identities = {address: row["restore_id"] for address, row in by_address.items()}
+    if grid.get("tree") is None:
+        if any(not w.get("floating") for w in state["windows"]):
+            raise ValueError("O exportador não encontrou a árvore que deveria conter janelas tiled")
+        state["groups"] = groups(state["windows"], state.get("monitors", []))
+        state["tile_tree"] = None
+        state["grid"] = {"source": "hyprland-native", "layout": "dwindle",
+                          "build_id": grid.get("build_id"), "work_area": grid.get("work_area"),
+                          "tiled_leaves": 0, "split_nodes": 0}
+        state["layout_snapshot"] = True
+        return state
+    if not isinstance(grid.get("tree"), dict):
+        raise ValueError("O exportador retornou uma árvore Dwindle inválida")
+    leaves = []
+    leaf_addresses = []
+
+    def collect(node):
+        if node.get("kind") == "split":
+            collect(node["first"])
+            collect(node["second"])
+            return
+        if node.get("kind") != "tile":
+            raise ValueError("A árvore nativa contém um nó desconhecido")
+        addresses = node.get("windows")
+        if not isinstance(addresses, list) or not addresses:
+            raise ValueError("A árvore nativa contém uma folha sem janela")
+        if any(address not in by_address or by_address[address].get("floating") for address in addresses):
+            raise ValueError("A folha nativa contém uma janela ausente ou flutuante")
+        if any(address in leaf_addresses for address in addresses):
+            raise ValueError("Uma janela aparece em mais de uma folha Dwindle")
+        leaf_addresses.extend(addresses)
+        members = [identities[address] for address in addresses]
+        group_id = hashlib.sha256("|".join(members).encode()).hexdigest()[:24]
+        source = by_address[addresses[0]]
+        active_address = node.get("active")
+        group = {"id": group_id, "members": members, "is_group": bool(node.get("is_group", len(members) > 1)),
+                 "active": identities.get(active_address, members[0]), "locked": bool(node.get("locked")),
+                 "at": source.get("at"), "size": source.get("size"),
+                 "tile_at": source.get("normal_at") or source.get("at"),
+                 "tile_size": source.get("normal_size") or source.get("size"),
+                 "floating": False, "fullscreen": source.get("fullscreen", 0),
+                 "monitor_name": source.get("monitor_name"), "monitor_area": source.get("monitor_area"),
+                 "layout": "dwindle", "native_box": node.get("box")}
+        leaves.append((node, group))
+
+    collect(grid["tree"])
+    tiled_addresses = {w.get("address") for w in state["windows"] if w.get("address") and not w.get("floating")}
+    if set(leaf_addresses) != tiled_addresses:
+        raise ValueError("A árvore nativa não cobre exatamente todas as janelas tiled do workspace")
+
+    for node, group in leaves:
+        for address in node["windows"]:
+            row = by_address[address]
+            row["group_members"] = list(group["members"])
+            row["group_active"] = group["active"]
+            row["group_locked"] = group["locked"]
+            row["layout_name"] = "dwindle"
+
+    floating = [g for g in groups(state["windows"], state.get("monitors", [])) if g["floating"]]
+    state["groups"] = [group for _, group in leaves] + floating
+    groups_by_id = {group["id"]: group for group in state["groups"]}
+    state["tile_tree"] = _native_tree(grid["tree"], identities, groups_by_id)
+    state["grid"] = {"source": "hyprland-native", "layout": "dwindle",
+                      "build_id": grid.get("build_id"), "work_area": grid.get("work_area"),
+                      "tiled_leaves": len(leaves), "split_nodes": max(0, len(leaves) - 1)}
+    state["layout_snapshot"] = True
+    return state
+
+
+def prune_tree(node, allowed_groups):
+    """Remove unavailable leaves from a saved tree without changing surviving cuts."""
+    if not isinstance(node, dict):
+        return None
+    if "group" in node:
+        return dict(node) if node["group"] in allowed_groups else None
+    left = prune_tree(node.get("left"), allowed_groups)
+    right = prune_tree(node.get("right"), allowed_groups)
+    if left and right:
+        return {**node, "left": left, "right": right}
+    return left or right
+
+
+def enrich(state, native=None, grid=None):
     native = native or {}
     identities = {w.get("address"): w["restore_id"] for w in state["windows"]}
     for window in state["windows"]:
@@ -121,8 +233,19 @@ def enrich(state, native=None):
         window["monitor_area"] = monitor_area(monitor) if monitor else None
     state["groups"] = groups(state["windows"], state.get("monitors", []))
     state["layout_snapshot"] = True
+    if grid:
+        try:
+            return apply_native_grid(state, grid)
+        except (KeyError, TypeError, ValueError) as error:
+            state["warnings"].append(f"Captura nativa do grid inválida: {error}")
+    else:
+        state["warnings"].append("Árvore nativa do Hyprland indisponível; grid inferido apenas pela geometria")
+    state["complete"] = False
     try:
         state["tile_tree"] = infer_tree([g for g in state["groups"] if not g["floating"]])
+        state["grid"] = {"source": "geometry-inferred", "layout": "dwindle",
+                         "tiled_leaves": sum(not g["floating"] for g in state["groups"]),
+                         "split_nodes": max(0, sum(not g["floating"] for g in state["groups"]) - 1)}
     except (ValueError, TypeError, KeyError) as error:
         state["tile_tree"] = None
         state["warnings"].append(str(error))
@@ -177,10 +300,29 @@ def restore(api, state):
     if any(g.get("layout", "dwindle") != "dwindle" for g in available if not g["floating"]):
         return {"error": "O layout nativo salvo não é Dwindle; reconstrução automática pendente"}
     tiles = [g for g in available if not g["floating"]]
-    try:
-        tree = infer_tree(tiles)
-    except (ValueError, TypeError, KeyError) as error:
-        return {"error": str(error)}  # Validate before changing any live window.
+    saved_tree = state.get("tile_tree")
+    grid_metadata = state.get("grid") if isinstance(state.get("grid"), dict) else {}
+    if saved_tree:
+        tree = prune_tree(saved_tree, {g["id"] for g in tiles})
+    elif tiles and grid_metadata.get("source") == "hyprland-native":
+        return {"error": "O snapshot nativo declara tiled windows, mas não contém a árvore salva"}
+    else:
+        try:
+            tree = infer_tree(tiles)
+        except (ValueError, TypeError, KeyError) as error:
+            return {"error": str(error)}  # Validate before changing any live window.
+    tree_groups = set()
+    def collect_groups(node):
+        if not node:
+            return
+        if "group" in node:
+            tree_groups.add(node["group"])
+            return
+        collect_groups(node.get("left"))
+        collect_groups(node.get("right"))
+    collect_groups(tree)
+    if tree_groups != {g["id"] for g in tiles}:
+        return {"error": "A árvore salva não corresponde exatamente aos grupos tiled disponíveis"}
     monitors = api.hypr_json("monitors")
     wanted_monitor = next((m for m in monitors if any(g.get("monitor_name") == m.get("name") for g in available)), None)
     try:
@@ -242,7 +384,18 @@ def restore(api, state):
         if focus_client:
             api.dispatch(f'hl.dsp.focus({{window={selector(focus_client["address"])}}})')
         return {"groups": len(available), "algorithm": "dwindle", "adapted": state.get("monitors", []) != monitor_records(monitors)}
-    except (OSError, subprocess.SubprocessError, ValueError, KeyError, RuntimeError) as error:
+    except Exception as error:
+        # A dispatcher can fail after staging windows as floats. Re-enable tiling
+        # for every managed saved tile so a partial replay never strands the grid.
+        tiled_ids = {member for group in available if not group["floating"] for member in group["members"]}
+        for identity in tiled_ids:
+            client = associations.get(identity)
+            if not client:
+                continue
+            try:
+                api.dispatch(f'hl.dsp.window.float({{window={selector(client["address"])},action="disable"}})')
+            except Exception:
+                pass
         return {"error": str(error)}
     finally:
         # A manual restore/test must not strand the user on its temporary workspace.
