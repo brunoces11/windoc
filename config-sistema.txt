@@ -1288,3 +1288,15 @@ Data: 16/10/2026. Estado: falha de dispatch corrigida; novo snapshot e reinicial
 - Arquivos: `PERSISTIR_WORKSPACE/WORKSPACE1.py`, `PERSISTIR_WORKSPACE/README.md` e este histórico.
 - Validação: compilação Python, sintaxe Lua do dispatcher gerado via mock, `git diff --check` e `hyprctl configerrors` aprovados. O snapshot local anterior não possui os campos de integridade exigidos e foi rejeitado; não há atualmente snapshot validado para restaurar. Codex antigo sem hook ou ID explícito agora permanece não resolvido, sem inferência temporal.
 - Pendências conhecidas: gerar novo snapshot completo com Workspace 1 povoado e executar teste real entre boots; recriar grupos/abas do Hyprland e restaurar posição, tamanho, monitor e foco por janela ainda não está implementado.
+
+
+68. REDUZIR O PADDING INTERNO DOS BOTÕES DE CONTROLE DO PLAYER AMBEROL
+Data: 17/10/2026. Estado: implementado e validado.
+
+- Redução de 22% no padding interno dos botões de controle musical (voltar faixa, play/pause e avançar faixa), tornando o container de cada botão mais compacto sem alterar o tamanho do glifo/ícone representativo (preservado em 16 * 0.85 = 13.6px).
+- Na dock (tamanho padrão): padding horizontal reduzido de 6.2px para 4.836px (largura do container diminui de 26px para 23.272px); padding vertical reduzido de 5.2px para 4.056px (altura de 24px para 21.712px).
+- No modo compacto da barra superior (24px): padding horizontal reduzido de 4.2px para 3.276px (largura diminui de 22px para 20.152px); padding vertical reduzido de 3.2px para 2.496px (altura de 20px para 18.592px).
+- Os botões secundários (aleatório/shuffle e expandir/popup) permanecem no tamanho original (26x24 / 22x20).
+- Ajustado o cálculo da largura disponível para título/artista na cápsula, alocando dinamicamente o espaço economizado pelos botões mais compactos.
+- Arquivos: `amberol-deskband/components/DeskbandButton.qml`, `amberol-deskband/components/DeskbandCapsule.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
+- Validação: 7 testes Python do instalador, 13 testes QML do Deskband e 116 testes QML da dock aprovados; quickshell recarregado sem erros; status da deskband via IPC confirmado.

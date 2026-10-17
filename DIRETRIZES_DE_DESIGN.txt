@@ -206,3 +206,13 @@
 # Glifos dos cinco controles da cápsula 15% menores (escala 0.85), sem alterar
 # a área clicável; espaçamento horizontal cai mais 30%, de 2.21px para 1.547px.
 # Glifos alinhados ao centro horizontal e vertical da área inteira de cada botão.
+
+
+# Ajuste de 17/10/2026 — botões de controle musical do Amberol mais compactos (padding -22%)
+# Redução de 22% no padding interno dos 3 botões de controle de mídia (faixa anterior, play/pause e próxima faixa),
+# tornando seus containers mais compactos sem alterar o tamanho do glifo/ícone representativo (16 * 0.85 = 13.6px).
+# Na dock (padrão): padding horizontal cai de 6.2px para 4.836px (largura de 26px para 23.272px);
+# padding vertical cai de 5.2px para 4.056px (altura de 24px para 21.712px).
+# No modo compacto da barra superior: padding horizontal cai de 4.2px para 3.276px (largura de 22px para 20.152px);
+# padding vertical cai de 3.2px para 2.496px (altura de 20px para 18.592px).
+# Os demais botões da cápsula (aleatório e expansão) mantêm as dimensões originais (26x24 / 22x20).
