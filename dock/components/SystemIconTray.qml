@@ -47,9 +47,9 @@ Item {
         : []
 
     readonly property real baseIconSize: dockPanel ? dockPanel.iconBaseSize : 22
-    readonly property real chevronWidth: 22
-    readonly property real itemSlotWidth: 26
-    readonly property real slotSpacing: 2
+    readonly property real chevronWidth: 19
+    readonly property real itemSlotWidth: 21
+    readonly property real slotSpacing: 1.46
 
     implicitWidth: chevronWidth + (pinnedWidgets.length * itemSlotWidth) + (pinnedWidgets.length > 0 ? (pinnedWidgets.length * slotSpacing) : 0)
     implicitHeight: parent ? parent.height : (dockPanel ? dockPanel.slotSize : 32)
@@ -76,7 +76,7 @@ Item {
                 anchors.centerIn: parent
                 textFormat: Text.PlainText
                 text: (dockPanel && dockPanel.trayOverflowOpened) ? "󰅀" : "󰅃"
-                font.pixelSize: 14
+                font.pixelSize: 12
                 font.family: Style.font.family
                 color: chevronMouse.containsMouse || (dockPanel && dockPanel.trayOverflowOpened)
                     ? Color.accent
@@ -152,7 +152,7 @@ Item {
                             if (modelData === "omarchy.monitor") return "󰍹"
                             return dockPanel ? dockPanel.getWidgetIcon(modelData, null) : "󰒓"
                         }
-                        font.pixelSize: 17
+                        font.pixelSize: 14
                         font.family: Style.font.family
                         color: {
                             if (modelData === "omarchy.network" && dockPanel && !dockPanel.networkHasInternet) {

@@ -936,8 +936,8 @@ Item {
     readonly property real desktopSlotWidth: 10
     readonly property real traySlotWidth: {
         var pinned = (root.systemTrayPinnedWidgets && Array.isArray(root.systemTrayPinnedWidgets)) ? root.systemTrayPinnedWidgets : []
-        if (pinned.length === 0) return 24
-        return 24 + (pinned.length * 26) + (pinned.length * 2)
+        if (pinned.length === 0) return 21
+        return Math.round(21 + (pinned.length * 21) + (pinned.length * 1.46))
     }
 
     readonly property bool trayOverflowOpened: (typeof trayOverflowPopup !== "undefined" && trayOverflowPopup) ? trayOverflowPopup.opened : false

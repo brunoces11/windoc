@@ -186,10 +186,10 @@ PanelWindow {
     readonly property int gridRows: Math.max(1, Math.ceil(totalItems / gridCols))
 
     // Spacing and sizing tokens
-    // Standard tray icon size matches pinned taskbar glyphs (17px)
-    readonly property real iconPixelSize: 17
-    // Spacing between icons matches taskbar slot spacing (2px)
-    readonly property real itemSpacing: 2
+    // Standard tray icon size matches pinned taskbar glyphs (14px, reduced by 15%)
+    readonly property real iconPixelSize: 14
+    // Spacing between icons matches taskbar slot spacing (1.46px, reduced by 27%)
+    readonly property real itemSpacing: 1.46
     // Padding inside the card/grid reduced to 7px (total 14px) for a compact 10% smaller pop-up
     readonly property real gridPadding: 7
     // Slot size reduced by 10% (44px -> 40px)

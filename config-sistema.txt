@@ -1469,3 +1469,29 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em sessão ativa.
 
 
 
+
+80. COMPACTAÇÃO DA SYSTEM ICON TRAY: REDUÇÃO DE ÍCONES (-15%) E ESPAÇAMENTO (-27%)
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Redução e compactação geométrica dos elementos da bandeja de ícones (System Icon Tray) no WinDock:
+  - Redução uniforme de 15% no tamanho de todos os ícones da bandeja:
+    * Ícones fixados na barra inferior (`dock/components/SystemIconTray.qml`): `font.pixelSize` reduzido de 17px para 14px (17 * 0.85 = 14.45px, arredondado para 14px para máxima nitidez).
+    * Ícone chevron de expansão (`^`): `font.pixelSize` reduzido de 14px para 12px (14 * 0.85 = 11.9px).
+    * Ícones da grade do menu overflow (`dock/components/TrayOverflowPopup.qml`): `iconPixelSize` reduzido de 17px para 14px, mantendo estrita paridade visual entre bandeja e menu.
+  - Redução de 27% no espaçamento entre os ícones para compacidade harmoniosa:
+    * Espaçamento entre slots (`slotSpacing` e `itemSpacing`): reduzido de 2px para 1.46px (2 * (1 - 0.27) = 1.46px).
+    * Largura individual do slot na barra inferior (`itemSlotWidth`): compactada de 26px para 21px, reduzindo a distância visual vazia entre glifos adjacentes de 11px para ~8px (-27%).
+    * Largura do botão chevron (`chevronWidth`): ajustada de 22px para 19px, mantendo padding interno simétrico de 3.5px alinhado aos slots fixados.
+    * Largura total alocada na dock (`dock/DockPanel.qml: traySlotWidth`): fórmula recalculada dinamicamente para `Math.round(21 + (pinned.length * 21) + (pinned.length * 1.46))`, reduzindo a pegada horizontal da bandeja de 164px para 133px (economia de 31px para 5 widgets fixados).
+- Arquivos modificados:
+  * `dock/components/SystemIconTray.qml`: aplicação dos novos tokens de tamanho de glifo (14px e 12px), slotWidth (21px), chevronWidth (19px) e slotSpacing (1.46px).
+  * `dock/DockPanel.qml`: atualização da propriedade `traySlotWidth` para sincronia exata de geometria com a SystemIconTray.
+  * `dock/components/TrayOverflowPopup.qml`: atualização de `iconPixelSize` (14px) e `itemSpacing` (1.46px).
+  * `DIRETRIZES_DE_DESIGN.txt`: atualização autoritativa dos padrões dos COMPONENTES 02 e 04.
+  * Este histórico.
+- Validação técnica executada:
+  * 26 testes de integridade unitários da dock (`dock/tests/test_dock_minimize.py`) aprovados.
+  * 39 testes do monitor de workspace (`PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py`) aprovados (total 65 testes).
+  * Shell recarregado via `omarchy-restart-shell` com código 0 e handshake IPC verificado com sucesso via `omarchy-shell shell ping` -> `ok`.
+  * Instância do Quickshell ativa e saudável com zero erros de renderização.
+

@@ -99,19 +99,19 @@
 # ------------------------------------------------------------------------------
 # Dimensões e espaçamentos da janela pop-up que exibe os ícones ocultos da bandeja (^):
 #   * Glifo do Ícone (Glyph Size):
-#       - Tamanho: 17px (`font.pixelSize: 17`) — rigorosamente idêntico ao tamanho
+#       - Tamanho: 14px (`font.pixelSize: 14`) — redução uniforme de 15% (de 17px para 14px; chevron de 14px para 12px), rigorosamente idêntico ao tamanho
 #         dos ícones fixados na barra de tarefas padrão (`SystemIconTray.qml`).
 #       - Família tipográfica: Style.font.family.
 #   * Espaçamento Entre Ícones (Item Spacing):
-#       - `rowSpacing: 2` e `columnSpacing: 2` — rigorosamente idêntico ao espaçamento
-#         entre ícones da barra de tarefas padrão (`trayRoot.slotSpacing = 2`).
+#       - `rowSpacing: 1.46` e `columnSpacing: 1.46` — redução de 27% (de 2px para 1.46px), rigorosamente idêntico ao espaçamento
+#         entre ícones da barra de tarefas padrão (`trayRoot.slotSpacing = 1.46`).
 #   * Padding Interno do Grid (Card Padding):
 #       - `gridPadding: 7` (redução de 10% para compacidade extrema, resultando
 #         em 14px totais no eixo horizontal e vertical).
 #   * Dimensões do Slot e Card:
 #       - Slot individual: 40x40 px (`radius: 6`, redução de 10% em relação aos 44px originais).
-#       - Card acrílico: `width = (gridCols * 40) + ((gridCols - 1) * 2) + 14`
-#                        `height = (gridRows * 40) + ((gridRows - 1) * 2) + 14`
+#       - Card acrílico: `width = (gridCols * 40) + ((gridCols - 1) * 1.46) + 14`
+#                        `height = (gridRows * 40) + ((gridRows - 1) * 1.46) + 14`
 #       - Raio de curvatura do card: 10px (`radius: 10`).
 #   * Superfície e Contorno:
 #       - Cor de Fundo: `Color.popups.background`.
@@ -141,7 +141,7 @@
 # ------------------------------------------------------------------------------
 # As funções removidas de omarchy.indicators aparecem no catálogo e como pins
 # iniciais da System Icon Tray, na barra inferior. Preserve o mesmo estilo visual:
-# glifo de 17px no overflow e 17px nos slots da barra; espaçamento de 2px; tooltip
+# glifo de 14px no overflow e 14px nos slots da barra; espaçamento de 1.46px; tooltip
 # a 6px do ícone, seguindo COMPONENTES 01 e 02. Não criar uma segunda barra, painel
 # ou cópia das ações. IDs/ícones/títulos vivem em dock/SystemTrayIndicators.js.
 #
