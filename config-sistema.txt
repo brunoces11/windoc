@@ -1275,3 +1275,16 @@ Data: 16/10/2026. Estado: implementado e validado.
 - Super+F6 chama Previous do MPRIS do Amberol; Super+F8 chama Next. Funcionam globalmente no Hyprland enquanto o Amberol estiver aberto.
 - Arquivos: `hyprland/bindings.lua` e este histórico.
 - Validação: Super+F6 e Super+F8 registrados ativos com modificador Super; `hyprctl reload` e `hyprctl configerrors` aprovados. O Amberol está aberto e expõe os métodos MPRIS Previous/Next; não alterei a faixa durante a validação.
+
+
+67. CORRIGIR A RESTAURAÇÃO DO WORKSPACE 1 NO HYPRLAND LUA
+Data: 16/10/2026. Estado: falha de dispatch corrigida; novo snapshot e reinicialização de ponta a ponta ainda pendentes.
+
+- A causa do desktop vazio foi o uso do formato antigo `[workspace 1 silent] comando` em `hyprctl dispatch`. O Hyprland instalado é 0.56.2 e interpreta dispatchers como Lua; o comando anterior não abria as janelas.
+- A restauração agora foca o Workspace 1 e usa `hl.dsp.exec_cmd(...)`. Erros de dispatch ficam registrados em `ESTADO_LOCAL/RESTORE_STATUS.json`.
+- Snapshots Kitty são gravados em arquivos imutáveis por conteúdo e só são publicados no manifesto após validar todos os painéis de agente; o estado antigo permanece se a captura falhar. O manifesto exige `complete=true`, nenhum aviso e IDs/estrutura de painel válidos.
+- A conferência pós-restauração verifica as classes das janelas e os IDs ativos associados aos índices de aba/painel e diretórios. O status reporta o último snapshot durável e o estado da restauração sem confundir uma captura vazia recente com sucesso.
+- A identificação agora usa o executável do agente e só aceita ID na linha de comando quando aparece após a opção explícita de retomada. A correlação temporal ambígua com logs compartilhados do Codex foi removida; hooks de painel precisam ser posteriores ao início do processo ativo para evitar reaproveitar ID antigo. Se várias janelas Hyprland compartilharem o mesmo processo Kitty, a captura falha fechada em vez de duplicar a sessão.
+- Arquivos: `PERSISTIR_WORKSPACE/WORKSPACE1.py`, `PERSISTIR_WORKSPACE/README.md` e este histórico.
+- Validação: compilação Python, sintaxe Lua do dispatcher gerado via mock, `git diff --check` e `hyprctl configerrors` aprovados. O snapshot local anterior não possui os campos de integridade exigidos e foi rejeitado; não há atualmente snapshot validado para restaurar. Codex antigo sem hook ou ID explícito agora permanece não resolvido, sem inferência temporal.
+- Pendências conhecidas: gerar novo snapshot completo com Workspace 1 povoado e executar teste real entre boots; recriar grupos/abas do Hyprland e restaurar posição, tamanho, monitor e foco por janela ainda não está implementado.

@@ -8,13 +8,13 @@ Agent adapters store immutable session IDs; titles are deliberately ignored.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
 import re
 import shlex
 import shutil
 import signal
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -29,6 +29,7 @@ if os.environ.get("WORKSPACE1_STATE_DIR"):
     STATE_DIR = Path(os.environ["WORKSPACE1_STATE_DIR"])
 STATE_FILE = STATE_DIR / "WORKSPACE1.json"
 CAPTURE_FILE = STATE_DIR / "LATEST_CAPTURE.json"
+RESTORE_STATUS_FILE = STATE_DIR / "RESTORE_STATUS.json"
 AGENT_IDS_FILE = STATE_DIR / "AGENT_IDS.json"
 LOCK_FILE = STATE_DIR / "WORKSPACE1.lock"
 WORKSPACE_ID = 1
@@ -75,28 +76,27 @@ def process_command(process: dict[str, Any]) -> list[str]:
     return [str(part) for part in value]
 
 
-def process_environ(pid: int) -> dict[str, str]:
-    try:
-        raw = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
-    except OSError:
-        return {}
-    result: dict[str, str] = {}
-    for entry in raw:
-        if b"=" not in entry:
-            continue
-        key, value = entry.split(b"=", 1)
-        name = key.decode(errors="ignore")
-        if name in {"CODEX_HOME", "HOME", "KITTY_PID", "KITTY_WINDOW_ID"}:
-            result[name] = value.decode(errors="ignore")
-    return result
-
-
 def process_start_ticks(pid: int) -> str | None:
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
         fields = stat[stat.rfind(")") + 2 :].split()
         return fields[19]
     except (OSError, IndexError):
+        return None
+
+
+def process_start_epoch(pid: int) -> int | None:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        stat_fields = stat[stat.rfind(")") + 2 :].split()
+        start_ticks = int(stat_fields[19])
+        boot_time = next(
+            int(line.split()[1])
+            for line in Path("/proc/stat").read_text().splitlines()
+            if line.startswith("btime ")
+        )
+        return boot_time + start_ticks // os.sysconf("SC_CLK_TCK")
+    except (OSError, StopIteration, ValueError, IndexError):
         return None
 
 
@@ -110,7 +110,11 @@ def register_session_id(agent: str, pid: int, session_id: str, start_ticks: str 
             current = json.loads(AGENT_IDS_FILE.read_text()) if AGENT_IDS_FILE.exists() else {}
         except (OSError, ValueError):
             current = {}
+        if not isinstance(current, dict):
+            current = {}
         record = current.get(str(pid), {})
+        if not isinstance(record, dict):
+            record = {}
         if (record.get("agent") == agent and record.get("session_id") == session_id
                 and record.get("start_ticks") == start_ticks and record.get("id_method") == method):
             return
@@ -146,74 +150,58 @@ def process_mapped_files(pid: int) -> list[str]:
     return [line.rsplit(maxsplit=1)[-1] for line in lines if len(line.split()) > 5 and line.rsplit(maxsplit=1)[-1].startswith("/")]
 
 
-def uuid_from_args(argv: list[str]) -> str | None:
-    return next((arg for arg in argv if UUID_RE.fullmatch(arg)), None)
+def session_id_from_resume_args(agent: str, argv: list[str]) -> str | None:
+    """Accept an ID only when it follows that agent's explicit resume option."""
+    tokens = list(argv)
+    if agent == "codex":
+        for index, token in enumerate(tokens[:-1]):
+            if token == "resume" and UUID_RE.fullmatch(tokens[index + 1]):
+                return tokens[index + 1]
+    elif agent == "claude-code":
+        for index, token in enumerate(tokens):
+            if token == "--resume":
+                if index + 1 < len(tokens) and valid_agent_session_id(agent, tokens[index + 1]):
+                    return tokens[index + 1]
+            if token.startswith("--resume=") and valid_agent_session_id(agent, token.split("=", 1)[1]):
+                return token.split("=", 1)[1]
+    elif agent == "antigravity":
+        for index, token in enumerate(tokens):
+            if token == "--conversation" and index + 1 < len(tokens) and UUID_RE.fullmatch(tokens[index + 1]):
+                return tokens[index + 1]
+            if token.startswith("--conversation=") and UUID_RE.fullmatch(token.split("=", 1)[1]):
+                return token.split("=", 1)[1]
+    return None
 
 
 def detect_agent(argv: list[str]) -> str | None:
-    text = " ".join(argv).lower()
-    if "codex" in text:
+    if not argv:
+        return None
+    executable = Path(argv[0]).name.lower()
+    args = [token.lower() for token in argv[1:]]
+    if executable in {"codex", "codex-tui", "codex-cli"} or any(
+        token.endswith("/@openai/codex/bin/codex.js") or token.endswith("/@openai/codex/bin/codex")
+        for token in args
+    ):
         return "codex"
-    if "claude" in text:
+    if executable in {"claude", "claude-code"}:
         return "claude-code"
-    if "antigravity" in text or re.search(r"(?:^|[/ ])agy(?:$| )", text):
+    if executable in {"agy", "antigravity"}:
         return "antigravity"
     return None
 
 
-def codex_session_id(pid: int) -> tuple[str | None, str]:
-    """Map the TUI PID to its thread ID through its startup event and app-server logs.
-
-    Codex currently logs TUI events with a PID-scoped process_uuid and thread
-    lifecycle events with thread_id in the shared local SQLite log. The IDs are
-    accepted only when one thread event is within 250 ms of this TUI's startup.
-    Schema changes or ambiguous matches fail closed.
-    """
-    env = process_environ(pid)
-    codex_home = Path(env.get("CODEX_HOME", str(Path.home() / ".codex")))
-    db = codex_home / "logs_2.sqlite"
-    if not db.is_file():
-        return None, "codex-log-db-unavailable"
-    try:
-        uri = db.as_uri() + "?mode=ro"
-        with sqlite3.connect(uri, uri=True, timeout=0.05) as conn:
-            startup = conn.execute(
-                "SELECT ts, ts_nanos FROM logs "
-                "WHERE process_uuid LIKE ? AND module_path='codex_tui::app::startup' "
-                "ORDER BY ts DESC, ts_nanos DESC LIMIT 1",
-                (f"pid:{pid}:%",),
-            ).fetchone()
-            if not startup:
-                return None, "codex-startup-event-unavailable"
-            sec, nanos = startup
-            center = int(sec) * 1_000_000_000 + int(nanos)
-            rows = conn.execute(
-                "SELECT thread_id, ts, ts_nanos FROM logs "
-                "WHERE thread_id IS NOT NULL AND ts BETWEEN ? AND ?",
-                (int(sec) - 1, int(sec) + 1),
-            ).fetchall()
-        matches: dict[str, int] = {}
-        for thread_id, row_sec, row_nanos in rows:
-            if not UUID_RE.fullmatch(str(thread_id)):
-                continue
-            delta = abs(int(row_sec) * 1_000_000_000 + int(row_nanos) - center)
-            if delta <= 250_000_000:
-                matches[str(thread_id)] = min(delta, matches.get(str(thread_id), delta))
-        if not matches:
-            return None, "codex-thread-id-not-correlated"
-        if len(matches) != 1:
-            return None, "codex-thread-id-ambiguous"
-        return next(iter(matches)), "codex-process-startup-correlation"
-    except (sqlite3.Error, OSError, ValueError):
-        return None, "codex-log-schema-unavailable"
-
-
-def pane_registry_record(agent: str, kitty_pid: int, kitty_window_id: int) -> dict[str, Any] | None:
+def pane_registry_record(agent: str, kitty_pid: int, kitty_window_id: int, agent_pid: int) -> dict[str, Any] | None:
     try:
         registry = json.loads(AGENT_IDS_FILE.read_text())
+        if not isinstance(registry, dict):
+            return None
         record = registry.get(f"kitty:{kitty_pid}:{kitty_window_id}")
+        started = process_start_epoch(agent_pid)
         if (record and record.get("agent") == agent
-                and record.get("kitty_start_ticks") == process_start_ticks(kitty_pid)):
+                and record.get("kitty_start_ticks") == process_start_ticks(kitty_pid)
+                and started is not None
+                and isinstance(record.get("updated_at"), int)
+                and record["updated_at"] >= started - 2):
             return record
     except (OSError, ValueError, AttributeError):
         pass
@@ -232,7 +220,11 @@ def session_id_for(
     pid = int(process.get("pid") or 0)
     start_ticks = process_start_ticks(pid)
     argv = process_command(process)
-    pane_record = pane_registry_record(agent, kitty_pid, kitty_window_id)
+    direct = session_id_from_resume_args(agent, argv)
+    if direct:
+        register_session_id(agent, pid, direct, start_ticks, "explicit-resume-arguments")
+        return direct, "explicit-resume-arguments", "active"
+    pane_record = pane_registry_record(agent, kitty_pid, kitty_window_id, pid)
     if pane_record:
         if pane_record.get("state") == "empty" and not pane_record.get("has_user_turn"):
             return None, str(pane_record.get("id_method") or "agent-session-start"), "empty"
@@ -241,10 +233,6 @@ def session_id_for(
             return str(pane_id), str(pane_record.get("id_method") or "official-agent-hook"), "active"
         if pane_record.get("has_user_turn"):
             return None, str(pane_record.get("id_method") or "agent-session-id-missing"), "unresolved"
-    direct = uuid_from_args(argv)
-    if direct:
-        register_session_id(agent, pid, direct, start_ticks, "process-arguments")
-        return direct, "process-arguments", "active"
     try:
         registered = json.loads(AGENT_IDS_FILE.read_text()).get(str(pid), {})
         registered_id = registered.get("session_id") if registered.get("agent") == agent else None
@@ -277,10 +265,7 @@ def session_id_for(
                 return match.group(1), "process-open-transcript", "active"
         return None, "claude-transcript-not-open", "unresolved"
     if agent == "codex":
-        session_id, method = codex_session_id(pid)
-        if session_id:
-            register_session_id(agent, pid, session_id, start_ticks, method)
-        return session_id, method, "active" if session_id else "unresolved"
+        return None, "codex-session-hook-unavailable", "unresolved"
     return None, "adapter-not-installed", "unresolved"
 
 
@@ -309,7 +294,7 @@ def agent_records(kitty_pid: int, tree: list[dict[str, Any]]) -> dict[int, dict[
     records: dict[int, dict[str, Any]] = {}
     for os_window in tree:
         for tab_index, tab in enumerate(os_window.get("tabs", [])):
-            for window in tab.get("windows", []):
+            for pane_index, window in enumerate(tab.get("windows", [])):
                 proc = foreground_process(window)
                 if not proc:
                     continue
@@ -331,6 +316,7 @@ def agent_records(kitty_pid: int, tree: list[dict[str, Any]]) -> dict[int, dict[
                     "id_method": method,
                     "state": state,
                     "kitty_tab_index": tab_index,
+                    "kitty_pane_index": pane_index,
                     "kitty_tab_title": str(tab.get("title") or ""),
                     "kitty_window_id": window_id,
                     "cwd": str(window.get("cwd") or ""),
@@ -375,7 +361,7 @@ def patch_native_session(text: str, records: dict[int, dict[str, Any]]) -> tuple
             line = "launch " + " ".join(shlex.quote(token) for token in parts[1:])
             summary.append({k: record[k] for k in (
                 "agent", "session_id", "id_method", "state", "kitty_tab_index",
-                "kitty_tab_title", "kitty_window_id", "cwd",
+                "kitty_pane_index", "kitty_tab_title", "kitty_window_id", "cwd",
             )})
         output.append(line)
     return "\n".join(output) + "\n", summary
@@ -394,6 +380,11 @@ def atomic_write(path: Path, data: bytes, mode: int = 0o600) -> None:
             out.flush()
             os.fsync(out.fileno())
         os.replace(temp, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
     finally:
         temp.unlink(missing_ok=True)
 
@@ -407,14 +398,19 @@ def save_kitty_session(pid: int, records: dict[int, dict[str, Any]]) -> tuple[st
         kitty_call(pid, "action", "save_as_session", "--save-only", "--use-foreground-process", str(temp))
         raw = temp.read_text(encoding="utf-8")
         rendered, found = patch_native_session(raw, records)
-        name = f"KITTY-{pid}.session"
-        destination = STATE_DIR / name
-        atomic_write(destination, rendered.encode(), 0o600)
         complete = len(found) == len(records) and all(
             record.get("state") == "empty"
             or (record.get("state") == "active" and valid_agent_session_id(record.get("agent", ""), record.get("session_id")))
             for record in found
         )
+        if not complete:
+            return "", "agent-id-incomplete"
+        # Immutable content-addressed sessions keep the previous durable manifest
+        # usable until the entire new snapshot has passed validation.
+        digest = hashlib.sha256(rendered.encode()).hexdigest()[:16]
+        name = f"KITTY-{pid}-{digest}.session"
+        destination = STATE_DIR / name
+        atomic_write(destination, rendered.encode(), 0o600)
         return name, "ok" if complete else "agent-id-incomplete"
     finally:
         temp.unlink(missing_ok=True)
@@ -424,7 +420,13 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
     STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     warnings: list[str] = []
-    for client in workspace_clients():
+    live_clients = workspace_clients()
+    kitty_pid_counts: dict[int, int] = {}
+    for client in live_clients:
+        if str(client.get("class") or "").lower() == "kitty":
+            pid = int(client.get("pid") or 0)
+            kitty_pid_counts[pid] = kitty_pid_counts.get(pid, 0) + 1
+    for client in live_clients:
         item: dict[str, Any] = {
             "class": str(client.get("class") or ""),
             "initial_class": str(client.get("initialClass") or ""),
@@ -436,6 +438,11 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
         }
         if item["class"].lower() == "kitty":
             pid = int(client.get("pid") or 0)
+            if kitty_pid_counts.get(pid, 0) > 1:
+                item.update({"kind": "kitty", "error": "shared-kitty-process"})
+                warnings.append(f"kitty {pid}: várias janelas Hyprland compartilham o processo; associação por janela ainda não é segura")
+                rows.append(item)
+                continue
             try:
                 tree = json.loads(kitty_call(pid, "ls").stdout)
                 records = agent_records(pid, tree)
@@ -443,20 +450,20 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
                 item.update({"kind": "kitty", "session_file": filename, "agent_sessions": [
                     {k: v for k, v in record.items() if k in (
                         "agent", "session_id", "id_method", "state", "kitty_tab_index",
-                        "kitty_tab_title", "kitty_window_id", "cwd",
+                        "kitty_pane_index", "kitty_tab_title", "kitty_window_id", "cwd",
                     )}
                     for record in records.values()
                 ]})
                 if result != "ok":
-                    unresolved = sum(record.get("state") == "unresolved" for record in records.values())
-                    if unresolved:
-                        warnings.append(f"kitty {pid}: {unresolved} painel(is) ativo(s) sem ID verificável")
+                    warnings.append(f"kitty {pid}: sessão Kitty não passou pela validação integral")
             except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
                 item.update({"kind": "kitty", "error": type(error).__name__})
                 warnings.append(f"kitty {pid}: captura nativa falhou ({type(error).__name__})")
         else:
             item["kind"] = "application"
             item["restore_command"] = application_command(item["class"])
+            if not item["restore_command"]:
+                warnings.append(f"aplicativo sem adaptador de restauração: {item['class'] or 'classe desconhecida'}")
         rows.append(item)
     state = {
         "schema": 1,
@@ -487,6 +494,10 @@ def application_command(app_class: str) -> list[str] | None:
 
 def restore(state: dict[str, Any]) -> list[str]:
     restored: list[str] = []
+    # Switch first so Lua exec_cmd launches into the intended workspace.
+    focus = run(["hyprctl", "dispatch", "hl.dsp.focus({workspace=1})"], check=False)
+    if focus.returncode != 0 or "error" in focus.stdout.lower():
+        raise RuntimeError(f"Não foi possível focar o Workspace 1: {focus.stdout.strip()} {focus.stderr.strip()}".strip())
     for item in state.get("windows", []):
         if item.get("kind") == "kitty":
             session = STATE_DIR / str(item.get("session_file", ""))
@@ -497,10 +508,16 @@ def restore(state: dict[str, Any]) -> list[str]:
             command = item.get("restore_command")
             if not isinstance(command, list) or not command:
                 continue
-        dispatch = f"[workspace {WORKSPACE_ID} silent] {shlex.join(command)}"
-        result = run(["hyprctl", "dispatch", "exec", dispatch], check=False)
-        if result.returncode == 0:
+        # Hyprland 0.55+ uses Lua dispatchers. The old `[workspace N] command`
+        # syntax is parsed as invalid Lua and can report success without a window.
+        lua_command = json.dumps(shlex.join(command), ensure_ascii=False)
+        dispatcher = f"hl.dsp.exec_cmd({lua_command})"
+        result = run(["hyprctl", "dispatch", dispatcher], check=False)
+        output = (result.stdout + result.stderr).strip()
+        if result.returncode == 0 and not output.lower().startswith("error") and "syntax error" not in output.lower():
             restored.append(str(item.get("class") or command[0]))
+        else:
+            raise RuntimeError(f"Falha ao iniciar {item.get('class') or command[0]} no Workspace 1: {output}")
     return restored
 
 
@@ -516,11 +533,79 @@ def restorable_window_count(state: dict[str, Any]) -> int:
     return count
 
 
+def restore_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
+    """Require window classes and recorded active chat IDs to match before promotion."""
+    expected_windows = expected.get("windows", [])
+    observed_windows = observed.get("windows", [])
+    if len(expected_windows) != len(observed_windows):
+        return False
+    expected_classes = sorted(str(item.get("class", "")).casefold() for item in expected_windows)
+    observed_classes = sorted(str(item.get("class", "")).casefold() for item in observed_windows)
+    if expected_classes != observed_classes:
+        return False
+
+    def active_sessions(state: dict[str, Any]) -> list[tuple[str, str, int, int, str]]:
+        return sorted(
+            (
+                str(agent.get("agent", "")),
+                str(agent.get("session_id", "")),
+                int(agent.get("kitty_tab_index", -1)),
+                int(agent.get("kitty_pane_index", -1)),
+                str(agent.get("cwd", "")),
+            )
+            for window in state.get("windows", [])
+            for agent in window.get("agent_sessions", [])
+            if agent.get("state") == "active"
+        )
+
+    return active_sessions(expected) == active_sessions(observed)
+
+
+def write_restore_status(status: str, message: str, **details: Any) -> None:
+    record = {
+        "updated_at": int(time.time()),
+        "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+        "status": status,
+        "message": message,
+        **details,
+    }
+    atomic_write(RESTORE_STATUS_FILE, (json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+
+
 def load_state() -> dict[str, Any] | None:
     try:
         state = json.loads(STATE_FILE.read_text())
-        if state.get("schema") == 1 and state.get("workspace") == WORKSPACE_ID and state.get("complete", True):
-            return state
+        if (not isinstance(state, dict) or state.get("schema") != 1
+                or state.get("workspace") != WORKSPACE_ID
+                or state.get("complete") is not True
+                or state.get("warnings") != []
+                or not isinstance(state.get("windows"), list)):
+            return None
+        for item in state["windows"]:
+            if not isinstance(item, dict):
+                return None
+            if item.get("kind") == "kitty":
+                name = item.get("session_file")
+                if not isinstance(name, str) or Path(name).name != name:
+                    return None
+                session = STATE_DIR / name
+                if not session.is_file() or session.parent != STATE_DIR:
+                    return None
+                agents = item.get("agent_sessions")
+                if not isinstance(agents, list):
+                    return None
+                for agent in agents:
+                    if not isinstance(agent, dict):
+                        return None
+                    if agent.get("state") == "active" and not valid_agent_session_id(agent.get("agent", ""), agent.get("session_id")):
+                        return None
+                    if agent.get("state") not in {"active", "empty"}:
+                        return None
+                    if not isinstance(agent.get("kitty_tab_index"), int) or not isinstance(agent.get("kitty_pane_index"), int):
+                        return None
+            elif not (isinstance(item.get("restore_command"), list) and item["restore_command"]):
+                return None
+        return state
     except (OSError, ValueError, AttributeError):
         pass
     return None
@@ -528,17 +613,28 @@ def load_state() -> dict[str, Any] | None:
 
 def status() -> int:
     try:
-        state = json.loads(CAPTURE_FILE.read_text())
+        capture = json.loads(CAPTURE_FILE.read_text())
     except (OSError, ValueError):
-        state = load_state()
+        capture = None
+    state = load_state()
+    try:
+        restore_status = json.loads(RESTORE_STATUS_FILE.read_text())
+    except (OSError, ValueError):
+        restore_status = None
     if not state:
-        print("Estado local ainda não existe.")
+        print("Não há snapshot completo e validado para restaurar.")
+        if capture:
+            print(f"Última tentativa: {len(capture.get('windows', []))} janela(s); completa={capture.get('complete', False)}.")
+            for warning in capture.get("warnings", []):
+                print("AVISO:", warning)
+        if restore_status:
+            print(f"Restauração: {restore_status.get('status', 'desconhecida')} — {restore_status.get('message', '')}")
         return 1
     sessions = [a for w in state.get("windows", []) for a in w.get("agent_sessions", [])]
     relevant = [a for a in sessions if a.get("state") != "empty"]
     known = sum(bool(a.get("session_id")) for a in relevant)
     empty = sum(a.get("state") == "empty" for a in sessions)
-    label = "completa" if state.get("complete", True) else "incompleta; última completa preservada"
+    label = "completa e validada"
     print(f"Workspace {WORKSPACE_ID}: captura {label}; {len(state.get('windows', []))} janelas; {known}/{len(relevant)} IDs ativos; {empty} aba(s) vazia(s) ignorada(s).")
     for agent in sorted({a.get("agent", "desconhecido") for a in sessions}):
         values = [a for a in sessions if a.get("agent") == agent and a.get("state") != "empty"]
@@ -546,6 +642,8 @@ def status() -> int:
         print(f"{agent}: {found}/{len(values)} IDs identificados")
     for warning in state.get("warnings", []):
         print("AVISO:", warning)
+    if restore_status:
+        print(f"Última restauração: {restore_status.get('status', 'desconhecida')} — {restore_status.get('message', '')}")
     return 0
 
 
@@ -564,25 +662,39 @@ def login_loop() -> int:
         if previous and previous.get("boot_id") != current_boot and not live:
             expected_windows = restorable_window_count(previous)
             if expected_windows:
-                restore(previous)
-                restore_pending = True
-                deadline = time.monotonic() + 60
-                while time.monotonic() < deadline:
-                    live = workspace_clients()
-                    if len(live) >= expected_windows:
-                        candidate = snapshot(promote=False)
-                        if candidate.get("complete"):
-                            atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
-                            restore_pending = False
-                            break
-                    time.sleep(2)
-                if restore_pending:
-                    snapshot(promote=False)
+                try:
+                    write_restore_status("iniciando", "Iniciando a restauração do Workspace 1.", expected_windows=expected_windows)
+                    restore_pending = True
+                    launched = restore(previous)
+                    deadline = time.monotonic() + 90
+                    while time.monotonic() < deadline:
+                        live = workspace_clients()
+                        if len(live) >= expected_windows:
+                            candidate = snapshot(promote=False)
+                            if candidate.get("complete") and restore_matches(previous, candidate):
+                                atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+                                restore_pending = False
+                                write_restore_status("concluida", "Janelas, aplicativos e IDs ativos conferidos.", expected_windows=expected_windows, launched=launched)
+                                break
+                        time.sleep(2)
+                    if restore_pending:
+                        snapshot(promote=False)
+                        write_restore_status("incompleta", "As janelas ou IDs ativos não coincidiram com o snapshot salvo; o último estado válido foi preservado.", expected_windows=expected_windows, observed_windows=len(workspace_clients()), launched=launched)
+                except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as error:
+                    write_restore_status("falhou", f"{type(error).__name__}: {error}", expected_windows=expected_windows)
+        elif live and previous and previous.get("boot_id") != current_boot:
+            # Do not mistake a partial/default autostart layout for the restored one.
+            snapshot(promote=False)
+            write_restore_status("incompleta", "Já havia janelas no Workspace 1 no início; o snapshot anterior foi preservado para evitar duplicação ou perda.", expected_windows=restorable_window_count(previous), observed_windows=len(live))
+            restore_pending = True
+            expected_windows = restorable_window_count(previous)
         elif live:
             snapshot(promote=True)
         else:
             # An empty startup capture must not erase the previous boot's state.
             snapshot(promote=False)
+            if not previous:
+                write_restore_status("sem_snapshot_valido", "Nenhum snapshot íntegro disponível para iniciar a restauração.")
         empty_since: float | None = None
         stopping = False
 
@@ -598,18 +710,19 @@ def login_loop() -> int:
                 if current:
                     empty_since = None
                     candidate = snapshot(promote=not restore_pending)
-                    if restore_pending and len(current) >= expected_windows and candidate.get("complete"):
+                    if restore_pending and len(current) >= expected_windows and candidate.get("complete") and previous and restore_matches(previous, candidate):
                         atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
                         restore_pending = False
+                        write_restore_status("concluida", "Janelas, aplicativos e IDs ativos conferidos.", expected_windows=expected_windows, observed_windows=len(current))
                 else:
                     empty_since = empty_since or time.monotonic()
-                    if time.monotonic() - empty_since >= EMPTY_GRACE_SECONDS:
+                    if time.monotonic() - empty_since >= EMPTY_GRACE_SECONDS and not restore_pending:
                         snapshot(allow_empty=True, promote=not restore_pending)
-            except (OSError, subprocess.SubprocessError, ValueError, KeyError):
-                pass
+            except (OSError, subprocess.SubprocessError, ValueError, KeyError) as error:
+                write_restore_status("monitoramento_com_erro", f"{type(error).__name__}: {error}")
             time.sleep(POLL_SECONDS)
         try:
-            if workspace_clients():
+            if workspace_clients() and not restore_pending:
                 snapshot()
         except Exception:
             pass

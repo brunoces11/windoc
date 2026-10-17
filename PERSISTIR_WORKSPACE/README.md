@@ -13,8 +13,9 @@ Os hooks associam o evento ao painel por `KITTY_PID` e `KITTY_WINDOW_ID`; títul
 não são usados para adivinhar conversas.
 
 - Codex: usa `session_id` do hook oficial `SessionStart`; `UserPromptSubmit`
-  marca que houve mensagem do usuário. A leitura dos logs locais continua como
-  compatibilidade para sessões que já estavam abertas antes da integração.
+  marca que houve mensagem do usuário. Como proteção, uma retomada explícita por
+  ID na linha de comando também é aceita. Logs temporais compartilhados não são
+  usados para adivinhar a sessão; uma sessão antiga sem hook fica não resolvida.
 - Antigravity: usa `conversationId` de `SessionStart`/`PreInvocation` e o
   `conversation_id` do callback nativo de título; a leitura de arquivos de
   conversa é compatibilidade para sessões antigas.
@@ -45,8 +46,20 @@ fechado quando não puder provar a associação entre processo e sessão.
 
 O monitor preserva o último estado não vazio por 60 segundos após o workspace
 ficar vazio. Capturas incompletas são mantidas como diagnóstico separado e não
-substituem a última captura completa. Após um boot, a restauração espera pelas
-janelas esperadas e IDs de agentes antes de promover uma nova captura. Aplicações
-gráficas fora do Kitty são inventariadas; a restauração inicial cobre Chromium,
-Sublime Text e Nautilus quando instalados. O conteúdo interno de cada aplicativo
-depende da API própria dele.
+substituem a última captura completa. Os arquivos de sessão Kitty são imutáveis
+por conteúdo e só entram no manifesto depois da validação. Após um boot, a
+restauração confere classe, aba/painel, diretório e IDs ativos antes de promover
+uma nova captura. O status diferencia o snapshot durável da última tentativa e
+registra falhas em `RESTORE_STATUS.json`.
+
+A inicialização usa a API Lua do Hyprland 0.55+ e foca o Workspace 1 antes de
+abrir os programas. Aplicações gráficas fora do Kitty são inventariadas; a
+restauração inicial cobre Chromium, Sublime Text e Nautilus quando instalados.
+O conteúdo interno de cada aplicativo depende da API própria dele. Grupos do
+Hyprland, posição, tamanho, monitor e foco individual ainda não são recriados;
+as janelas abertas seguem o layout atual do compositor.
+
+Snapshots antigos sem `complete=true`, sem lista vazia de avisos e sem os campos
+de painel exigidos são rejeitados para evitar restaurar um estado incompleto
+como se fosse íntegro. Depois de atualizar o código, é necessário produzir um
+novo snapshot completo do Workspace 1 antes de validar a restauração entre boots.
