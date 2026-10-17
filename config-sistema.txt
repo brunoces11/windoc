@@ -1345,3 +1345,29 @@ Data: 17/10/2026. Estado: implementado, verificado e validado.
 - Arquivos: `amberol-deskband/BarWidget.qml`, `amberol-deskband/components/DeskbandCapsule.qml`, `dock/DockPanel.qml`, `shell/dock-pinned.json` e este histórico.
 - Validação: 7 testes do instalador e runtime Python no submódulo aprovados; ciclo MPRIS completo em `dbus-run-session` validado sem erros QML; 26 testes de minimização e lógica da dock aprovados; IPC `rescanPlugins` e `rosakodu.dock refresh/deskband` validados com o Amberol em execução; estado pausado e integridade de volume preservados.
 
+
+
+72. PERSISTÊNCIA LEVE POR EVENTOS E RESTAURAÇÃO DO LAYOUT POR GRUPO
+Data: 17/10/2026. Estado: implementado e ativo; testes isolados e ciclo nativo aprovados; novo reboot completo pendente.
+
+- Substituído o ciclo de captura completa a cada oito segundos por um único serviço que aguarda eventos do socket Hyprland e alterações semânticas dos hooks por inotify. Consolida após 30 segundos de estabilidade observada e reconcilia a cada 60 segundos; mudanças sem evento podem levar aproximadamente 90 segundos para serem consolidadas. Spinners e títulos automáticos são ignorados como gatilho.
+- Atualização granular: geometria e grupos não exigem exportar novamente o Kitty. A reconciliação compara a estrutura e só gera sessão nativa para a janela Kitty modificada. Estado sem mudanças não regrava manifesto, backups ou sessões; o status mostra o tempo da última alteração salva.
+- Manifesto no formato 3: grupos com membros por identidade estável, ordem, aba ativa, trava e monitor; árvore Dwindle reconstruída das divisões e proporções; posições, tamanhos lógicos, geometria normal anterior à tela cheia e referência à escala/área do monitor. Formatos anteriores continuam legíveis.
+- Na restauração, abre janelas isoladas, recompõe grupos pela API nativa Group:add, recria divisões Dwindle e aplica posições/tamanhos de flutuantes, seleção, tela cheia e foco. A verificação diferencia janela aberta, terminal, grupo e geometria, com tolerância de quatro pixels lógicos. Layout já correto é reutilizado.
+- Uma proteção por camada conserva dados desejados após restauração parcial; a disposição incorreta logo após o boot não passa silenciosamente a ser a nova referência. Alterações posteriores reais podem estabelecer nova referência. Cópias privadas do estado anterior à atualização foram preservadas em ESTADO_LOCAL.
+- Arquivos: PERSISTIR_WORKSPACE/WORKSPACE1.py, INTERFACE_MONITOR.py, WORKSPACE_LAYOUT.py, TEST_WORKSPACE1.py, TEST_LAYOUT_LIVE.py, README.md e este histórico. Inicialização e vínculo do serviço existentes reutilizados; nenhum arquivo empacotado ou regra global visual foi alterado.
+- Validação: 38 testes automatizados; ciclo real isolado de quatro janelas, três grupos, cinco abas e divisões horizontal/vertical restaurados com geometria e seleção conferidas; outro ciclo com janela flutuante aprovado. Janelas originais preservadas. Monitor reiniciado, formato novo gravado automaticamente após a espera; em 65 segundos sem alterações não regravou manifesto/sessões e o processo principal consumiu 0,12 segundo de CPU.
+- Limites: novo reboot completo ainda pendente. Outros layouts tiled e múltiplas janelas externas do mesmo processo Kitty não são declarados plenamente suportados. A espera de consolidação conserva a captura anterior se houver desligamento/falha antes do prazo; históricos de agentes continuam dependentes de seus dados originais.
+
+
+73. PLANEJAMENTO DO INDICADOR INTELIGENTE DE REDE NA SYSTEM ICON TRAY
+Data: 17/10/2026. Estado: planejado, acervo verificado e documentado.
+
+- Formalização da Etapa 3 no plano central `system_icon_tray_plan.md`:
+  - Comportamento nativo e intrínseco (built-in): sem chaves de ativação manual nem toggles de usuário, operando de forma 100% automática.
+  - Detecção dinâmica do meio físico ativo via NetworkManager / Quickshell.Networking:
+    * Wi-Fi ativo: exibe o ícone de Wi-Fi padrão (`󰖩`).
+    * Cabo RJ45 (Ethernet) ativo: exibe o ícone canônico de rede cabeada (`󰈀`).
+  - Sinalização de status offline automática: quando houver interrupção de internet (sem conexão externa verificável), o ícone ativo (Wi-Fi ou RJ45) assume coloração vermelha enquanto durar a desconexão, retornando à cor do tema assim que a conectividade for restabelecida.
+  - Auditoria do acervo de ícones: confirmado que o sistema já dispõe do glifo `󰈀` (U+F0200, `nf-md-ethernet`) na fonte `JetBrainsMono Nerd Font` do sistema (idêntico ao utilizado pelo Omarchy Network Panel), harmonizando com o renderizador de texto QML dos demais ícones do tray sem necessidade de ativos SVG externos.
+- Arquivos afetados: `system_icon_tray_plan.md` e este histórico.
