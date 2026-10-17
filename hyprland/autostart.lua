@@ -1,5 +1,5 @@
 -- Extra autostart processes.
 -- o.launch_on_start("my-service")
 
--- Salva e restaura localmente as janelas e sessões do Workspace 1.
-o.launch_on_start("sh -lc 'sleep 4; exec python3 \"$HOME/Desktop/windoc/PERSISTIR_WORKSPACE/WORKSPACE1.py\" login'")
+-- Importa o IPC da sessao atual antes de iniciar o monitor supervisionado.
+o.launch_on_start("sh -lc 'systemctl --user import-environment HYPRLAND_INSTANCE_SIGNATURE WAYLAND_DISPLAY XDG_RUNTIME_DIR && systemctl --user start windoc-workspace1.service'")

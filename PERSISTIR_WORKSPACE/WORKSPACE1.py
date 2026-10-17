@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from AGENT_SESSION_HOOK import transcript_has_user_message
+
 
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "ESTADO_LOCAL"
@@ -33,6 +35,8 @@ RESTORE_STATUS_FILE = STATE_DIR / "RESTORE_STATUS.json"
 AGENT_IDS_FILE = STATE_DIR / "AGENT_IDS.json"
 LOCK_FILE = STATE_DIR / "WORKSPACE1.lock"
 WORKSPACE_ID = 1
+if os.environ.get("WORKSPACE1_TEST_WORKSPACE") and os.environ.get("WORKSPACE1_STATE_DIR"):
+    WORKSPACE_ID = int(os.environ["WORKSPACE1_TEST_WORKSPACE"])
 POLL_SECONDS = 8
 EMPTY_GRACE_SECONDS = 60
 UUID_RE = re.compile(r"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -221,14 +225,14 @@ def session_id_for(
     start_ticks = process_start_ticks(pid)
     argv = process_command(process)
     direct = session_id_from_resume_args(agent, argv)
-    if direct:
-        register_session_id(agent, pid, direct, start_ticks, "explicit-resume-arguments")
-        return direct, "explicit-resume-arguments", "active"
     pane_record = pane_registry_record(agent, kitty_pid, kitty_window_id, pid)
     if pane_record:
-        if pane_record.get("state") == "empty" and not pane_record.get("has_user_turn"):
-            return None, str(pane_record.get("id_method") or "agent-session-start"), "empty"
         pane_id = pane_record.get("session_id")
+        if not pane_record.get("has_user_turn"):
+            evidence = transcript_has_user_message(pane_record.get("transcript_path"))
+            if evidence is False and pane_record.get("state") == "empty":
+                return None, str(pane_record.get("id_method") or "agent-session-start"), "empty"
+            # Old 'empty' classifications must be rechecked against native history.
         if valid_agent_session_id(agent, pane_id):
             return str(pane_id), str(pane_record.get("id_method") or "official-agent-hook"), "active"
         if pane_record.get("has_user_turn"):
@@ -256,6 +260,8 @@ def session_id_for(
                 if UUID_RE.fullmatch(session_id):
                     register_session_id(agent, pid, session_id, start_ticks, "process-session-file")
                     return session_id, "process-session-file", "active"
+        if direct:
+            return direct, "explicit-resume-arguments", "active"
         return None, "antigravity-session-file-unavailable", "unresolved"
     if agent == "claude-code":
         for target in targets:
@@ -263,8 +269,12 @@ def session_id_for(
             if match and UUID_RE.fullmatch(match.group(1)):
                 register_session_id(agent, pid, match.group(1), start_ticks, "process-open-transcript")
                 return match.group(1), "process-open-transcript", "active"
+        if direct:
+            return direct, "explicit-resume-arguments", "active"
         return None, "claude-transcript-not-open", "unresolved"
     if agent == "codex":
+        if direct:
+            return direct, "explicit-resume-arguments", "active"
         return None, "codex-session-hook-unavailable", "unresolved"
     return None, "adapter-not-installed", "unresolved"
 
@@ -351,6 +361,11 @@ def patch_native_session(text: str, records: dict[int, dict[str, Any]]) -> tuple
             continue
         record = records.get(int(payload.get("id", -1)))
         if record:
+            # Native sessions can contain a direct `kitty -e agent` command after
+            # the launch options. Always replace it too, including unknown IDs.
+            first_command = next((i for i in range(1, len(parts))
+                                  if i != token_index and not parts[i].startswith("--")), len(parts))
+            parts = parts[:first_command]
             command = resume_command(record["agent"], record.get("session_id") or "")
             if command and record.get("state") == "active":
                 payload["cmd_at_shell_startup"] = shlex.join(command)
@@ -389,6 +404,13 @@ def atomic_write(path: Path, data: bytes, mode: int = 0o600) -> None:
         temp.unlink(missing_ok=True)
 
 
+def stored_session(text: str) -> str:
+    digest = hashlib.sha256(text.encode()).hexdigest()[:16]
+    name = f"KITTY-{digest}.session"
+    atomic_write(STATE_DIR / name, text.encode())
+    return name
+
+
 def save_kitty_session(pid: int, records: dict[int, dict[str, Any]]) -> tuple[str, str]:
     STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=".kitty-capture-", suffix=".session", dir=STATE_DIR)
@@ -396,255 +418,446 @@ def save_kitty_session(pid: int, records: dict[int, dict[str, Any]]) -> tuple[st
     temp = Path(temp_name)
     try:
         kitty_call(pid, "action", "save_as_session", "--save-only", "--use-foreground-process", str(temp))
-        raw = temp.read_text(encoding="utf-8")
-        rendered, found = patch_native_session(raw, records)
-        complete = len(found) == len(records) and all(
-            record.get("state") == "empty"
-            or (record.get("state") == "active" and valid_agent_session_id(record.get("agent", ""), record.get("session_id")))
-            for record in found
-        )
-        if not complete:
-            return "", "agent-id-incomplete"
-        # Immutable content-addressed sessions keep the previous durable manifest
-        # usable until the entire new snapshot has passed validation.
-        digest = hashlib.sha256(rendered.encode()).hexdigest()[:16]
-        name = f"KITTY-{pid}-{digest}.session"
-        destination = STATE_DIR / name
-        atomic_write(destination, rendered.encode(), 0o600)
-        return name, "ok" if complete else "agent-id-incomplete"
+        rendered, found = patch_native_session(temp.read_text(encoding="utf-8"), records)
+        if len(found) != len(records):
+            raise ValueError("A topologia mudou durante a captura nativa")
+        # An unknown agent becomes a shell in its own pane; the other panes survive.
+        return stored_session(rendered), "partial" if any(r["state"] == "unresolved" for r in found) else "ok"
     finally:
         temp.unlink(missing_ok=True)
 
 
-def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, Any]:
-    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-    rows: list[dict[str, Any]] = []
-    warnings: list[str] = []
-    live_clients = workspace_clients()
-    kitty_pid_counts: dict[int, int] = {}
-    for client in live_clients:
-        if str(client.get("class") or "").lower() == "kitty":
-            pid = int(client.get("pid") or 0)
-            kitty_pid_counts[pid] = kitty_pid_counts.get(pid, 0) + 1
-    for client in live_clients:
-        item: dict[str, Any] = {
-            "class": str(client.get("class") or ""),
-            "initial_class": str(client.get("initialClass") or ""),
-            "address": str(client.get("address") or ""),
-            "at": client.get("at", [0, 0]),
-            "size": client.get("size", [0, 0]),
-            "floating": bool(client.get("floating")),
-            "fullscreen": int(client.get("fullscreen") or 0),
-        }
-        if item["class"].lower() == "kitty":
-            pid = int(client.get("pid") or 0)
-            if kitty_pid_counts.get(pid, 0) > 1:
-                item.update({"kind": "kitty", "error": "shared-kitty-process"})
-                warnings.append(f"kitty {pid}: várias janelas Hyprland compartilham o processo; associação por janela ainda não é segura")
-                rows.append(item)
-                continue
-            try:
-                tree = json.loads(kitty_call(pid, "ls").stdout)
-                records = agent_records(pid, tree)
-                filename, result = save_kitty_session(pid, records)
-                item.update({"kind": "kitty", "session_file": filename, "agent_sessions": [
-                    {k: v for k, v in record.items() if k in (
-                        "agent", "session_id", "id_method", "state", "kitty_tab_index",
-                        "kitty_pane_index", "kitty_tab_title", "kitty_window_id", "cwd",
-                    )}
-                    for record in records.values()
-                ]})
-                if result != "ok":
-                    warnings.append(f"kitty {pid}: sessão Kitty não passou pela validação integral")
-            except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
-                item.update({"kind": "kitty", "error": type(error).__name__})
-                warnings.append(f"kitty {pid}: captura nativa falhou ({type(error).__name__})")
-        else:
-            item["kind"] = "application"
-            item["restore_command"] = application_command(item["class"])
-            if not item["restore_command"]:
-                warnings.append(f"aplicativo sem adaptador de restauração: {item['class'] or 'classe desconhecida'}")
-        rows.append(item)
-    state = {
-        "schema": 1,
-        "workspace": WORKSPACE_ID,
-        "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
-        "updated_at": int(time.time()),
-        "windows": rows,
-        "warnings": warnings,
-        "complete": not warnings,
-    }
-    encoded = (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
-    atomic_write(CAPTURE_FILE, encoded)
-    # Keep the last complete state if any active agent ID or Kitty capture is uncertain.
-    if promote and state["complete"] and (rows or allow_empty):
-        atomic_write(STATE_FILE, encoded)
-    return state
-
-
-def application_command(app_class: str) -> list[str] | None:
-    known = {
-        "chromium": ["chromium"],
-        "sublime_text": ["sublime_text"],
-        "org.gnome.nautilus": ["nautilus"],
-    }
-    command = known.get(app_class.lower())
-    return command if command and shutil.which(command[0]) else None
-
-
-def restore(state: dict[str, Any]) -> list[str]:
-    restored: list[str] = []
-    # Switch first so Lua exec_cmd launches into the intended workspace.
-    focus = run(["hyprctl", "dispatch", "hl.dsp.focus({workspace=1})"], check=False)
-    if focus.returncode != 0 or "error" in focus.stdout.lower():
-        raise RuntimeError(f"Não foi possível focar o Workspace 1: {focus.stdout.strip()} {focus.stderr.strip()}".strip())
-    for item in state.get("windows", []):
-        if item.get("kind") == "kitty":
-            session = STATE_DIR / str(item.get("session_file", ""))
-            if not session.is_file() or session.parent != STATE_DIR:
-                continue
-            command = ["kitty", "--session", str(session)]
-        else:
-            command = item.get("restore_command")
-            if not isinstance(command, list) or not command:
-                continue
-        # Hyprland 0.55+ uses Lua dispatchers. The old `[workspace N] command`
-        # syntax is parsed as invalid Lua and can report success without a window.
-        lua_command = json.dumps(shlex.join(command), ensure_ascii=False)
-        dispatcher = f"hl.dsp.exec_cmd({lua_command})"
-        result = run(["hyprctl", "dispatch", dispatcher], check=False)
-        output = (result.stdout + result.stderr).strip()
-        if result.returncode == 0 and not output.lower().startswith("error") and "syntax error" not in output.lower():
-            restored.append(str(item.get("class") or command[0]))
-        else:
-            raise RuntimeError(f"Falha ao iniciar {item.get('class') or command[0]} no Workspace 1: {output}")
-    return restored
-
-
-def restorable_window_count(state: dict[str, Any]) -> int:
-    count = 0
-    for item in state.get("windows", []):
-        if item.get("kind") == "kitty":
-            session = STATE_DIR / str(item.get("session_file", ""))
-            count += int(session.is_file() and session.parent == STATE_DIR)
-        else:
-            command = item.get("restore_command")
-            count += int(isinstance(command, list) and bool(command))
-    return count
-
-
-def restore_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
-    """Require window classes and recorded active chat IDs to match before promotion."""
-    expected_windows = expected.get("windows", [])
-    observed_windows = observed.get("windows", [])
-    if len(expected_windows) != len(observed_windows):
-        return False
-    expected_classes = sorted(str(item.get("class", "")).casefold() for item in expected_windows)
-    observed_classes = sorted(str(item.get("class", "")).casefold() for item in observed_windows)
-    if expected_classes != observed_classes:
-        return False
-
-    def active_sessions(state: dict[str, Any]) -> list[tuple[str, str, int, int, str]]:
-        return sorted(
-            (
-                str(agent.get("agent", "")),
-                str(agent.get("session_id", "")),
-                int(agent.get("kitty_tab_index", -1)),
-                int(agent.get("kitty_pane_index", -1)),
-                str(agent.get("cwd", "")),
-            )
-            for window in state.get("windows", [])
-            for agent in window.get("agent_sessions", [])
-            if agent.get("state") == "active"
-        )
-
-    return active_sessions(expected) == active_sessions(observed)
-
-
-def write_restore_status(status: str, message: str, **details: Any) -> None:
-    record = {
-        "updated_at": int(time.time()),
-        "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
-        "status": status,
-        "message": message,
-        **details,
-    }
-    atomic_write(RESTORE_STATUS_FILE, (json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
-
-
-def load_state() -> dict[str, Any] | None:
+def process_window_identity(pid: int) -> str | None:
     try:
-        state = json.loads(STATE_FILE.read_text())
-        if (not isinstance(state, dict) or state.get("schema") != 1
-                or state.get("workspace") != WORKSPACE_ID
-                or state.get("complete") is not True
-                or state.get("warnings") != []
-                or not isinstance(state.get("windows"), list)):
-            return None
-        for item in state["windows"]:
-            if not isinstance(item, dict):
-                return None
-            if item.get("kind") == "kitty":
-                name = item.get("session_file")
-                if not isinstance(name, str) or Path(name).name != name:
-                    return None
-                session = STATE_DIR / name
-                if not session.is_file() or session.parent != STATE_DIR:
-                    return None
-                agents = item.get("agent_sessions")
-                if not isinstance(agents, list):
-                    return None
-                for agent in agents:
-                    if not isinstance(agent, dict):
-                        return None
-                    if agent.get("state") == "active" and not valid_agent_session_id(agent.get("agent", ""), agent.get("session_id")):
-                        return None
-                    if agent.get("state") not in {"active", "empty"}:
-                        return None
-                    if not isinstance(agent.get("kitty_tab_index"), int) or not isinstance(agent.get("kitty_pane_index"), int):
-                        return None
-            elif not (isinstance(item.get("restore_command"), list) and item["restore_command"]):
-                return None
-        return state
-    except (OSError, ValueError, AttributeError):
+        env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+        for value in env:
+            if value.startswith(b"WINDOC_WORKSPACE_WINDOW_ID="):
+                identity = value.split(b"=", 1)[1].decode()
+                if re.fullmatch(r"[a-f0-9]{24}", identity):
+                    return identity
+    except (OSError, UnicodeDecodeError):
         pass
     return None
 
 
+def boot_id() -> str:
+    return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+
+
+def window_identity(client: dict[str, Any]) -> str:
+    inherited = process_window_identity(int(client.get("pid") or 0))
+    if inherited:
+        return inherited
+    for tag in client.get("tags", []):
+        match = re.fullmatch(r"windoc_ws_([a-f0-9]{24})", tag)
+        if match:
+            return match[1]
+    key = f"{boot_id()}:{client.get('pid')}:{client.get('address')}"
+    return hashlib.sha256(key.encode()).hexdigest()[:24]
+
+
+def native_structure(tree: list[dict[str, Any]], records: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
+    tabs = []
+    for os_window in tree:
+        for tab in os_window.get("tabs", []):
+            panes = []
+            for window in tab.get("windows", []):
+                proc = foreground_process(window) or {}
+                rec = records.get(int(window["id"]), {})
+                panes.append({
+                    "cwd": str(proc.get("cwd") or window.get("cwd") or Path.home()),
+                    "command": process_command(proc),
+                    "agent": rec.get("agent"), "session_id": rec.get("session_id"),
+                    "state": rec.get("state", "program"), "id_method": rec.get("id_method"),
+                })
+            tabs.append({"layout": tab.get("layout", "tall"), "panes": panes})
+    return tabs
+
+
+def shell_session(tabs: list[dict[str, Any]]) -> str:
+    lines = []
+    for tab in tabs or [{"panes": [{"cwd": str(Path.home())}]}]:
+        lines.extend(["new_tab", "layout tall"])
+        for pane in tab["panes"]:
+            cwd = pane.get("cwd") or str(Path.home())
+            # Session directives must not be injected via a path with newlines.
+            if "\n" in cwd or "\r" in cwd or not Path(cwd).is_dir():
+                cwd = str(Path.home())
+            startup = resume_command(pane.get("agent", ""), pane.get("session_id") or "")
+            payload = {"id": len(lines)}
+            if startup and pane.get("state") == "active":
+                payload["cmd_at_shell_startup"] = shlex.join(startup)
+            lines.append("launch " + shlex.quote("kitty-unserialize-data=" + json.dumps(payload)) + " --cwd=" + shlex.quote(cwd))
+    return "\n".join(lines) + "\n"
+
+
+def application_command(app_class: str) -> list[str] | None:
+    known = {"chromium": ["chromium"], "sublime_text": ["subl", "--launch-or-new-window"],
+             "org.gnome.nautilus": ["nautilus"], "io.bassi.amberol": ["amberol"]}
+    command = known.get(app_class.lower())
+    return command if command and shutil.which(command[0]) else None
+
+
+def scene_signature(state: dict[str, Any]) -> str:
+    return json.dumps(state.get("windows", []), sort_keys=True)
+
+
+def promote_state(state: dict[str, Any]) -> None:
+    old = load_state()
+    if old and scene_signature(old) != scene_signature(state):
+        atomic_write(STATE_DIR / "PREVIOUS_WORKSPACE1.json", (json.dumps(old, ensure_ascii=False, indent=2) + "\n").encode())
+    data = (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
+    atomic_write(STATE_FILE, data)
+    if state.get("complete"):
+        atomic_write(STATE_DIR / "LAST_COMPLETE.json", data)
+
+
+def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, Any]:
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    rows = []
+    warnings = []
+    live_clients = workspace_clients()
+    for client in live_clients:
+        item = {
+            "restore_id": window_identity(client), "class": str(client.get("class") or ""),
+            "address": client.get("address"), "pid": client.get("pid"),
+            "at": client.get("at"), "size": client.get("size"),
+            "floating": bool(client.get("floating")), "fullscreen": client.get("fullscreen", 0),
+            "monitor": client.get("monitor"), "grouped": client.get("grouped", []),
+            "focus_order": client.get("focusHistoryID"), "warnings": [],
+        }
+        if item["class"].lower() == "kitty":
+            item.update(kind="kitty", tabs=[], agent_sessions=[])
+            pid = int(client["pid"])
+            try:
+                tree = json.loads(kitty_call(pid, "ls").stdout)
+                if len(tree) != 1 or sum(c.get("pid") == pid for c in live_clients) != 1:
+                    raise ValueError("Processo Kitty compartilhado: associação individual pendente")
+                records = agent_records(pid, tree)
+                item["tabs"] = native_structure(tree, records)
+                item["agent_sessions"] = list(records.values())
+                filename, result = save_kitty_session(pid, records)
+                item["session_file"] = filename
+                item["native_layout"] = True
+                if result == "partial":
+                    item["warnings"].append("Chat sem ID: sua aba voltará como terminal")
+            except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+                item["warnings"].append(f"Captura nativa indisponível: {error}")
+                item["native_layout"] = False
+                if not item["tabs"]:
+                    item["tabs"] = [{"panes": [{"cwd": str(Path.home()), "command": [], "state": "unresolved"}]}]
+                item["session_file"] = stored_session(shell_session(item["tabs"]))
+                # Preserve exact IDs even when the native layout could not be saved.
+                for tab in item["tabs"]:
+                    for pane in tab["panes"]:
+                        pane["restore_as_shell"] = not (pane.get("state") == "active" and valid_agent_session_id(pane.get("agent", ""), pane.get("session_id")))
+            item["restorable"] = True
+        else:
+            item.update(kind="application", restore_command=application_command(item["class"]))
+            item["restorable"] = bool(item["restore_command"])
+            if not item["restorable"]:
+                item["warnings"].append("Aplicativo sem comando de restauração conhecido")
+        warnings.extend(f"{item['restore_id']}: {w}" for w in item["warnings"])
+        rows.append(item)
+    state = {"schema": 2, "workspace": WORKSPACE_ID, "boot_id": boot_id(),
+             "updated_at": int(time.time()), "valid": True, "complete": not warnings,
+             "windows": rows, "warnings": warnings}
+    atomic_write(CAPTURE_FILE, (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+    if promote and (rows or allow_empty):
+        promote_state(state)
+    return state
+
+
+def load_state(path: Path | None = None) -> dict[str, Any] | None:
+    if path is None:
+        for candidate in (STATE_FILE, STATE_DIR / "PREVIOUS_WORKSPACE1.json", STATE_DIR / "LAST_COMPLETE.json"):
+            loaded = load_state(candidate)
+            if loaded is not None:
+                return loaded
+        return None
+    try:
+        state = json.loads(path.read_text())
+        if (not isinstance(state, dict) or state.get("schema") not in {1, 2}
+                or state.get("workspace") != WORKSPACE_ID or not isinstance(state.get("windows"), list)):
+            return None
+        if state["schema"] == 1 and not state.get("complete"):
+            return None
+        if not isinstance(state.get("updated_at"), int):
+            return None
+        if not isinstance(state.get("warnings", []), list):
+            return None
+        valid_items = []
+        for index, item in enumerate(state["windows"]):
+            if not isinstance(item, dict):
+                state["complete"] = False
+                continue
+            if not re.fullmatch(r"[a-f0-9]{24}", str(item.get("restore_id", ""))):
+                key = f"{state.get('boot_id')}:{index}:{item.get('session_file')}"
+                item["restore_id"] = hashlib.sha256(key.encode()).hexdigest()[:24]
+            if not isinstance(item.get("tabs", []), list) or any(
+                not isinstance(t, dict) or not isinstance(t.get("panes"), list)
+                or any(not isinstance(p, dict) for p in t["panes"]) for t in item.get("tabs", [])
+            ):
+                state["complete"] = False
+                item["tabs"] = []
+            if not isinstance(item.get("agent_sessions", []), list):
+                item["agent_sessions"] = []
+            valid_items.append(item)
+        state["windows"] = valid_items
+        return state
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def restore_plan(state: dict[str, Any]) -> list[dict[str, Any]]:
+    plan = []
+    items = [w for w in state.get("windows", []) if isinstance(w, dict)]
+    for item in sorted(items, key=lambda w: tuple(w.get("at") or [0, 0])):
+        if not isinstance(item, dict):
+            continue
+        entry = {"restore_id": item["restore_id"], "class": item.get("class"),
+                 "command": None, "warnings": list(item.get("warnings", [])), "item": item}
+        if item.get("kind") == "kitty":
+            name = item.get("session_file")
+            if isinstance(name, str) and Path(name).name == name:
+                path = STATE_DIR / name
+                try:
+                    if path.is_file() and not path.is_symlink():
+                        expected = re.search(r"-([0-9a-f]{16})\.session$", name)
+                        if expected and hashlib.sha256(path.read_bytes()).hexdigest()[:16] != expected[1]:
+                            entry["warnings"].append("Arquivo de sessão não confere com seu hash")
+                        else:
+                            entry["command"] = ["env", f"WINDOC_WORKSPACE_WINDOW_ID={item['restore_id']}", "kitty", "--session", str(path)]
+                except OSError as error:
+                    entry["warnings"].append(f"Arquivo de sessão inacessível: {error}")
+        elif item.get("kind") == "application":
+            cmd = item.get("restore_command")
+            if isinstance(cmd, list) and cmd and all(isinstance(s, str) and "\0" not in s for s in cmd):
+                entry["command"] = cmd
+        if not entry["command"]:
+            entry["warnings"].append("Item ignorado: comando ou arquivo válido indisponível")
+        plan.append(entry)
+    return plan
+
+
+def dispatch(expression: str) -> None:
+    result = run(["hyprctl", "dispatch", expression], check=False)
+    output = (result.stdout + result.stderr).strip()
+    if result.returncode or re.search(r"(?i)\berror\b|syntax error", output):
+        raise RuntimeError(output or "O Hyprland recusou a operação")
+
+
+def associated_client(item: dict[str, Any], live: list[dict[str, Any]], source_boot: str) -> dict[str, Any] | None:
+    for client in live:
+        if window_identity(client) == item["restore_id"]:
+            return client
+        if source_boot == boot_id() and client.get("address") == item.get("address") and client.get("pid") == item.get("pid"):
+            return client
+    return None
+
+
+def pane_signature(pane: dict[str, Any], *, expected: bool) -> tuple[Any, ...]:
+    agent = pane.get("agent")
+    sid = pane.get("session_id")
+    if expected and (pane.get("state") in {"empty", "unresolved"} or pane.get("restore_as_shell")):
+        agent, sid = None, None
+    command = pane.get("command") or []
+    program = Path(command[0]).name if command else "shell"
+    if program in {"bash", "zsh", "fish", "sh", "dash"} or (expected and (pane.get("state") in {"empty", "unresolved"} or pane.get("restore_as_shell"))):
+        program = "shell"
+    if agent:
+        program = agent
+        if not expected and pane.get("id_method") == "explicit-resume-arguments":
+            sid = "aguardando-confirmacao-nativa:" + str(sid)
+    arguments = tuple(command[1:]) if not agent and program != "shell" else ()
+    return (pane.get("cwd"), program, arguments, agent, sid)
+
+
+def window_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
+    if expected.get("class", "").lower() != observed.get("class", "").lower():
+        return False
+    if expected.get("kind") != "kitty":
+        return True
+    a, b = expected.get("tabs", []), observed.get("tabs", [])
+    if not a or len(a) != len(b):
+        return False
+    return all(
+        (not expected.get("native_layout") or x.get("layout") == y.get("layout"))
+        and [pane_signature(p, expected=True) for p in x["panes"]]
+        == [pane_signature(p, expected=False) for p in y["panes"]]
+        for x, y in zip(a, b)
+    )
+
+
+def group_matches(item: dict[str, Any], actual: dict[str, Any], expected: dict[str, Any], observed: dict[str, Any]) -> bool:
+    def members(window: dict[str, Any], scene: dict[str, Any]) -> list[str]:
+        identities = {w.get("address"): w["restore_id"] for w in scene.get("windows", [])}
+        return [identities.get(address, "unknown:" + str(address)) for address in window.get("grouped", [])]
+    return members(item, expected) == members(actual, observed)
+
+
+def restore_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
+    actual = {w["restore_id"]: w for w in observed.get("windows", [])}
+    return all(w["restore_id"] in actual and window_matches(w, actual[w["restore_id"]])
+               and group_matches(w, actual[w["restore_id"]], expected, observed)
+               for w in expected.get("windows", []))
+
+
+def write_restore_status(status: str, message: str, **details: Any) -> None:
+    record = {"updated_at": int(time.time()), "boot_id": boot_id(), "status": status, "message": message, **details}
+    atomic_write(RESTORE_STATUS_FILE, (json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+
+
+def wait_for_hyprland(timeout: float = 45) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            clients()
+            return
+        except (OSError, subprocess.SubprocessError, ValueError):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Hyprland não ficou disponível dentro do prazo")
+            time.sleep(1)
+
+
+def restore(state: dict[str, Any], *, verify_seconds: float = 30) -> list[dict[str, Any]]:
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (STATE_DIR / "RESTORE.lock").open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Uma restauração já está em andamento.", file=sys.stderr)
+            return []
+        return restore_items(state, verify_seconds=verify_seconds)
+
+
+def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[dict[str, Any]]:
+    wait_for_hyprland()
+    plan = restore_plan(state)
+    results = []
+    recovery = STATE_DIR / "RECOVERY.json"
+    recovery_bytes = (json.dumps(state, ensure_ascii=False, indent=2) + "\n").encode()
+    digest = hashlib.sha256(recovery_bytes).hexdigest()[:16]
+    atomic_write(STATE_DIR / f"RECOVERY-{digest}.json", recovery_bytes)
+    atomic_write(recovery, recovery_bytes)
+    for entry in plan:
+        item = entry["item"]
+        result = {"restore_id": entry["restore_id"], "class": entry["class"], "status": "pendente", "warnings": entry["warnings"]}
+        results.append(result)
+        try:
+            live = clients()
+            existing = associated_client(item, live, str(state.get("boot_id")))
+            if existing:
+                result.update(status="existente", action="existing", address=existing["address"])
+                continue
+            if not entry["command"]:
+                result["status"] = "ignorado"
+                continue
+            command = json.dumps(shlex.join(entry["command"]), ensure_ascii=False)
+            group = "new" if item.get("grouped") else "barred"
+            # Rules target this launch even if the user changes the active workspace.
+            dispatch(f'hl.dsp.exec_cmd({command}, {{workspace="{WORKSPACE_ID} silent", group="{group}"}})')
+            result.update(status="iniciado", action="launch")
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                now = clients()
+                found = associated_client(item, now, "")
+                if not found and item.get("kind") == "application":
+                    new = [c for c in now if c["address"] not in {x["address"] for x in live} and c.get("class") == item.get("class")]
+                    found = new[0] if len(new) == 1 else None
+                if found:
+                    selector = json.dumps("address:" + found["address"])
+                    dispatch(f'hl.dsp.window.tag({{window={selector},tag="windoc_ws_{item["restore_id"]}"}})')
+                    dispatch(f'hl.dsp.window.move({{window={selector},workspace="{WORKSPACE_ID}",follow=false}})')
+                    result.update(status="aberto", address=found["address"])
+                    break
+                time.sleep(0.25)
+            else:
+                result.update(status="nao_confirmado", error="O comando foi enviado, mas a janela ainda não foi encontrada")
+        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, KeyError) as error:
+            result.update(status="falhou", error=str(error))
+        write_restore_status("em_andamento", "Restauração independente por janela.", items=results)
+    deadline = time.monotonic() + verify_seconds
+    while results:
+        try:
+            observed = snapshot(promote=False)
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError) as error:
+            write_restore_status("verificacao_pendente", str(error), items=results)
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
+            continue
+        by_id = {w["restore_id"]: w for w in observed["windows"]}
+        for entry, result in zip(plan, results):
+            if result["status"] in {"falhou", "ignorado"}:
+                continue
+            actual = by_id.get(entry["restore_id"])
+            if actual and window_matches(entry["item"], actual):
+                if group_matches(entry["item"], actual, state, observed):
+                    result["status"] = "verificado"
+                else:
+                    result["status"] = "grupo_pendente"
+                    result["error"] = "Janelas abertas, mas o grupo original ainda não foi recomposto"
+        if all(r["status"] in {"verificado", "falhou", "ignorado", "grupo_pendente"} for r in results) or time.monotonic() >= deadline:
+            break
+        time.sleep(1)
+    done = sum(r["status"] == "verificado" for r in results)
+    complete = bool(results) and done == len(results) and bool(state.get("complete"))
+    launched = sum(r.get("action") == "launch" for r in results)
+    label = ("concluida" if launched else "conferida") if complete else "parcial"
+    write_restore_status(label, f"{done}/{len(results)} janela(s) verificadas; {launched} iniciada(s) nesta execução.", items=results,
+                         capture_complete=bool(state.get("complete")), previous_boot=state.get("boot_id") != boot_id())
+    return results
+
+
+def scene_counts(state: dict[str, Any]) -> tuple[int, int, int]:
+    windows = state.get("windows", [])
+    return len(windows), sum(len(w.get("tabs", [])) for w in windows), sum(len(t["panes"]) for w in windows for t in w.get("tabs", []))
+
+
 def status() -> int:
+    capture, state = load_state(CAPTURE_FILE), load_state()
+    for label, value in [("Captura atual", capture), ("Estado para restaurar", state)]:
+        if not value:
+            print(f"{label}: indisponível.")
+            continue
+        agents = [a for w in value["windows"] for a in w.get("agent_sessions", []) if a.get("state") != "empty"]
+        ids = sum(bool(a.get("session_id")) for a in agents)
+        windows, tabs, panes = scene_counts(value)
+        ready = sum(bool(e["command"]) for e in restore_plan(value))
+        age = max(0, int(time.time()) - value["updated_at"])
+        print(f"{label}: {windows} janelas, {tabs} abas, {panes} painéis; {ids}/{len(agents)} IDs; {ready} janelas restauráveis; idade {age}s; detecção {'completa' if value.get('complete') else 'parcial'}.")
+        for warning in value.get("warnings", []):
+            print("  PENDÊNCIA:", warning)
     try:
-        capture = json.loads(CAPTURE_FILE.read_text())
-    except (OSError, ValueError):
-        capture = None
-    state = load_state()
+        report = json.loads(RESTORE_STATUS_FILE.read_text())
+        print(f"Último teste/restauração: {report['status']} — {report['message']}")
+    except (OSError, ValueError, KeyError):
+        print("Restauração ainda não validada nesta versão.")
+    return 0 if state and any(e["command"] for e in restore_plan(state)) else 1
+
+
+def shutting_down() -> bool:
     try:
-        restore_status = json.loads(RESTORE_STATUS_FILE.read_text())
-    except (OSError, ValueError):
-        restore_status = None
-    if not state:
-        print("Não há snapshot completo e validado para restaurar.")
-        if capture:
-            print(f"Última tentativa: {len(capture.get('windows', []))} janela(s); completa={capture.get('complete', False)}.")
-            for warning in capture.get("warnings", []):
-                print("AVISO:", warning)
-        if restore_status:
-            print(f"Restauração: {restore_status.get('status', 'desconhecida')} — {restore_status.get('message', '')}")
-        return 1
-    sessions = [a for w in state.get("windows", []) for a in w.get("agent_sessions", [])]
-    relevant = [a for a in sessions if a.get("state") != "empty"]
-    known = sum(bool(a.get("session_id")) for a in relevant)
-    empty = sum(a.get("state") == "empty" for a in sessions)
-    label = "completa e validada"
-    print(f"Workspace {WORKSPACE_ID}: captura {label}; {len(state.get('windows', []))} janelas; {known}/{len(relevant)} IDs ativos; {empty} aba(s) vazia(s) ignorada(s).")
-    for agent in sorted({a.get("agent", "desconhecido") for a in sessions}):
-        values = [a for a in sessions if a.get("agent") == agent and a.get("state") != "empty"]
-        found = sum(bool(a.get("session_id")) for a in values)
-        print(f"{agent}: {found}/{len(values)} IDs identificados")
-    for warning in state.get("warnings", []):
-        print("AVISO:", warning)
-    if restore_status:
-        print(f"Última restauração: {restore_status.get('status', 'desconhecida')} — {restore_status.get('message', '')}")
-    return 0
+        result = run(["busctl", "--system", "get-property", "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "PreparingForShutdown"], timeout=2, check=False)
+        if result.stdout.strip() == "b true":
+            return True
+        session = os.environ.get("XDG_SESSION_ID")
+        if session:
+            result = run(["loginctl", "show-session", session, "-p", "State", "--value"], timeout=2, check=False)
+            return result.stdout.strip() == "closing"
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return False
+
+
+def restoration_in_progress() -> bool:
+    with (STATE_DIR / "RESTORE.lock").open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return False
+        except BlockingIOError:
+            return True
 
 
 def login_loop() -> int:
@@ -654,100 +867,65 @@ def login_loop() -> int:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return 0
-        previous = load_state()
-        current_boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-        live = workspace_clients()
-        restore_pending = False
-        expected_windows = 0
-        if previous and previous.get("boot_id") != current_boot and not live:
-            expected_windows = restorable_window_count(previous)
-            if expected_windows:
-                try:
-                    write_restore_status("iniciando", "Iniciando a restauração do Workspace 1.", expected_windows=expected_windows)
-                    restore_pending = True
-                    launched = restore(previous)
-                    deadline = time.monotonic() + 90
-                    while time.monotonic() < deadline:
-                        live = workspace_clients()
-                        if len(live) >= expected_windows:
-                            candidate = snapshot(promote=False)
-                            if candidate.get("complete") and restore_matches(previous, candidate):
-                                atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
-                                restore_pending = False
-                                write_restore_status("concluida", "Janelas, aplicativos e IDs ativos conferidos.", expected_windows=expected_windows, launched=launched)
-                                break
-                        time.sleep(2)
-                    if restore_pending:
-                        snapshot(promote=False)
-                        write_restore_status("incompleta", "As janelas ou IDs ativos não coincidiram com o snapshot salvo; o último estado válido foi preservado.", expected_windows=expected_windows, observed_windows=len(workspace_clients()), launched=launched)
-                except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as error:
-                    write_restore_status("falhou", f"{type(error).__name__}: {error}", expected_windows=expected_windows)
-        elif live and previous and previous.get("boot_id") != current_boot:
-            # Do not mistake a partial/default autostart layout for the restored one.
-            snapshot(promote=False)
-            write_restore_status("incompleta", "Já havia janelas no Workspace 1 no início; o snapshot anterior foi preservado para evitar duplicação ou perda.", expected_windows=restorable_window_count(previous), observed_windows=len(live))
-            restore_pending = True
-            expected_windows = restorable_window_count(previous)
-        elif live:
-            snapshot(promote=True)
-        else:
-            # An empty startup capture must not erase the previous boot's state.
-            snapshot(promote=False)
-            if not previous:
-                write_restore_status("sem_snapshot_valido", "Nenhum snapshot íntegro disponível para iniciar a restauração.")
-        empty_since: float | None = None
         stopping = False
-
         def stop(_signum: int, _frame: Any) -> None:
             nonlocal stopping
             stopping = True
-
         signal.signal(signal.SIGTERM, stop)
         signal.signal(signal.SIGINT, stop)
+        wait_for_hyprland()
+        previous = load_state()
+        if previous and previous.get("boot_id") != boot_id():
+            restore(previous)
+        shrink_since = None
         while not stopping:
             try:
-                current = workspace_clients()
-                if current:
-                    empty_since = None
-                    candidate = snapshot(promote=not restore_pending)
-                    if restore_pending and len(current) >= expected_windows and candidate.get("complete") and previous and restore_matches(previous, candidate):
-                        atomic_write(STATE_FILE, (json.dumps(candidate, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
-                        restore_pending = False
-                        write_restore_status("concluida", "Janelas, aplicativos e IDs ativos conferidos.", expected_windows=expected_windows, observed_windows=len(current))
+                if shutting_down():
+                    break
+                if restoration_in_progress():
+                    time.sleep(0.5)
+                    continue
+                candidate = snapshot(promote=False)
+                previous = load_state()
+                shrinking = previous and any(a < b for a, b in zip(scene_counts(candidate), scene_counts(previous)))
+                if shrinking:
+                    shrink_since = shrink_since or time.monotonic()
                 else:
-                    empty_since = empty_since or time.monotonic()
-                    if time.monotonic() - empty_since >= EMPTY_GRACE_SECONDS and not restore_pending:
-                        snapshot(allow_empty=True, promote=not restore_pending)
-            except (OSError, subprocess.SubprocessError, ValueError, KeyError) as error:
-                write_restore_status("monitoramento_com_erro", f"{type(error).__name__}: {error}")
-            time.sleep(POLL_SECONDS)
-        try:
-            if workspace_clients() and not restore_pending:
-                snapshot()
-        except Exception:
-            pass
+                    shrink_since = None
+                grace = EMPTY_GRACE_SECONDS if not candidate["windows"] else 30
+                if not shrinking or time.monotonic() - shrink_since >= grace:
+                    promote_state(candidate)
+            except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, KeyError) as error:
+                write_restore_status("monitoramento_com_erro", str(error))
+            # Short sleeps keep SIGTERM responsive; do not save a closing desktop on exit.
+            for _ in range(POLL_SECONDS * 4):
+                if stopping:
+                    break
+                time.sleep(0.25)
     return 0
 
 
 def main(argv: list[str]) -> int:
     command = argv[1] if len(argv) > 1 else "status"
     if command == "snapshot":
-        state = snapshot()
-        print(f"Salvo: {len(state['windows'])} janelas no Workspace {WORKSPACE_ID}.")
+        snapshot()
         return status()
-    if command == "restore":
-        state = load_state()
+    if command in {"restore", "plan"}:
+        source = STATE_DIR / "RECOVERY.json" if "--recovery" in argv else None
+        state = load_state(source)
         if not state:
             print("Estado local válido não encontrado.", file=sys.stderr)
             return 1
-        restored = restore(state)
-        print(f"Restauradas {len(restored)} janelas: {', '.join(restored) or 'nenhuma'}")
-        return 0
+        if command == "plan":
+            print(json.dumps([{k:v for k,v in e.items() if k != "item"} for e in restore_plan(state)], ensure_ascii=False, indent=2))
+            return 0
+        results = restore(state)
+        return 0 if any(r["status"] == "verificado" for r in results) else 1
     if command == "login":
         return login_loop()
     if command == "status":
         return status()
-    print("Uso: WORKSPACE1.py {status|snapshot|restore|login}", file=sys.stderr)
+    print("Uso: WORKSPACE1.py {status|snapshot|plan|restore [--recovery]|login}", file=sys.stderr)
     return 2
 
 

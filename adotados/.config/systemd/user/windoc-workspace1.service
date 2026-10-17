@@ -1,0 +1,15 @@
+[Unit]
+Description=Persistencia gradual do Workspace 1 no WinDoc
+PartOf=wayland-session@hyprland.desktop.target
+After=wayland-wm@hyprland.desktop.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/Desktop/windoc/PERSISTIR_WORKSPACE/WORKSPACE1.py login
+Restart=on-failure
+RestartSec=4
+TimeoutStopSec=12
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1

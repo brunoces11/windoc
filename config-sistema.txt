@@ -1300,3 +1300,17 @@ Data: 17/10/2026. Estado: implementado e validado.
 - Ajustado o cálculo da largura disponível para título/artista na cápsula, alocando dinamicamente o espaço economizado pelos botões mais compactos.
 - Arquivos: `amberol-deskband/components/DeskbandButton.qml`, `amberol-deskband/components/DeskbandCapsule.qml`, `DIRETRIZES_DE_DESIGN.txt` e este histórico.
 - Validação: 7 testes Python do instalador, 13 testes QML do Deskband e 116 testes QML da dock aprovados; quickshell recarregado sem erros; status da deskband via IPC confirmado.
+
+
+69. RESTAURAÇÃO GRADUAL DO WORKSPACE 1 E MONITOR SUPERVISIONADO
+Data: 17/10/2026. Estado: implementado, ativo e validado em ciclo isolado; reboot completo e grupos com várias janelas ainda pendentes.
+
+- Antes, qualquer ID desconhecido bloqueava a captura restaurável inteira. Agora o manifesto aceita detecção parcial, gera comandos por janela e mantém as abas sem ID como terminais, sem escolher outra conversa. Falhas de abertura ou arquivo de uma janela não interrompem as demais.
+- Kitty continua fornecendo a sessão nativa. O inventário inclui todas as abas e painéis, inclusive vazios, e mantém IDs conhecidos mesmo se precisar reconstruir uma sessão reduzida. Comandos diretos de agentes também são substituídos pela retomada precisa.
+- Corrigida a leitura de USER_INPUT do Antigravity e a reavaliação de sessões classificadas como vazias. Hooks atualizados têm prioridade sobre argumentos antigos. Um Codex antigo recebeu associação comprovada por /status nativo; o monitor não injeta comandos ou mensagens para descobrir IDs.
+- Cada janela tem identidade estável; repetir a restauração reutiliza as já abertas. A conferência detecta abas/painéis ausentes, IDs trocados entre janelas e grupos diferentes, sem considerar argumentos de retomada como prova de conversa efetivamente carregada.
+- Gravações atômicas, versões anteriores, captura de recuperação antes da restauração, locks separados e proteção de 30/60 segundos contra redução/desktop vazio preservam o estado. O monitor não grava uma captura final do desktop em encerramento.
+- Serviço de usuário adotado no WinDoc, com reinício em falhas e vínculo registrado. Autostart importa o IPC do Hyprland e inicia o serviço; o monitor antigo foi encerrado e o novo está ativo. Incluídos Amberol e o lançador correto do Sublime (subl).
+- Arquivos: PERSISTIR_WORKSPACE/WORKSPACE1.py, AGENT_SESSION_HOOK.py, TEST_WORKSPACE1.py e README.md; hyprland/autostart.lua; adotados/.config/systemd/user/windoc-workspace1.service; symlinks.tsv; este histórico. Estado privado continua somente em ESTADO_LOCAL, ignorado pelo Git.
+- Validação: 25 testes automatizados aprovados; ciclo real isolado com um Kitty, duas abas e três painéis salvo, fechado e restaurado por sessão nativa; grupo individual e diretórios conferidos; repetição não duplicou a janela. Janelas originais preservadas. Serviço e avanço automático do timestamp confirmados; dados locais contém nove abas e oito IDs distintos (dois Codex e seis Antigravity), além dos aplicativos gráficos conhecidos.
+- Limites: reboot completo ainda não realizado; grupos com várias janelas e geometria exata dos tiles ainda não são recompostos. Codex pode carregar a conversa antes de emitir o hook, deixando confirmação pendente; Claude foi validado por testes isolados, sem sessão real aberta. Detecção sem ID continua sendo uma pendência, não evidência de chat vazio.

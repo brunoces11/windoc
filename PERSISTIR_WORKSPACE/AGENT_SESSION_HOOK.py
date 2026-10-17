@@ -40,22 +40,40 @@ def transcript_has_user_message(value: Any) -> bool | None:
     try:
         if not path.is_file():
             return None
+        recognized = False
+        unknown = False
         with path.open("rb") as stream:
             for line in stream:
+                if not line.strip():
+                    continue
                 try:
                     row = json.loads(line)
                 except (ValueError, UnicodeDecodeError):
+                    unknown = True
                     continue
                 if not isinstance(row, dict):
+                    unknown = True
                     continue
                 message = row.get("message")
-                if row.get("type") in {"user", "human"}:
+                kind = row.get("type")
+                if kind in {"user", "human", "USER_INPUT"}:
                     return True
                 if isinstance(message, dict) and message.get("role") in {"user", "human"}:
                     return True
                 if row.get("role") in {"user", "human"}:
                     return True
-        return False
+                payload = row.get("payload")
+                if isinstance(payload, dict):
+                    if kind == "response_item" and payload.get("role") == "user":
+                        return True
+                    if kind == "event_msg" and payload.get("type") == "user_message":
+                        return True
+                if kind in {"session_meta", "turn_context", "SYSTEM_MESSAGE"}:
+                    recognized = True
+                else:
+                    # An unfamiliar/truncated transcript is not proof of an empty chat.
+                    unknown = True
+        return False if path.stat().st_size == 0 or (recognized and not unknown) else None
     except OSError:
         return None
 
