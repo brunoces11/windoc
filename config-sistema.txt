@@ -1371,3 +1371,13 @@ Data: 17/10/2026. Estado: planejado, acervo verificado e documentado.
   - Sinalização de status offline automática: quando houver interrupção de internet (sem conexão externa verificável), o ícone ativo (Wi-Fi ou RJ45) assume coloração vermelha enquanto durar a desconexão, retornando à cor do tema assim que a conectividade for restabelecida.
   - Auditoria do acervo de ícones: confirmado que o sistema já dispõe do glifo `󰈀` (U+F0200, `nf-md-ethernet`) na fonte `JetBrainsMono Nerd Font` do sistema (idêntico ao utilizado pelo Omarchy Network Panel), harmonizando com o renderizador de texto QML dos demais ícones do tray sem necessidade de ativos SVG externos.
 - Arquivos afetados: `system_icon_tray_plan.md` e este histórico.
+
+
+74. IMPEDIR QUE SPINNERS BLOQUEIEM A CONSOLIDAÇÃO DO WORKSPACE 1
+Data: 17/10/2026. Estado: corrigido, validado e ativo.
+
+- Na validação final do monitor por eventos, confirmado que Hyprland emite activewindowv2 mesmo quando apenas o título da mesma janela muda. Foram observadas 30 notificações desse tipo em três segundos; o relógio de consolidação podia ser reiniciado continuamente por spinners.
+- O filtro agora compara a identidade da janela ativa e ignora repetições sem troca real de foco; também elimina notificações repetidas de tela cheia. Eventos de foco legítimos continuam iniciando a espera.
+- Validação: 39 testes automatizados, incluindo regressão que mantém a espera de 30 segundos apesar de eventos repetidos; serviço reiniciado, nenhuma gravação nos primeiros 15 segundos e captura real atualizada em 30,5 segundos com spinners ativos. O ciclo nativo de layout da etapa anterior continua aprovado.
+- Arquivos: PERSISTIR_WORKSPACE/INTERFACE_MONITOR.py, TEST_WORKSPACE1.py, README.md e este histórico. As etapas 72/73 e seus commits, produzidos por outra sessão no mesmo repositório durante este trabalho, foram preservados.
+- Continua pendente um novo reboot completo para validar conjuntamente a geometria e a restauração automática; não foi provocado desligamento ou kernel panic para o teste.

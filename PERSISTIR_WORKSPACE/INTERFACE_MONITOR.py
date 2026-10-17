@@ -137,6 +137,26 @@ def relevant_event(name, payload, addresses, workspace):
     return name == "fullscreen" and bool(addresses)
 
 
+class EventFilter:
+    def __init__(self):
+        self.active = None
+        self.fullscreen = None
+
+    def accept(self, name, payload, addresses, workspace):
+        # Hyprland repeats activewindowv2 on title changes of the SAME window.
+        # Agent spinners can produce ten notifications/second; these are not focus changes.
+        if name == "activewindowv2":
+            address = payload if payload.startswith("0x") else "0x" + payload
+            if address == self.active:
+                return False
+            self.active = address
+        if name == "fullscreen":
+            if payload == self.fullscreen:
+                return False
+            self.fullscreen = payload
+        return relevant_event(name, payload, addresses, workspace)
+
+
 def monitor(api):
     api.STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     with api.LOCK_FILE.open("a+") as lock:
@@ -164,6 +184,7 @@ def monitor(api):
         last_probe = float("-inf")
         next_check = time.monotonic()
         addresses = set()
+        event_filter = EventFilter()
         signature = None
         try:
             while not stopping:
@@ -192,6 +213,8 @@ def monitor(api):
                         current = api.probe_signature(probe, saved)
                         last_probe = time.monotonic()
                         addresses = {c["address"] for c in probe["clients"]}
+                        if event_filter.active is None:
+                            event_filter.active = next((c["address"] for c in probe["clients"] if c.get("focusHistoryID") == 0), None)
                         if full:
                             next_check = last_probe + api.RECONCILE_SECONDS
                             notifications.connect()
@@ -229,7 +252,7 @@ def monitor(api):
                             quiet.change(time.monotonic())
                             reference = signature
                         registry = updated
-                    elif relevant_event(name, payload, addresses, api.WORKSPACE_ID):
+                    elif event_filter.accept(name, payload, addresses, api.WORKSPACE_ID):
                         quiet.change(time.monotonic())
                         reference = signature
         finally:

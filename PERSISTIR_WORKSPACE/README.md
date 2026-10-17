@@ -18,7 +18,9 @@ O estado local permanece em `ESTADO_LOCAL/`, privado e ignorado pelo Git.
   normal nesses casos pode chegar a aproximadamente 90 segundos.
 - A consolidação e a reconciliação se aproveitam quando coincidem. Eventos não
   disparam subprocessos imediatamente: o serviço dorme esperando notificações ou
-  o próximo prazo. Títulos animados e spinners não reiniciam o relógio.
+  o próximo prazo. Títulos animados e spinners não reiniciam o relógio. Notificações
+  repetidas de janela ativa com a mesma identidade também são descartadas: o
+  Hyprland pode emiti-las quando somente o título muda.
 - Sem alteração real, não regrava o manifesto, os backups ou as sessões nativas.
   A idade mostrada no status indica a última mudança salva, não um heartbeat.
 
@@ -137,7 +139,7 @@ No diretório `PERSISTIR_WORKSPACE`:
 
 ## Validação e limites
 
-Em 17/10/2026 passaram 38 testes automatizados. O ciclo nativo isolado capturou,
+Em 17/10/2026 passaram 39 testes automatizados. O ciclo nativo isolado capturou,
 fechou e restaurou quatro janelas, três grupos e cinco abas, com divisões horizontal
 e vertical, geometria, ordem dos grupos e seleção conferidas. Outro ciclo validou
 uma janela flutuante e dois grupos. As janelas originais foram preservadas.
@@ -145,7 +147,8 @@ uma janela flutuante e dois grupos. As janelas originais foram preservadas.
 O monitor ativo foi observado por 65 segundos sem mudanças: não regravou o manifesto
 nem os arquivos Kitty; seu processo consumiu 0,12 segundo de CPU nesse intervalo.
 Esse número é uma medição local do processo principal, não uma garantia para todas
-as cargas. A captura automática do formato novo foi confirmada depois da espera.
+as cargas. A captura automática do formato novo foi confirmada em 30,5 segundos com spinners
+ativos; não houve gravação nos primeiros 15 segundos.
 
 O usuário já confirmou a reabertura de chats em um reboot real da versão anterior.
 A restauração geométrica desta versão passou no ciclo real isolado, mas ainda não

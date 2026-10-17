@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 import WORKSPACE1 as ws
 import AGENT_SESSION_HOOK as hook
-from INTERFACE_MONITOR import QuietPeriod, relevant_event
+from INTERFACE_MONITOR import QuietPeriod, relevant_event, EventFilter
 import WORKSPACE_LAYOUT as layout
 
 SID = '11111111-1111-4111-8111-111111111111'
@@ -245,6 +245,15 @@ class PersistenceTests(unittest.TestCase):
         self.assertFalse(relevant_event('windowtitlev2','abc,spinner',{'0xabc'},1))
         self.assertTrue(relevant_event('closewindow','abc',{'0xabc'},1))
         self.assertFalse(relevant_event('openwindow','def,2,kitty,title',{'0xabc'},1))
+
+    def test_repeated_active_events_from_spinner_do_not_reset_timer(self):
+        events=EventFilter();events.active='0xabc'
+        gate=QuietPeriod(30);gate.change(0)
+        for second in range(1,31):
+            if events.accept('activewindowv2','abc',{'0xabc','0xdef'},1):gate.change(second)
+        self.assertTrue(gate.ready(30))
+        self.assertTrue(events.accept('activewindowv2','def',{'0xabc','0xdef'},1))
+        self.assertFalse(events.accept('activewindowv2','def',{'0xabc','0xdef'},1))
 
     def test_no_write_for_unchanged_snapshot(self):
         state={'schema':2,'workspace':ws.WORKSPACE_ID,'boot_id':'boot','updated_at':1,
