@@ -1607,3 +1607,25 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * 45 testes de persistência de workspace aprovados (totalizando 90 testes automatizados no WinDoc).
   * Recarregamento do shell Quickshell (`omarchy restart shell`) e verificação de logs e processos ativos.
 
+
+86. CORREÇÃO DO COMANDO PLAY E ESTADO ATIVO DO BOTÃO DE REPRODUÇÃO NO AMBEROL DESKBAND
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Diagnóstico da causa raiz:
+  1. No estado inicial (`Stopped`), quando o Amberol carrega uma pasta de músicas ou é iniciado com faixas na fila, o servidor MPRIS do Amberol publica `CanPlay: 0` (falso) e `PlaybackStatus: Stopped`, passando a publicar `CanPlay: 1` apenas após o início da reprodução.
+  2. O binding C++ do Quickshell (`qs::service::mpris::MprisPlayer`) intercepta e recusa chamadas a `play()` ou `togglePlaying()` quando `canPlay` é falso (`WARN: Cannot set playbackState of ... to Playing because canPlay is false`).
+  3. A propriedade `canToggle` em `AmberolController.qml` avaliava como `false` em estado `Stopped`, forçando `enabled: false` (opacidade 0.32, cursor inativo) no botão de Play do painel (`DeskbandButton`).
+  4. Além disso, a função `togglePlaying()` caía no bloco `else return false;`, impedindo a reprodução tanto pelo botão pequeno de Play quanto pelo clique conjugado com a tecla Alt no ícone principal.
+- Soluções implementadas:
+  1. Em `amberol-deskband/components/AmberolController.qml`:
+     - Inclusão de `import Quickshell`.
+     - Atualização da propriedade `canToggle`: agora valida `(player.canControl || player.canTogglePlaying || player.canPlay || player.canPause || hasMedia)`, assegurando que os controles de reprodução permaneçam ativos sempre que houver mídia carregada no player.
+     - Refatoração de `togglePlaying()`: quando o Amberol está parado (`!p.isPlaying`) e o Quickshell bloqueia o método nativo, o controlador despacha diretamente o comando D-Bus `Play` via `busctl` (`org.mpris.MediaPlayer2.Player.Play`), contornando a trava e iniciando a reprodução instantaneamente. Da mesma forma, quando em reprodução, utiliza `Pause` para alternância suave.
+- Validação técnica executada:
+  * 11 testes unitários no `amberol-deskband` aprovados com código 0.
+  * 8 verificações MPRIS runtime completadas sem erros (`tests/mpris_runtime.py`).
+  * 26 testes de minimização da dock aprovados.
+  * 45 testes de persistência de workspace aprovados (totalizando 90 testes automatizados).
+  * Validação em runtime: teste do comando `playPause` e confirmação de transição real de estado no Amberol de `Stopped` -> `Playing` e `Playing` -> `Paused`. Shell Quickshell reiniciado com sucesso.
+
+
