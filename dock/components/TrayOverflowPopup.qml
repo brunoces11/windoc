@@ -278,13 +278,21 @@ PanelWindow {
                                 if (vol < 0.66) return "󰖀"
                                 return "󰕾"
                             }
+                            if (modelData.id === "omarchy.network") {
+                                return dockPanel ? dockPanel.networkGlyph : "󰖩"
+                            }
                             return modelData.icon || "󰒓"
                         }
                         font.pixelSize: overflowWindow.iconPixelSize
                         font.family: Style.font.family
-                        color: itemMouse.containsMouse
-                            ? Color.accent
-                            : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        color: {
+                            if (modelData.id === "omarchy.network" && dockPanel && !dockPanel.networkHasInternet) {
+                                return "#ef4444"
+                            }
+                            return itemMouse.containsMouse
+                                ? Color.accent
+                                : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        }
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
 
@@ -326,7 +334,12 @@ PanelWindow {
                             id: tipLabel
                             anchors.centerIn: parent
                             textFormat: Text.PlainText
-                            text: modelData.name
+                            text: {
+                                if (modelData.id === "omarchy.network" && dockPanel && typeof dockPanel.getNetworkTooltip === "function") {
+                                    return dockPanel.getNetworkTooltip()
+                                }
+                                return modelData.name || ""
+                            }
                             font.family: Style.font.family
                             font.pixelSize: 10
                             color: Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)

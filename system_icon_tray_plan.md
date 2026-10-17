@@ -202,7 +202,7 @@ etapa e atualiza seu estado antes de encerrar.
 | --- | --- | --- |
 | 1 — preparação técnica | CONCLUÍDA | Concluída e validada formalmente na base c31d566. |
 | 2 — implementação e validação | CONCLUÍDA | Implementada, refinada e validada em runtime (c31d566). |
-| 3 — indicador inteligente de rede | PLANEJADA | Planejada com comportamento nativo/embutido (Wi-Fi/RJ45 e alerta vermelho offline automático). Acervo de ícones verificado. |
+| 3 — indicador inteligente de rede | CONCLUÍDA | Implementada, integrada com sucesso e validada em runtime com Quickshell.Networking. |
 
 
 ### Regra de passagem
@@ -243,11 +243,11 @@ Estado atual: CONCLUÍDA e OPERACIONAL.
 
 ### Registro da etapa 3 — Indicador Inteligente de Rede (Wi-Fi / RJ45 e Alerta Offline Automático)
 
-Estado atual: PLANEJADA e PRONTA PARA IMPLEMENTAÇÃO.
+Estado atual: CONCLUÍDA e OPERACIONAL.
 
 - **Comportamento nativo e embutido (Sem chave de configuração pelo usuário):**
   A detecção e a sinalização de alerta tornam-se comportamento padrão, automático e intrínseco do WinDock. O usuário não precisa configurar nem ativar nada manualmente.
-- **Regras funcionais automáticas:**
+- **Regras funcionais automáticas implementadas:**
   1. **Detecção do meio físico de conexão:**
      - Conexão ativa via Wi-Fi: apresenta o ícone de Wi-Fi (`󰖩` / `nf-md-wifi`, U+F05A9).
      - Conexão ativa via cabo RJ45 (Ethernet): apresenta o ícone canônico de rede cabeada (`󰈀` / `nf-md-ethernet`, U+F0200).
@@ -255,13 +255,18 @@ Estado atual: PLANEJADA e PRONTA PARA IMPLEMENTAÇÃO.
      - Em ambos os meios (Wi-Fi ou Ethernet), se não houver conexão verificável com a internet (estado offline, interface desconectada, sem rota externa ou conectividade interrompida/sem ping gateway/DNS detectada via `NetworkManager`), o ícone ativo (Wi-Fi ou RJ45) assume coloração **vermelha** (`#ef4444` / `Color.urgent`) enquanto a interrupção persistir.
      - Ao restabelecer a conectividade com a internet, o ícone retorna automaticamente à cor padrão do tema/hover.
 - **Acervo de ícones verificado (Dispensando SVG externo):**
-  - O sistema já possui a tipografia `JetBrainsMono Nerd Font` e Font Awesome plenamente instalada e integrada ao Quickshell (`Style.font.family`).
+  - O sistema utiliza a tipografia `JetBrainsMono Nerd Font` e Font Awesome integrada ao Quickshell (`Style.font.family`).
   - O glifo `󰈀` (U+F0200, `nf-md-ethernet`) é o símbolo exato de conector RJ45 já adotado como padrão pelo painel de rede do Omarchy Shell (`/usr/share/omarchy/shell/plugins/panels/network/Model.js`), integrando-se perfeitamente com os demais glifos da bandeja (`󰝟`, `󰕾`, `󰖩`, `󰚩`, `󰖐`, etc.) com renderização subpixel precisa, sem necessidade de arquivos SVG avulsos.
-- **Arquitetura técnica prevista:**
-  - Instanciação reativa com `Quickshell.Networking`: leitura assíncrona de `Networking.devices`, `DeviceType.Wired`, `DeviceType.Wifi` e `Networking.connectivity === NetworkConnectivity.Full`.
-  - Centralização no `DockPanel.qml`: propriedades de estado `networkKind` ("ethernet" | "wifi" | "disconnected"), `networkHasInternet` (bool), `networkIcon` (glifo) e `networkColor` (cor).
-  - Vinculação nos componentes visuais: [`SystemIconTray.qml`](dock/components/SystemIconTray.qml) e [`TrayOverflowPopup.qml`](dock/components/TrayOverflowPopup.qml).
-  - Enriquecimento dos tooltips para refletir a interface ativa e o status da conexão.
+- **Arquivos alterados:**
+  * `dock/DockPanel.qml`: import `Quickshell.Networking`, propriedades reativas centrais (`networkKind`, `networkConnected`, `networkHasInternet`, `networkGlyph`, `getNetworkTooltip`), conexões de evento para invalidação reativa e suporte nos slots de widget e no catálogo do tray.
+  * `dock/components/SystemIconTray.qml`: integração de `dockPanel.networkGlyph`, coloração `#ef4444` em falha de internet e tooltip semântico em português.
+  * `dock/components/TrayOverflowPopup.qml`: glifo reativo, alerta vermelho e tooltip no popup de overflow `^`.
+  * `dock/components/WidgetPickerPopup.qml`: pré-visualização reativa de glifo e status offline.
+- **Verificações executadas e resultados:**
+  * `omarchy restart shell`: reinicialização com código de saída 0.
+  * `hyprctl layers`: camada `omarchy-dock` ativa em `0 814 1536 50`.
+  * Logs do Quickshell: zero erros ou advertências registradas.
+  * Teste automatizado `test_dock_minimize.py`: 26 testes unitários aprovados.
 
 As etapas são sequenciais, complementares e executadas em entregas separadas.
 Cada uma tem um resultado próprio, mas a segunda depende do registro concluído da

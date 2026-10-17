@@ -1381,3 +1381,29 @@ Data: 17/10/2026. Estado: corrigido, validado e ativo.
 - Validação: 39 testes automatizados, incluindo regressão que mantém a espera de 30 segundos apesar de eventos repetidos; serviço reiniciado, nenhuma gravação nos primeiros 15 segundos e captura real atualizada em 30,5 segundos com spinners ativos. O ciclo nativo de layout da etapa anterior continua aprovado.
 - Arquivos: PERSISTIR_WORKSPACE/INTERFACE_MONITOR.py, TEST_WORKSPACE1.py, README.md e este histórico. As etapas 72/73 e seus commits, produzidos por outra sessão no mesmo repositório durante este trabalho, foram preservados.
 - Continua pendente um novo reboot completo para validar conjuntamente a geometria e a restauração automática; não foi provocado desligamento ou kernel panic para o teste.
+
+
+75. IMPLEMENTAÇÃO DO INDICADOR INTELIGENTE DE REDE NA SYSTEM ICON TRAY
+Data: 17/10/2026. Estado: implementado, validado e ativo em runtime.
+
+- Implementação da Etapa 3 formalizada no plano central `system_icon_tray_plan.md`:
+  - Comportamento nativo e embutido: sem necessidade de telas ou chaves de configuração pelo usuário; a detecção e sinalização operam de forma 100% automática.
+  - Detecção inteligente do meio físico ativo via NetworkManager e `Quickshell.Networking`:
+    * Conectado via Wi-Fi: exibe o ícone de Wi-Fi (`󰖩`).
+    * Conectado via cabo RJ45 (Ethernet): exibe o ícone canônico de rede cabeada (`󰈀`).
+  - Sinalização automática offline em vermelho:
+    * Quando não houver conectividade verificável com a internet (estado desconectado, sem rota externa ou sem ping de gateway/DNS), o ícone ativo (Wi-Fi ou RJ45) assume a cor vermelha (`#ef4444`) enquanto durar a interrupção.
+    * Ao restabelecer a conectividade externa, o ícone retorna instantaneamente à cor padrão do tema.
+  - Tooltips enriquecidos com status semântico em tempo real ("Rede RJ45 (Conectado)", "Wi-Fi (Conectado)", "Rede RJ45 (Sem internet)", "Wi-Fi (Sem internet)" e "Rede desconectada").
+- Arquivos modificados:
+  * `dock/DockPanel.qml`: import do módulo `Quickshell.Networking`, centralização de estado reativo (`networkKind`, `networkConnected`, `networkHasInternet`, `networkGlyph`, `getNetworkTooltip`), conexões de evento para invalidação e suporte de cor de alerta nos slots de widget e no catálogo da bandeja.
+  * `dock/components/SystemIconTray.qml`: vinculação de `networkGlyph`, sinalização em vermelho `#ef4444` e tooltip dinâmico no tray ao lado do relógio.
+  * `dock/components/TrayOverflowPopup.qml`: vinculação de `networkGlyph`, cor de alerta e tooltip no popup de overflow `^`.
+  * `dock/components/WidgetPickerPopup.qml`: pré-visualização reativa de glifo e status offline.
+  * `system_icon_tray_plan.md`: status da Etapa 3 promovido a CONCLUÍDA e OPERACIONAL com registro completo de execução.
+  * Este histórico.
+- Validação técnica executada:
+  * 26 testes de integridade da dock (`dock/tests/test_dock_minimize.py`) aprovados.
+  * Shell recarregado via `omarchy restart shell` com código de retorno 0.
+  * Superfície Wayland `omarchy-dock` confirmada ativa via `hyprctl layers` (`0 814 1536 50`).
+  * Logs do Quickshell auditados em `/run/user/1000/quickshell/by-id/`: zero falhas ou erros de QML registrados.

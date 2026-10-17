@@ -28,7 +28,12 @@ Item {
         var indicator = TrayIndicators.itemForId(widgetId)
         if (indicator) return indicator.name
         if (widgetId === "omarchy.audio") return "Volume e Áudio"
-        if (widgetId === "omarchy.network") return "Rede e Conexões"
+        if (widgetId === "omarchy.network") {
+            if (dockPanel && typeof dockPanel.getNetworkTooltip === "function") {
+                return dockPanel.getNetworkTooltip()
+            }
+            return "Rede e Conexões"
+        }
         if (widgetId === "brunoma.agents") return "Agentes de IA"
         if (widgetId === "omarchy.weather") return "Previsão do Tempo"
         if (widgetId === "omarchy.monitor") return "Telas e Display"
@@ -141,7 +146,7 @@ Item {
                                 if (vol < 0.66) return "󰖀"
                                 return "󰕾"
                             }
-                            if (modelData === "omarchy.network") return "󰖩"
+                            if (modelData === "omarchy.network") return dockPanel ? dockPanel.networkGlyph : "󰖩"
                             if (modelData === "brunoma.agents") return "󰚩"
                             if (modelData === "omarchy.weather") return "󰖐"
                             if (modelData === "omarchy.monitor") return "󰍹"
@@ -149,9 +154,14 @@ Item {
                         }
                         font.pixelSize: 17
                         font.family: Style.font.family
-                        color: pinnedMouse.containsMouse
-                            ? Color.accent
-                            : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        color: {
+                            if (modelData === "omarchy.network" && dockPanel && !dockPanel.networkHasInternet) {
+                                return "#ef4444"
+                            }
+                            return pinnedMouse.containsMouse
+                                ? Color.accent
+                                : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                        }
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
 

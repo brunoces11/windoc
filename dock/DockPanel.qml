@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
+import Quickshell.Networking
 import qs.Commons
 import qs.Ui
 import "DockModel.js" as DockModel
@@ -907,7 +908,7 @@ Item {
     readonly property var leftWidgetsList: widgetLayout.leftWidgets || []
     readonly property var allSystemTrayWidgets: [
         { id: "omarchy.audio", name: "Volume e Áudio", icon: "󰕾", desc: "Dispositivos de áudio e controle de volume" },
-        { id: "omarchy.network", name: "Rede e Conexões", icon: "󰖩", desc: "Wi-Fi, Ethernet e configurações de rede" },
+        { id: "omarchy.network", name: "Rede e Conexões", icon: root.networkGlyph, desc: "Wi-Fi, Ethernet e configurações de rede" },
         { id: "brunoma.agents", name: "Agentes de IA", icon: "󰚩", desc: "Consumo de créditos e limites dos modelos de IA" },
         { id: "omarchy.weather", name: "Previsão do Tempo", icon: "󰖐", desc: "Clima e previsão meteorológica atual" },
         { id: "omarchy.monitor", name: "Telas e Display", icon: "󰍹", desc: "Brilho, escala e configurações dos monitores" }
@@ -1791,6 +1792,46 @@ Item {
     readonly property int upowerBatteryState: (upowerDisplayDev && upowerDisplayDev.isPresent) ? upowerDisplayDev.state : 0
     readonly property bool upowerBatteryPresent: (upowerDisplayDev && upowerDisplayDev.isPresent) ? true : false
 
+    // Network state tracking via Quickshell.Networking
+    readonly property var _netDevices: (Networking.devices ? Networking.devices.values : [])
+    readonly property var _netWiredDev: {
+        for (var i = 0; i < root._netDevices.length; i++) {
+            var d = root._netDevices[i]
+            if (d && d.type === DeviceType.Wired && d.connected) return d
+        }
+        return null
+    }
+    readonly property var _netWifiDev: {
+        for (var i = 0; i < root._netDevices.length; i++) {
+            var d = root._netDevices[i]
+            if (d && d.type === DeviceType.Wifi && d.connected) return d
+        }
+        return null
+    }
+    readonly property string networkKind: {
+        if (root._netWiredDev && root._netWiredDev.connected) return "ethernet"
+        if (root._netWifiDev && root._netWifiDev.connected) return "wifi"
+        for (var j = 0; j < root._netDevices.length; j++) {
+            if (root._netDevices[j] && root._netDevices[j].type === DeviceType.Wired) return "ethernet"
+        }
+        return "wifi"
+    }
+    readonly property bool networkConnected: (root._netWiredDev && root._netWiredDev.connected) || (root._netWifiDev && root._netWifiDev.connected)
+    readonly property bool networkHasInternet: root.networkConnected && (Networking.connectivity === NetworkConnectivity.Full)
+    readonly property string networkGlyph: (root.networkKind === "ethernet") ? "󰈀" : "󰖩"
+
+    function getNetworkTooltip() {
+        if (!root.networkConnected) return "Rede desconectada"
+        if (!root.networkHasInternet) return (root.networkKind === "ethernet" ? "Rede RJ45 (Sem internet)" : "Wi-Fi (Sem internet)")
+        return (root.networkKind === "ethernet" ? "Rede RJ45 (Conectado)" : "Wi-Fi (Conectado)")
+    }
+
+    Connections {
+        target: Networking
+        function onConnectivityChanged() { root.widgetIconRevision++ }
+        function onWifiEnabledChanged() { root.widgetIconRevision++ }
+    }
+
     readonly property int screenCount: Quickshell.screens ? Quickshell.screens.length : 1
 
     function getWidgetIcon(widgetId, item) {
@@ -1808,7 +1849,7 @@ Item {
         }
         if (widgetId === "omarchy.network") {
             if (item && item.icon) return item.icon
-            return "󰖩"
+            return root.networkGlyph
         }
         if (widgetId === "omarchy.bluetooth") {
             if (item && item.icon) return item.icon
@@ -3591,7 +3632,9 @@ Item {
                                 }
                                 fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((leftWidgetLoader.item && leftWidgetLoader.item.fontFamily) ? leftWidgetLoader.item.fontFamily : ((leftWidgetLoader.item && leftWidgetLoader.item.font && leftWidgetLoader.item.font.family) ? leftWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
-                                color: leftWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                                color: (modelData === "omarchy.network" && !root.networkHasInternet)
+                                    ? "#ef4444"
+                                    : (leftWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95))
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
 
@@ -4016,7 +4059,9 @@ Item {
                                 }
                                 fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((rightWidgetLoader.item && rightWidgetLoader.item.fontFamily) ? rightWidgetLoader.item.fontFamily : ((rightWidgetLoader.item && rightWidgetLoader.item.font && rightWidgetLoader.item.font.family) ? rightWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
-                                color: rightWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95)
+                                color: (modelData === "omarchy.network" && !root.networkHasInternet)
+                                    ? "#ef4444"
+                                    : (rightWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95))
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
 
