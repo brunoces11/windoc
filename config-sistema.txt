@@ -1661,3 +1661,34 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * 26 testes de minimização da dock em `dock/tests` aprovados com sucesso.
   * Teste real de inicialização do Amberol sem argumentos confirmando abertura direta com todas as 41 músicas carregadas.
   * Teste do comando `--play-default` confirmando transição para estado `Playing` com metadados completos da primeira faixa.
+
+
+88. MODO HEADLESS SILENCIOSO DO MOTOR AMBEROL E INTEGRAÇÃO TOTAL NO WINDOCK DOCK
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Contexto e Objetivo:
+  - Configuração do Amberol para operar de forma 100% headless (sem abrir a interface gráfica GTK original), utilizando apenas o seu motor interno de reprodução de áudio controlado de ponta a ponta pelo player compacto embutido na Windows Dock (`amberol-deskband`).
+- Configurações implementadas:
+  1. No gerenciador de janelas Hyprland (`hyprland/hyprland.lua`):
+     - Adicionada regra de janela nativa:
+       ```lua
+       -- Amberol em modo headless silencioso (motor de reprodução sem janela visível)
+       o.window("io.bassi.Amberol", {
+         workspace = "special silent",
+         no_initial_focus = true,
+       })
+       ```
+     - A janela do Amberol é alocada no workspace especial invisível (`special:special`), garantindo que nunca seja mapeada ou exibida na área de trabalho do usuário e nunca roube foco.
+  2. Inicialização automática em segundo plano (`hyprland/autostart.lua`):
+     - Inclusão de `o.launch_on_start("amberol")`, carregando o motor silencioso com a pasta padrão persistida logo na inicialização da sessão.
+  3. No widget da dock (`amberol-deskband/BarWidget.qml`):
+     - `handleIconRightClicked()` atualizado de focar janela externa para alternar o popup de menu (`root.togglePanel()`), eliminando qualquer tentativa de invocar a interface nativa do aplicativo.
+  4. Fluxo completo de controle headless:
+     - Todos os comandos do player compacto (Play, Pause, Próxima, Anterior, Seek, Volume, Menu e Load Folder) operam diretamente sobre o motor em background via D-Bus MPRIS e PipeWire, sem que nenhuma janela gráfica do Amberol surja na tela.
+- Validação técnica executada:
+  * 12 testes unitários do `amberol-deskband` aprovados com código 0.
+  * 8 testes runtime MPRIS executados e aprovados (`tests/mpris_runtime.py`).
+  * 26 testes de minimização da dock aprovados.
+  * 45 testes de persistência de workspace aprovados (totalizando 91 testes automatizados).
+  * Confirmação em runtime via `hyprctl clients`: Amberol alocado no workspace `special:special` (id -99), zero sobreposição no workspace visível e comandos `playPause`, `next`, `previous` plenamente operacionais.
+

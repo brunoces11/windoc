@@ -32,3 +32,9 @@ require("default.hypr.toggles")
 o.window({ class = "kitty", title = ".*([bB]runote|WINDOWS|conhost).*" }, {
   border_color = { colors = { "rgb(ffd700)" } },
 })
+
+-- Amberol em modo headless silencioso (motor de reprodução sem janela visível)
+o.window("io.bassi.Amberol", {
+  workspace = "special silent",
+  no_initial_focus = true,
+})
