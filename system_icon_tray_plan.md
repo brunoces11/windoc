@@ -251,17 +251,17 @@ Estado atual: CONCLUÍDA e OPERACIONAL.
   1. **Detecção do meio físico de conexão:**
      - Conexão ativa via Wi-Fi: apresenta o ícone de Wi-Fi (`󰖩` / `nf-md-wifi`, U+F05A9).
      - Conexão ativa via cabo RJ45 (Ethernet): apresenta o ícone canônico de rede cabeada (`󰈀` / `nf-md-ethernet`, U+F0200).
-  2. **Detecção de conectividade à internet e sinalização de alerta:**
-     - Em ambos os meios (Wi-Fi ou Ethernet), se não houver conexão verificável com a internet (estado offline, interface desconectada, sem rota externa ou conectividade interrompida/sem ping gateway/DNS detectada via `NetworkManager`), o ícone ativo (Wi-Fi ou RJ45) assume coloração **vermelha** (`#ef4444` / `Color.urgent`) enquanto a interrupção persistir.
+  2. **Detecção de conectividade à internet e sinalização de alerta dinâmica:**
+     - Em ambos os meios (Wi-Fi ou Ethernet), se não houver conexão verificável com a internet (estado offline, interface desconectada, sem rota externa ou conectividade interrompida/sem ping gateway/DNS detectada via `NetworkManager`), o ícone ativo (Wi-Fi ou RJ45) assume a coloração de **alerta dinâmica do template ativo do usuário** (`Color.urgent`, com fallback para `Color.accent`) via `networkAlertColor` enquanto a interrupção persistir.
      - Ao restabelecer a conectividade com a internet, o ícone retorna automaticamente à cor padrão do tema/hover.
 - **Acervo de ícones verificado (Dispensando SVG externo):**
   - O sistema utiliza a tipografia `JetBrainsMono Nerd Font` e Font Awesome integrada ao Quickshell (`Style.font.family`).
   - O glifo `󰈀` (U+F0200, `nf-md-ethernet`) é o símbolo exato de conector RJ45 já adotado como padrão pelo painel de rede do Omarchy Shell (`/usr/share/omarchy/shell/plugins/panels/network/Model.js`), integrando-se perfeitamente com os demais glifos da bandeja (`󰝟`, `󰕾`, `󰖩`, `󰚩`, `󰖐`, etc.) com renderização subpixel precisa, sem necessidade de arquivos SVG avulsos.
 - **Arquivos alterados:**
-  * `dock/DockPanel.qml`: import `Quickshell.Networking`, propriedades reativas centrais (`networkKind`, `networkConnected`, `networkHasInternet`, `networkGlyph`, `getNetworkTooltip`), conexões de evento para invalidação reativa e suporte nos slots de widget e no catálogo do tray.
-  * `dock/components/SystemIconTray.qml`: integração de `dockPanel.networkGlyph`, coloração `#ef4444` em falha de internet e tooltip semântico em português.
-  * `dock/components/TrayOverflowPopup.qml`: glifo reativo, alerta vermelho e tooltip no popup de overflow `^`.
-  * `dock/components/WidgetPickerPopup.qml`: pré-visualização reativa de glifo e status offline.
+  * `dock/DockPanel.qml`: import `Quickshell.Networking`, propriedades reativas centrais (`networkKind`, `networkConnected`, `networkHasInternet`, `networkGlyph`, `networkAlertColor`, `getNetworkTooltip`), conexões de evento para invalidação reativa e suporte nos slots de widget e no catálogo do tray.
+  * `dock/components/SystemIconTray.qml`: integração de `dockPanel.networkGlyph`, coloração dinâmica `dockPanel.networkAlertColor` em falha de internet e tooltip semântico em português.
+  * `dock/components/TrayOverflowPopup.qml`: glifo reativo, alerta dinâmico do tema e tooltip no popup de overflow `^`.
+  * `dock/components/WidgetPickerPopup.qml`: pré-visualização reativa de glifo e status offline com cor do tema.
 - **Verificações executadas e resultados:**
   * `omarchy restart shell`: reinicialização com código de saída 0.
   * `hyprctl layers`: camada `omarchy-dock` ativa em `0 814 1536 50`.

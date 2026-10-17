@@ -156,7 +156,7 @@ Item {
                         font.family: Style.font.family
                         color: {
                             if (modelData === "omarchy.network" && dockPanel && !dockPanel.networkHasInternet) {
-                                return "#ef4444"
+                                return (dockPanel && dockPanel.networkAlertColor) ? dockPanel.networkAlertColor : Color.urgent
                             }
                             return pinnedMouse.containsMouse
                                 ? Color.accent

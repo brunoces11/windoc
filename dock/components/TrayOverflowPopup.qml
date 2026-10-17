@@ -287,7 +287,7 @@ PanelWindow {
                         font.family: Style.font.family
                         color: {
                             if (modelData.id === "omarchy.network" && dockPanel && !dockPanel.networkHasInternet) {
-                                return "#ef4444"
+                                return (dockPanel && dockPanel.networkAlertColor) ? dockPanel.networkAlertColor : Color.urgent
                             }
                             return itemMouse.containsMouse
                                 ? Color.accent

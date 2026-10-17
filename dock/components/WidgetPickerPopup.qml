@@ -525,7 +525,7 @@ PanelWindow {
                                     text: (modelData.id === "omarchy.network" && root.dockPanel) ? root.dockPanel.networkGlyph : modelData.icon
                                     fontFamily: modelData.fontFamily ? modelData.fontFamily : Style.font.family
                                     fontSize: 14
-                                    color: (modelData.id === "omarchy.network" && root.dockPanel && !root.dockPanel.networkHasInternet) ? "#ef4444" : (rowItem.isInDock ? Color.accent : Color.menu.text)
+                                    color: (modelData.id === "omarchy.network" && root.dockPanel && !root.dockPanel.networkHasInternet) ? ((root.dockPanel && root.dockPanel.networkAlertColor) ? root.dockPanel.networkAlertColor : Color.urgent) : (rowItem.isInDock ? Color.accent : Color.menu.text)
                                 }
                             }
 

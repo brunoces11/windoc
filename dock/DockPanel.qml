@@ -1819,6 +1819,7 @@ Item {
     readonly property bool networkConnected: (root._netWiredDev && root._netWiredDev.connected) || (root._netWifiDev && root._netWifiDev.connected)
     readonly property bool networkHasInternet: root.networkConnected && (Networking.connectivity === NetworkConnectivity.Full)
     readonly property string networkGlyph: (root.networkKind === "ethernet") ? "󰈀" : "󰖩"
+    readonly property color networkAlertColor: (Color.urgent && Color.urgent !== "") ? Color.urgent : Color.accent
 
     function getNetworkTooltip() {
         if (!root.networkConnected) return "Rede desconectada"
@@ -3633,7 +3634,7 @@ Item {
                                 fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((leftWidgetLoader.item && leftWidgetLoader.item.fontFamily) ? leftWidgetLoader.item.fontFamily : ((leftWidgetLoader.item && leftWidgetLoader.item.font && leftWidgetLoader.item.font.family) ? leftWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
                                 color: (modelData === "omarchy.network" && !root.networkHasInternet)
-                                    ? "#ef4444"
+                                    ? root.networkAlertColor
                                     : (leftWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95))
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -4060,7 +4061,7 @@ Item {
                                 fontFamily: (modelData === "omarchy.menu") ? "omarchy" : ((rightWidgetLoader.item && rightWidgetLoader.item.fontFamily) ? rightWidgetLoader.item.fontFamily : ((rightWidgetLoader.item && rightWidgetLoader.item.font && rightWidgetLoader.item.font.family) ? rightWidgetLoader.item.font.family : Style.font.family))
                                 fontSize: 22
                                 color: (modelData === "omarchy.network" && !root.networkHasInternet)
-                                    ? "#ef4444"
+                                    ? root.networkAlertColor
                                     : (rightWidgetSlotMouse.containsMouse ? Color.accent : Color.composed("popups.text", "popups.text-alpha", Color.text, 0.95))
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }

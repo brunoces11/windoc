@@ -1407,3 +1407,24 @@ Data: 17/10/2026. Estado: implementado, validado e ativo em runtime.
   * Shell recarregado via `omarchy restart shell` com código de retorno 0.
   * Superfície Wayland `omarchy-dock` confirmada ativa via `hyprctl layers` (`0 814 1536 50`).
   * Logs do Quickshell auditados em `/run/user/1000/quickshell/by-id/`: zero falhas ou erros de QML registrados.
+
+
+76. SINALIZAÇÃO OFFLINE DE REDE DINÂMICA COM COR DE ALERTA DO TEMPLATE
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Refinamento do indicador inteligente de rede na System Icon Tray:
+  - Substituição da cor vermelha fixa (#ef4444) pela cor de alerta semântica reativa do tema ativo (`networkAlertColor`).
+  - Vinculação com o singleton `Color.urgent` (com fallback elegante para `Color.accent`) do sistema de templates do Omarchy (`theme/colors.toml` e `theme/shell.toml`).
+  - Quando a internet cai, o ícone ativo (Wi-Fi ou RJ45) assume instantaneamente o tom de alerta/urgência do tema ativo (ex: `#f7768e` no Tokyo Night, `#cc241d` no Gruvbox, etc.), reagindo em tempo real caso o usuário troque de template sem descaracterizar a paleta visual.
+- Arquivos modificados:
+  * `dock/DockPanel.qml`: inclusão de `networkAlertColor` vinculada a `Color.urgent` / `Color.accent` e aplicação nos slots da dock.
+  * `dock/components/SystemIconTray.qml`: aplicação da cor de alerta dinâmica no ícone fixado ao lado do relógio.
+  * `dock/components/TrayOverflowPopup.qml`: aplicação da cor de alerta dinâmica na grade de ícones do popup `^`.
+  * `dock/components/WidgetPickerPopup.qml`: aplicação da cor de alerta dinâmica no seletor de widgets.
+  * `system_icon_tray_plan.md`: registro documental da personalização dinâmica de cor.
+  * Este histórico.
+- Validação técnica executada:
+  * 26 testes de integridade unitários da dock (`dock/tests/test_dock_minimize.py`) aprovados.
+  * Shell recarregado via `omarchy restart shell` com código 0.
+  * Camada `omarchy-dock` confirmada ativa via `hyprctl layers` (`0 814 1536 50`).
+  * Logs do Quickshell auditados em `/run/user/1000/quickshell/by-id/`: zero advertências ou erros QML.
