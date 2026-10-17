@@ -1557,3 +1557,25 @@ Data: 17/10/2026. Estado: implementado e validado em teste isolado; reboot compl
 - Estado local após a captura: 6 itens no manifesto, 5 comandos restauráveis, 11 abas Kitty, 9 IDs de conversa e 3 folhas tiled ligadas exatamente a 3 grupos. Um PWA Chrome histórico sem comando continua pendente fora da árvore; a captura ao vivo está completa e o manifesto de boot permanece parcial por esse item antigo.
 - Arquivos alterados: `PERSISTIR_WORKSPACE/WORKSPACE_GRID_EXPORTER.cpp`, `WORKSPACE_GRID_EXPORTER.py`, `WORKSPACE_LAYOUT.py`, `WORKSPACE1.py`, `TEST_WORKSPACE1.py`, `TEST_LAYOUT_LIVE.py`, `README.md` e este histórico. A unidade systemd e a configuração do Hyprland existentes foram reutilizadas, sem duplicar links.
 
+
+84. CORREÇÃO DO MENU POPUP DA PLAYLIST E TOOLTIP DO PLAYER COMPACTO
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Diagnóstico da causa raiz:
+  1. No componente `BarWidget.qml`, a função `togglePanel()` continha uma trava de proteção condicional `if (media.hasMedia)` que impedia a abertura do menu popup caso o player não estivesse ativamente tocando ou com metadados carregados.
+  2. O tooltip do botão de chevron (`⌃`/`⌄`) exibia incorretamente o texto "Expandir player", gerando ambiguidade com o comando principal de expansão do painel compacto.
+- Soluções implementadas:
+  1. Em `amberol-deskband/BarWidget.qml`:
+     - Remoção da restrição `if (media.hasMedia)` na função `togglePanel()`, permitindo que o menu seja aberto/fechado sob demanda a qualquer instante pelo usuário.
+  2. Em `amberol-deskband/components/DeskbandCapsule.qml`:
+     - Atualização do tooltip do botão do menu para "Exibir Menu" (e "Ocultar Menu" quando aberto), garantindo clareza semântica e distinção em relação à expansão do painel.
+  3. Em `amberol-deskband/components/DeskbandPopup.qml`:
+     - Refinamento do layout do cabeçalho da playlist: altura ajustada de 26px para 32px, alinhamento vertical centrado e otimização de espaçamentos para evitar sobreposição de textos.
+  4. Em `dock/DockPanel.qml`:
+     - Inclusão dos campos de diagnóstico `panelOpen`, `panelVisible` e `hasMedia` no retorno da IPC action `deskbandAction`.
+- Validação técnica executada:
+  * 7 testes unitários do `amberol-deskband` aprovados com sucesso (código 0).
+  * Ciclo MPRIS runtime (`tests/mpris_runtime.py`) executado com sucesso e todos os passos aprovados.
+  * 26 testes unitários de minimização da dock aprovados.
+  * 45 testes de persistência de workspace aprovados (totalizando 71 testes no WinDoc).
+  * Captura visual e teste de IPC confirmando abertura imediata, posicionamento perfeito sobre a dock e fechamento gracioso do popup.

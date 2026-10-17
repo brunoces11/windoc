@@ -600,7 +600,11 @@ Item {
         return JSON.stringify({ available: true, handled: handled, visible: item.visible,
             volume: controller.volume, volumeBackend: controller.volumeBackend,
             width: item.implicitWidth, opened: item.opened, playing: controller.playing,
-            player: controller.player ? controller.player.dbusName : "", title: controller.title })
+            player: controller.player ? controller.player.dbusName : "", title: controller.title,
+            hasMedia: controller.hasMedia,
+            panelOpen: item.panel ? item.panel.open : false,
+            panelVisible: item.panel ? item.panel.visible : false,
+            anchorWindow: item.panel ? (item.panel.anchorWindow !== null) : false })
     }
 
     function releaseHostedWidget(item) {
