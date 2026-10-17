@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 import WORKSPACE1 as ws
 import AGENT_SESSION_HOOK as hook
+from INTERFACE_MONITOR import QuietPeriod, relevant_event
+import WORKSPACE_LAYOUT as layout
 
 SID = '11111111-1111-4111-8111-111111111111'
 OTHER = '22222222-2222-4222-8222-222222222222'
@@ -233,5 +235,72 @@ class PersistenceTests(unittest.TestCase):
         ws.promote_state(a)
         b=copy.deepcopy(a);b['windows'].append(window('b'*24));ws.promote_state(b)
         self.assertEqual(len(ws.load_state(self.root/'PREVIOUS_WORKSPACE1.json')['windows']),1)
+
+    def test_quiet_period_waits_30_seconds_after_last_change(self):
+        gate=QuietPeriod(30);gate.change(10)
+        self.assertFalse(gate.ready(39.999));gate.change(35)
+        self.assertFalse(gate.ready(64.999));self.assertTrue(gate.ready(65))
+
+    def test_spinner_titles_do_not_restart_quiet_period(self):
+        self.assertFalse(relevant_event('windowtitlev2','abc,spinner',{'0xabc'},1))
+        self.assertTrue(relevant_event('closewindow','abc',{'0xabc'},1))
+        self.assertFalse(relevant_event('openwindow','def,2,kitty,title',{'0xabc'},1))
+
+    def test_no_write_for_unchanged_snapshot(self):
+        state={'schema':2,'workspace':ws.WORKSPACE_ID,'boot_id':'boot','updated_at':1,
+               'windows':[window()],'complete':True,'warnings':[]}
+        ws.promote_state(state);stamp=ws.STATE_FILE.stat().st_mtime_ns
+        ws.promote_state(dict(state,updated_at=2))
+        self.assertEqual(stamp,ws.STATE_FILE.stat().st_mtime_ns)
+        self.assertEqual(ws.load_state()['updated_at'],1)
+
+    def test_geometry_only_capture_reuses_native_file(self):
+        w=window();w.update(pid=42,address='0x1',pid_start_ticks='100',kind='kitty',
+                           native_fingerprint='known',native_layout=True,structure_available=True)
+        w['session_file']=ws.stored_session('new_tab\nlaunch\n')
+        state={'schema':2,'workspace':ws.WORKSPACE_ID,'updated_at':1,'windows':[w],'complete':True,'warnings':[]}
+        ws.CAPTURE_FILE.write_text(json.dumps(state))
+        probe={'clients':[dict(w,at=[10,40],size=[800,700],floating=False,fullscreen=0,grouped=[])],
+               'monitors':[],'native':{},'terminals':{}}
+        with patch.object(ws,'process_start_ticks',return_value='100'),patch.object(ws,'window_identity',return_value=w['restore_id']), \
+             patch.object(ws,'save_kitty_session') as export:
+            captured=ws.snapshot(probe=probe,promote=False)
+        export.assert_not_called();self.assertEqual(captured['windows'][0]['session_file'],w['session_file'])
+        self.assertEqual(captured['windows'][0]['at'],[10,40])
+
+    def test_native_fingerprint_ignores_dynamic_title_and_terminal_cells(self):
+        tree=[{'tabs':[{'layout':'tall','is_active':True,'title':'spinner1','layout_state':{'ratio':.5},
+                       'windows':[{'id':1,'cwd':'/tmp','columns':80,'lines':24}]}]}]
+        other=copy.deepcopy(tree);other[0]['tabs'][0]['title']='spinner2'
+        other[0]['tabs'][0]['windows'][0]['columns']=120
+        self.assertEqual(ws.terminal_fingerprint(tree,{}),ws.terminal_fingerprint(other,{}))
+        other[0]['tabs'][0]['layout_state']['ratio']=.7
+        self.assertNotEqual(ws.terminal_fingerprint(tree,{}),ws.terminal_fingerprint(other,{}))
+
+    def test_layout_tree_has_nested_axes_and_proportions(self):
+        a={'id':'a','at':[10,10],'size':[600,700]}
+        b={'id':'b','at':[620,10],'size':[400,340]}
+        c={'id':'c','at':[620,370],'size':[400,340]}
+        tree=layout.infer_tree([c,a,b])
+        self.assertEqual(tree['axis'],0);self.assertEqual(tree['right']['axis'],1)
+        self.assertAlmostEqual(tree['ratio'],.59900990099)
+
+    def test_monitor_adaptation_uses_name_and_scale(self):
+        group={'at':[100,50],'size':[500,350],'monitor_name':'DP-1','monitor_area':[0,0,1000,700]}
+        monitors=[{'id':9,'name':'DP-1','width':2000,'height':1400,'scale':1,'x':0,'y':0}]
+        self.assertEqual(layout.target_rect(group,monitors),[200,100,1000,700])
+
+    def test_failed_restore_geometry_is_kept_until_real_change(self):
+        desired=window();desired.update(at=[10,40],size=[600,700],floating=False,grouped=[],group_members=[])
+        initial=copy.deepcopy(desired);initial['size']=[1000,700]
+        target={'schema':3,'workspace':ws.WORKSPACE_ID,'windows':[desired],'updated_at':1}
+        observed={'schema':3,'workspace':ws.WORKSPACE_ID,'windows':[initial],'updated_at':2}
+        ws.save_restore_guard(target,observed,[{'restore_id':desired['restore_id'],'status':'grupo_pendente',
+                                             'verified':{'terminal':True,'group':True,'geometry':False}}])
+        kept=ws.preserve_restore_target(observed)
+        self.assertEqual(kept['windows'][0]['size'],[600,700]);self.assertFalse(kept['complete'])
+        changed=copy.deepcopy(observed);changed['windows'][0]['size']=[800,700]
+        accepted=ws.preserve_restore_target(changed)
+        self.assertEqual(accepted['windows'][0]['size'],[800,700])
 
 if __name__=='__main__':unittest.main(verbosity=2)

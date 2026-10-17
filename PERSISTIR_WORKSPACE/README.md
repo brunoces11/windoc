@@ -1,136 +1,160 @@
-# Persistência gradual do Workspace 1
+# Persistência do Workspace 1 por grupo
 
-O serviço `windoc-workspace1.service` registra as janelas do Workspace 1 a cada
-oito segundos e tenta reabri-las no próximo login, depois de um novo boot.
-O mecanismo restaura o que conseguiu identificar: uma aba sem ID ou uma aplicação
-não reconhecida não impede a abertura das outras janelas.
+Um único serviço de usuário, `windoc-workspace1.service`, mantém o mapa estrutural
+do Workspace 1 e restaura janelas, grupos, geometria e terminais no próximo login.
+O estado local permanece em `ESTADO_LOCAL/`, privado e ignorado pelo Git.
 
-## Camadas e dados
+## Atualização leve: 30 segundos e um minuto
 
-1. **Hyprland:** IPC identifica janela, classe, workspace, posição, tamanho,
-   monitor, foco e membros do grupo. Cada janela recebe uma identidade estável
-   para associar captura e restauração, sem depender do novo PID/endereço.
-2. **Kitty:** `save_as_session --save-only --use-foreground-process` fornece o
-   arquivo nativo com abas, painéis, layouts, diretórios, foco e comandos. O código
-   personaliza os comandos dos agentes, conservando a estrutura gerada pelo Kitty.
-   Todos os painéis, inclusive terminais vazios, entram no manifesto de verificação.
-3. **Conversas:** agente e ID pertencem ao painel exato, identificado por
-   `KITTY_PID` + `KITTY_WINDOW_ID` e início do processo. Títulos e recência global
-   não escolhem conversas. A retomada usa `codex resume ID`, `agy --conversation ID`
-   ou `claude --resume ID`.
-4. **Aplicativos:** Chromium, Sublime Text, Nautilus e Amberol possuem comandos
-   conhecidos, usados quando instalados. Aplicações desconhecidas ficam registradas
-   como pendentes. Páginas, arquivos e posição de reprodução dependem da restauração
-   própria de cada aplicativo; este mecanismo não os extrai.
-5. **Login:** o autostart do Hyprland importa seu ambiente IPC e inicia o serviço
-   do usuário. O systemd supervisiona falhas; locks impedem dois monitores ou duas
-   restaurações simultâneas. Não são necessários privilégios administrativos.
+- Eventos do socket nativo do Hyprland sinalizam abertura, fechamento, foco,
+  agrupamento, tela cheia e outras mudanças disponíveis. Inotify acompanha as
+  alterações semânticas dos IDs de conversa registrados pelos hooks.
+- O monitor espera **30 segundos de estabilidade observada** antes de consolidar
+  uma alteração. Novas mudanças reiniciam a espera; dados ainda diferentes na
+  conferência adiam a consolidação por mais 30 segundos.
+- Uma reconciliação leve ocorre **a cada 60 segundos**. Ela cobre mudanças sem
+  evento completo, incluindo redimensionamentos e alterações internas do Kitty.
+  Uma mudança descoberta nessa conferência ainda aguarda 30 segundos: o atraso
+  normal nesses casos pode chegar a aproximadamente 90 segundos.
+- A consolidação e a reconciliação se aproveitam quando coincidem. Eventos não
+  disparam subprocessos imediatamente: o serviço dorme esperando notificações ou
+  o próximo prazo. Títulos animados e spinners não reiniciam o relógio.
+- Sem alteração real, não regrava o manifesto, os backups ou as sessões nativas.
+  A idade mostrada no status indica a última mudança salva, não um heartbeat.
+
+A espera escolhida é intencional: desligar ou sofrer uma falha antes da
+consolidação conserva a captura anterior. O monitor não grava o desktop em
+encerramento como se todas as janelas tivessem sido fechadas pelo usuário.
+
+## Granularidade
+
+Mudanças externas de posição, tamanho, grupo ou monitor atualizam o mapa Hyprland
+sem exportar novamente os terminais. A conferência de um minuto consulta a
+estrutura de cada Kitty, mas compara seus dados antes de gerar outro arquivo de
+sessão. Só exporta a janela Kitty cuja estrutura, foco interno, diretório,
+programa ou conversa realmente mudou. Colunas/linhas causadas pelo tamanho externo
+e títulos automáticos não provocam uma exportação nativa por si sós.
+
+A unidade de exportação nativa é uma janela Kitty: o próprio Kitty escreve suas
+abas, painéis, layouts e comandos em `.session`. As alterações dos grupos ficam
+num manifesto pequeno, gravado atomicamente. Os arquivos de sessão são imutáveis
+por conteúdo e compartilhados quando o conteúdo continua igual.
+
+## O que é registrado
+
+- **Janela:** identidade estável, classe, workspace, PID e início do processo,
+  coordenadas e tamanho lógicos, flutuação, tela cheia, monitor e foco.
+- **Grupo Hyprland:** identidades dos membros em ordem, aba ativa, trava, geometria,
+  nome do monitor e algoritmo do layout. Um grupo ocupa uma folha da árvore de tiles.
+- **Layout Dwindle:** árvore reconstruída das divisões observadas, orientações e
+  proporções horizontais/verticais; geometria normal conhecida antes da tela cheia.
+- **Monitor:** nome, descrição, escala, resolução, rotação, posição e área reservada.
+  A restauração procura a saída pelo nome e adapta coordenadas à área disponível
+  quando o monitor muda. Não força um novo modo de vídeo global.
+- **Kitty:** todas as abas e painéis, inclusive shells vazios, layout nativo,
+  seleção, diretórios e processos. A sessão original do Kitty preserva os detalhes
+  internos; o manifesto permite conferir a estrutura depois de restaurá-la.
+- **Agente:** tipo e ID da conversa associados ao painel, com origem da evidência.
+  Títulos e recência global não escolhem qual conversa será retomada.
+
+## Sequência de restauração
+
+1. O autostart do Hyprland importa o ambiente IPC e inicia o serviço systemd.
+2. Ao detectar um boot novo, preserva uma captura de recuperação e abre os itens
+   ausentes de forma independente. Um item desconhecido não bloqueia os demais.
+3. As novas janelas começam isoladas e flutuantes, evitando agrupamento automático.
+4. A API nativa `Group:add` recompõe cada grupo pelas identidades exatas dos membros,
+   na ordem registrada. Não usa aproximação por título ou janela vizinha.
+5. Recria as divisões do Dwindle usando preseleção, retorno ao modo tiled e razões
+   de divisão nativas. Janelas flutuantes recebem posição e tamanho explícitos.
+6. Recupera a aba ativa de cada grupo, trava, tela cheia e foco. Se o layout já
+   coincide, uma nova chamada não o desmonta nem duplica janelas.
+7. Confere separadamente abertura, terminais, grupos e geometria. A comparação de
+   geometria aceita quatro pixels lógicos de tolerância para arredondamento.
+
+Uma falha permanece explícita por item. `RESTORE_GUARD.json` conserva o estado
+desejado e a primeira observação após a tentativa. A disposição incorreta inicial
+não substitui silenciosamente esse estado. Uma mudança real posterior na camada
+correspondente pode estabelecer um novo estado desejado; uma confirmação válida
+também encerra a pendência. Janelas que não abriram continuam recuperáveis.
 
 ## Identificação das conversas
 
-- **Codex:** hooks oficiais `SessionStart`/`UserPromptSubmit`; retomada explícita
-  por ID é uma alternativa quando o hook ainda não chegou. Uma sessão antiga sem
-  registro foi associada nesta máquina pelo `/status` nativo. Essa consulta foi
-  manual e não é injetada automaticamente em terminais pelo monitor.
-- **Antigravity:** eventos `SessionStart`/`PreInvocation`, callback nativo de título
-  com `conversation_id` e arquivo de presença/conversa aberto pelo processo.
-  O parser reconhece `USER_INPUT` no transcript e reavalia registros antigos que
-  haviam sido marcados incorretamente como vazios.
-- **Claude Code:** hooks `SessionStart`/`UserPromptSubmit` e transcript aberto pelo
-  processo. O adaptador foi testado isoladamente; não havia Claude aberto para um
-  teste real de retomada nesta validação.
+Codex usa os hooks `SessionStart`/`UserPromptSubmit`; Antigravity usa seus eventos,
+callback nativo com `conversation_id` e arquivos de presença/conversa; Claude Code
+usa hooks e transcript aberto. O cache por PID não prova uma conversa atual.
+Sem hook válido, os arquivos nativos disponíveis são consultados novamente.
 
-Um chat comprovadamente vazio volta como shell na mesma aba. Falta de ID, arquivo
-inacessível ou formato desconhecido **não provam que o chat está vazio**. Um chat
-sem ID também volta como shell, com pendência explícita, sem selecionar a conversa
-mais recente. Um registro de hook atualizado tem prioridade sobre argumentos
-antigos do processo, pois o usuário pode trocar de conversa dentro do agente. O cache
-de ID por PID não é usado como prova da conversa atual: sem hook, o arquivo nativo
-aberto pelo processo é consultado novamente em cada captura.
+A retomada usa ID explícito: `codex resume ID`, `agy --conversation ID` ou
+`claude --resume ID`. Um chat comprovadamente vazio conserva seu painel como shell.
+Um ID desconhecido também deixa a aba como terminal e gera pendência, sem escolher
+uma conversa por adivinhação. Os históricos originais dos agentes precisam continuar
+disponíveis; o manifesto não é um backup desses históricos.
 
-A verificação distingue o ID pedido no comando do ID confirmado pelo agente.
-Durante o teste desta versão, uma retomada Codex carregou a conversa correta, mas
-não emitiu o hook de sessão no intervalo observado antes de uma nova interação.
-Nesse caso a abertura continua funcionando, porém a verificação permanece pendente
-até haver evidência nativa. O monitor não envia mensagens para provocar o hook.
+O ID pedido nos argumentos é distinguido do ID confirmado pelo agente. Um Codex
+pode carregar a conversa antes de emitir o hook; a abertura ocorre, mas a conferência
+permanece pendente até haver evidência nativa. O monitor não envia mensagens para
+provocar hooks. Claude foi testado isoladamente, sem uma sessão real aberta nesta
+validação. Algumas sessões Codex antigas foram associadas manualmente por `/status`;
+essa consulta não é injetada automaticamente nos terminais.
 
-## Estado privado e recuperação
+## Estado e recuperação
 
-`ESTADO_LOCAL/` é privado e ignorado pelo Git. Contém:
-
-- `WORKSPACE1.json`: estado atual, inclusive parcial, usado no próximo boot.
-- `LATEST_CAPTURE.json`: última leitura do desktop, inclusive durante verificações.
-- `PREVIOUS_WORKSPACE1.json` e `LAST_COMPLETE.json`: alternativas se o manifesto
-  principal estiver corrompido. “Completo” se refere à detecção, não a um reboot testado.
-- `KITTY-<hash>.session`: sessões nativas imutáveis por conteúdo, com hash verificado.
+- `WORKSPACE1.json`: manifesto atual, com grupos, árvore, monitores e janelas.
+- `LATEST_CAPTURE.json`: última observação diferente da interface, antes das proteções.
+- `PREVIOUS_WORKSPACE1.json` e `LAST_COMPLETE.json`: alternativas locais se o
+  manifesto principal estiver corrompido. Detecção completa não significa reboot verificado.
+- `KITTY-<hash>.session`: arquivos nativos com hash conferido na leitura.
 - `AGENT_IDS.json`: associação local entre painel e conversa.
-- `RECOVERY.json` e `RECOVERY-<hash>.json`: captura preservada antes de cada tentativa.
-- `RESTORE_STATUS.json`: resultado individual de cada janela e da verificação.
+- `RECOVERY.json` e `RECOVERY-<hash>.json`: estado preservado antes de restaurar.
+- `RESTORE_GUARD.json`: pendências e referência para evitar aprender um layout falho.
+- `RESTORE_STATUS.json`: resultados individuais, incluindo conferências por camada.
 
-Se a estrutura de um Kitty ficar temporariamente inacessível, o estado principal
-preserva sua última estrutura nativa, abas e IDs, somente quando boot, identidade
-da janela, PID e início do processo continuam iguais. Essa informação recebe
-`capture_stale=true`, data da última leitura válida e aviso explícito; não é uma
-confirmação do conteúdo atual. A captura bruta continua em `LATEST_CAPTURE.json`.
-Uma leitura bem-sucedida substitui os dados anteriores normalmente. Um processo
-novo não herda conversas antigas por essa proteção.
+Gravações usam arquivo temporário, fsync e troca atômica. Locks impedem monitores
+ou restaurações concorrentes. Se um Kitty ficar inacessível, conserva sua última
+sessão nativa somente para a mesma janela, boot, PID e início do processo, marcada
+como antiga e pendente. A observação bruta mantém o diagnóstico da falha.
 
-Gravações usam arquivo temporário, troca atômica e sincronização em disco. A redução
-da quantidade de janelas/abas/painéis aguarda 30 segundos; workspace vazio aguarda
-60 segundos. No desligamento, o monitor evita substituir o estado por um desktop
-em encerramento. Falhas de uma janela não interrompem a tentativa das demais.
-
-Os arquivos de sessão são imutáveis e mantidos localmente; esta versão ainda não
-remove automaticamente versões antigas. Eles não incluem um backup do histórico
-dos agentes: os dados originais de cada agente também precisam continuar disponíveis.
+O serviço é iniciado pelo autostart e reiniciado pelo systemd em caso de falha.
+Não requer root, processo por grupo ou dependências extras. Os arquivos imutáveis
+antigos ainda não são removidos automaticamente.
 
 ## Comandos
 
-Executar no diretório `PERSISTIR_WORKSPACE`:
+No diretório `PERSISTIR_WORKSPACE`:
 
-- `python3 WORKSPACE1.py status`: contagens, pendências e último resultado, sem IDs.
-- `python3 WORKSPACE1.py plan`: mostra os comandos gerados, sem executá-los. Pode
-  exibir caminhos privados; não publicar a saída sem revisão.
-- `python3 WORKSPACE1.py snapshot`: salva a configuração observada manualmente.
-- `python3 WORKSPACE1.py restore`: abre itens ausentes e confere os existentes.
-- `python3 WORKSPACE1.py restore --recovery`: usa a captura preservada da tentativa.
-- `python3 WORKSPACE1.py login`: entrada do serviço; restaura após novo boot e monitora.
+- `python3 WORKSPACE1.py status`: contagens e última mudança salva, sem IDs privados.
+- `python3 WORKSPACE1.py plan`: comandos de abertura, sem executá-los; pode imprimir
+  caminhos e IDs privados, portanto a saída deve ser revisada antes de compartilhada.
+- `python3 WORKSPACE1.py snapshot`: captura manual explícita, que dispensa a espera
+  do monitor. A atualização automática sempre segue a espera configurada.
+- `python3 WORKSPACE1.py restore`: restaura o manifesto e confere por camada.
+- `python3 WORKSPACE1.py restore --recovery`: usa a captura anterior preservada.
+- `python3 WORKSPACE1.py login`: entrada do serviço, restauração no boot e monitoramento.
+- `python3 TEST_WORKSPACE1.py`: testes isolados, sem mover as janelas do desktop.
+- `python3 TEST_LAYOUT_LIVE.py`: teste real no workspace 85, que deve estar vazio.
+  Abre apenas shells temporários e fecha somente as identidades criadas pelo teste.
 
-`RESTORE_STATUS.json` distingue janelas iniciadas de janelas apenas conferidas.
-“Conferida” com zero iniciadas não é um teste de reboot. Os resultados podem ser
-parciais mesmo quando algumas janelas abriram corretamente. A conferência compara
-abas, painéis, diretórios, programas, IDs e associação aos grupos.
+## Validação e limites
 
-## Validação e limites atuais
+Em 17/10/2026 passaram 38 testes automatizados. O ciclo nativo isolado capturou,
+fechou e restaurou quatro janelas, três grupos e cinco abas, com divisões horizontal
+e vertical, geometria, ordem dos grupos e seleção conferidas. Outro ciclo validou
+uma janela flutuante e dois grupos. As janelas originais foram preservadas.
 
-Em 17/10/2026 passaram 30 testes automatizados. Um ciclo real em workspace isolado
-abriu um Kitty com duas abas e três painéis, capturou pelo recurso nativo, fechou
-somente essa janela, restaurou e conferiu diretórios, layout e grupo individual.
-Repetir a restauração não duplicou a janela. As janelas originais foram preservadas.
-O serviço foi ativado e sua atualização automática de estado foi confirmada.
+O monitor ativo foi observado por 65 segundos sem mudanças: não regravou o manifesto
+nem os arquivos Kitty; seu processo consumiu 0,12 segundo de CPU nesse intervalo.
+Esse número é uma medição local do processo principal, não uma garantia para todas
+as cargas. A captura automática do formato novo foi confirmada depois da espera.
 
-Durante a validação, a tela mudou de seis para nove abas Kitty. As nove foram
-registradas: oito conversas com IDs distintos (duas Codex e seis Antigravity) e
-um terminal vazio. Amberol e Sublime também entraram no inventário restaurável.
-Essas contagens são uma observação datada, não uma configuração fixa.
+O usuário já confirmou a reabertura de chats em um reboot real da versão anterior.
+A restauração geométrica desta versão passou no ciclo real isolado, mas ainda não
+foi testada em outro reboot completo. Layouts tiled diferentes do Dwindle e
+arranjos que não possam ser reconstruídos como suas divisões ficam pendentes,
+sem declarar sucesso. Janelas externas compartilhando o mesmo processo Kitty
+continuam sem associação individual completa e usam restauração reduzida.
 
-Limites relevantes:
-
-- **Reboot completo ainda não testado.** A captura, os comandos, o serviço e o ciclo
-  nativo isolado foram verificados; isso não garante sucesso de todas as conversas
-  depois de reiniciar a máquina.
-- Grupos com uma janela são recriados. **Grupos Hyprland com várias janelas ainda
-  não são recompostos**: cada janela abre separadamente e a conferência informa
-  `grupo_pendente`. Isso inclui o grupo Kitty + Amberol observado nesta validação.
-- A posição e o tamanho exatos dos tiles, monitor e foco global são registrados,
-  mas não reaplicados. As janelas seguem o layout atual do compositor.
-- Várias janelas externas compartilhando o mesmo processo Kitty ainda não têm
-  associação individual; a captura faz uma restauração reduzida e registra aviso.
-- Se a exportação nativa falhar, recria as abas/painéis conhecidos e preserva os
-  comandos de agentes com ID. Demais programas desse fallback voltam como shell.
-- Um agente iniciado sem emitir hook e sem outro identificador observável pode
-  continuar sem ID. Esse caso fica pendente e não bloqueia o restante do workspace.
-
-Referências: [dispatchers Lua do Hyprland](https://wiki.hypr.land/configuring/core/dispatchers/),
-[hooks do Codex](https://learn.chatgpt.com/docs/hooks) e
+Referências: [API Lua do Hyprland](https://wiki.hypr.land/configuring/core/advanced-configuration/lua-utilities/),
+[dispatchers](https://wiki.hypr.land/configuring/core/dispatchers/),
+[IPC](https://wiki.hypr.land/ipc/) e
 [sessões nativas do Kitty](https://sw.kovidgoyal.net/kitty/sessions/).

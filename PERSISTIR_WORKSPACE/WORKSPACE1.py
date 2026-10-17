@@ -15,7 +15,6 @@ import os
 import re
 import shlex
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from AGENT_SESSION_HOOK import transcript_has_user_message
+import WORKSPACE_LAYOUT as layout
 
 
 ROOT = Path(__file__).resolve().parent
@@ -38,8 +38,8 @@ LOCK_FILE = STATE_DIR / "WORKSPACE1.lock"
 WORKSPACE_ID = 1
 if os.environ.get("WORKSPACE1_TEST_WORKSPACE") and os.environ.get("WORKSPACE1_STATE_DIR"):
     WORKSPACE_ID = int(os.environ["WORKSPACE1_TEST_WORKSPACE"])
-POLL_SECONDS = 8
-EMPTY_GRACE_SECONDS = 60
+RECONCILE_SECONDS = 60
+DEBOUNCE_SECONDS = 30
 UUID_RE = re.compile(r"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
@@ -464,8 +464,10 @@ def native_structure(tree: list[dict[str, Any]], records: dict[int, dict[str, An
                     "command": process_command(proc),
                     "agent": rec.get("agent"), "session_id": rec.get("session_id"),
                     "state": rec.get("state", "program"), "id_method": rec.get("id_method"),
+                    "active": bool(window.get("is_active")),
                 })
-            tabs.append({"layout": tab.get("layout", "tall"), "panes": panes})
+            tabs.append({"layout": tab.get("layout", "tall"), "panes": panes,
+                         "active": bool(tab.get("is_active")), "layout_state": tab.get("layout_state")})
     return tabs
 
 
@@ -494,18 +496,83 @@ def application_command(app_class: str) -> list[str] | None:
 
 
 def scene_signature(state: dict[str, Any]) -> str:
-    return json.dumps(state.get("windows", []), sort_keys=True)
+    payload = {k: state.get(k) for k in ("schema", "workspace", "monitors", "groups", "tile_tree", "complete", "warnings")}
+    payload["windows"] = sorted(state.get("windows", []), key=lambda w: w["restore_id"])
+    return json.dumps(payload, sort_keys=True)
 
 
 def promote_state(state: dict[str, Any]) -> None:
     old = load_state()
-    state = preserve_unreadable_windows(state, old)
+    state = preserve_unreadable_windows(preserve_restore_target(state), old)
+    if old and scene_signature(old) == scene_signature(state):
+        return
     if old and scene_signature(old) != scene_signature(state):
         atomic_write(STATE_DIR / "PREVIOUS_WORKSPACE1.json", (json.dumps(old, ensure_ascii=False, indent=2) + "\n").encode())
     data = (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     atomic_write(STATE_FILE, data)
     if state.get("complete"):
         atomic_write(STATE_DIR / "LAST_COMPLETE.json", data)
+
+
+def save_restore_guard(desired: dict[str, Any], observed: dict[str, Any], results: list[dict[str, Any]]) -> None:
+    pending = {r["restore_id"]: r.get("verified", {}) for r in results if r["status"] != "verificado"}
+    record = {"boot_id": boot_id(), "pending": pending, "desired": desired, "observed": observed}
+    atomic_write(STATE_DIR / "RESTORE_GUARD.json", (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode())
+
+
+def preserve_restore_target(state: dict[str, Any]) -> dict[str, Any]:
+    try:
+        guard = json.loads((STATE_DIR / "RESTORE_GUARD.json").read_text())
+    except (OSError, ValueError):
+        return state
+    if guard.get("boot_id") != boot_id() or not guard.get("pending"):
+        return state
+    result = copy.deepcopy(state)
+    desired = {w["restore_id"]: w for w in guard["desired"]["windows"]}
+    observed = {w["restore_id"]: w for w in guard["observed"]["windows"]}
+    actual = {w["restore_id"]: w for w in result["windows"]}
+    for identity, checks in list(guard["pending"].items()):
+        target, initial, current = desired.get(identity), observed.get(identity), actual.get(identity)
+        if not target:
+            continue
+        if not current:
+            if not initial:
+                result["windows"].append(copy.deepcopy(target))
+            else:
+                del guard["pending"][identity]  # A later real close replaces the old desired state.
+                continue
+        elif initial:
+            geo = ("at", "size", "normal_at", "normal_size", "group_members", "group_active", "group_locked",
+                   "floating", "fullscreen", "monitor_name", "monitor_area", "layout_name")
+            if not checks.get("geometry") or not checks.get("group"):
+                if all(current.get(k) == initial.get(k) for k in geo):
+                    for key in geo:
+                        if key in target:
+                            current[key] = copy.deepcopy(target[key])
+                else:
+                    checks["geometry"] = checks["group"] = True
+            if not checks.get("terminal"):
+                def signature(window):
+                    return [[pane_signature(p, expected=True) for p in t["panes"]] for t in window.get("tabs", [])]
+                if signature(current) == signature(initial) and signature(current) != signature(target):
+                    for key in ("tabs", "agent_sessions", "session_file", "native_layout", "native_fingerprint"):
+                        if key in target:
+                            current[key] = copy.deepcopy(target[key])
+                else:
+                    checks["terminal"] = True
+            if checks.get("terminal") and checks.get("geometry") and checks.get("group"):
+                del guard["pending"][identity]
+                continue
+        warning = f"{identity}: restauração pendente; dados desejados anteriores preservados"
+        result.setdefault("warnings", []).append(warning)
+        result["complete"] = False
+    result["groups"] = layout.groups(result["windows"], result.get("monitors", []))
+    try:
+        result["tile_tree"] = layout.infer_tree([g for g in result["groups"] if not g["floating"]])
+    except (ValueError, TypeError, KeyError):
+        result["tile_tree"] = None
+    atomic_write(STATE_DIR / "RESTORE_GUARD.json", (json.dumps(guard, ensure_ascii=False, sort_keys=True) + "\n").encode())
+    return result
 
 
 def preserve_unreadable_windows(state: dict[str, Any], old: dict[str, Any] | None) -> dict[str, Any]:
@@ -535,12 +602,61 @@ def preserve_unreadable_windows(state: dict[str, Any], old: dict[str, Any] | Non
     return result
 
 
-def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, Any]:
-    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+def terminal_fingerprint(tree: list[dict[str, Any]], records: dict[int, dict[str, Any]]) -> str:
+    tabs = []
+    for os_window in tree:
+        for tab in os_window.get("tabs", []):
+            panes = []
+            for pane in tab.get("windows", []):
+                panes.append({k: pane.get(k) for k in ("id", "cwd", "cmdline", "foreground_processes", "is_active")})
+            tabs.append({"layout": tab.get("layout"), "state": tab.get("layout_state"),
+                         "active": tab.get("is_active"), "title": tab.get("title") if tab.get("title_overridden") else None,
+                         "panes": panes})
+    ids = [{k: r.get(k) for k in ("agent", "session_id", "state", "id_method", "kitty_window_id", "pid")}
+           for r in records.values()]
+    return hashlib.sha256(json.dumps([tabs, ids], sort_keys=True).encode()).hexdigest()
+
+
+def probe_scene(terminal_pids: set[int] | None = None) -> dict[str, Any]:
+    live = workspace_clients()
+    monitors = layout.monitor_records(hypr_json("monitors"))
+    native = layout.metadata(sys.modules[__name__], live) if live else {}
+    terminals = {}
+    for client in live:
+        if str(client.get("class", "")).lower() != "kitty":
+            continue
+        pid = int(client["pid"])
+        if terminal_pids is not None and pid not in terminal_pids:
+            continue
+        try:
+            tree = json.loads(kitty_call(pid, "ls").stdout)
+            if len(tree) != 1 or sum(c.get("pid") == pid for c in live) != 1:
+                raise ValueError("Processo Kitty compartilhado: associação individual pendente")
+            records = agent_records(pid, tree)
+            terminals[pid] = {"tree": tree, "records": records, "fingerprint": terminal_fingerprint(tree, records)}
+        except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+            terminals[pid] = {"error": str(error)}
+    return {"clients": live, "monitors": monitors, "native": native, "terminals": terminals}
+
+
+def probe_signature(probe: dict[str, Any], previous: dict[str, Any] | None = None) -> str:
+    cached = {int(w["pid"]): w.get("native_fingerprint") for w in (previous or {}).get("windows", []) if w.get("pid")}
     rows = []
-    warnings = []
-    live_clients = workspace_clients()
-    for client in live_clients:
+    for c in probe["clients"]:
+        row = {k: c.get(k) for k in ("address", "pid", "class", "at", "size", "floating", "fullscreen", "monitor", "grouped", "focusHistoryID")}
+        t = probe["terminals"].get(int(c.get("pid") or 0), {})
+        row["terminal"] = t.get("fingerprint", t.get("error", cached.get(int(c.get("pid") or 0))))
+        rows.append(row)
+    return json.dumps([sorted(rows, key=lambda r: r["address"]), probe["monitors"], probe["native"]], sort_keys=True)
+
+
+def snapshot(*, allow_empty: bool = False, promote: bool = True, probe: dict[str, Any] | None = None) -> dict[str, Any]:
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    previous = load_state(CAPTURE_FILE) or load_state()
+    cached = {w["restore_id"]: w for w in (previous or {}).get("windows", [])}
+    probe = probe or probe_scene()
+    rows, warnings = [], []
+    for client in probe["clients"]:
         item = {
             "restore_id": window_identity(client), "class": str(client.get("class") or ""),
             "address": client.get("address"), "pid": client.get("pid"),
@@ -550,32 +666,48 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
             "monitor": client.get("monitor"), "grouped": client.get("grouped", []),
             "focus_order": client.get("focusHistoryID"), "warnings": [],
         }
+        old_geometry = cached.get(item["restore_id"], {})
+        if item["fullscreen"]:
+            item["normal_at"] = old_geometry.get("normal_at") or (old_geometry.get("at") if not old_geometry.get("fullscreen") else None)
+            item["normal_size"] = old_geometry.get("normal_size") or (old_geometry.get("size") if not old_geometry.get("fullscreen") else None)
+        else:
+            item["normal_at"], item["normal_size"] = item["at"], item["size"]
         if item["class"].lower() == "kitty":
             item.update(kind="kitty", tabs=[], agent_sessions=[], structure_available=False)
             pid = int(client["pid"])
-            try:
-                tree = json.loads(kitty_call(pid, "ls").stdout)
-                if len(tree) != 1 or sum(c.get("pid") == pid for c in live_clients) != 1:
-                    raise ValueError("Processo Kitty compartilhado: associação individual pendente")
-                records = agent_records(pid, tree)
-                item["tabs"] = native_structure(tree, records)
-                item["agent_sessions"] = list(records.values())
-                item["structure_available"] = True
-                filename, result = save_kitty_session(pid, records)
-                item["session_file"] = filename
-                item["native_layout"] = True
-                if result == "partial":
-                    item["warnings"].append("Chat sem ID: sua aba voltará como terminal")
-            except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
-                item["warnings"].append(f"Captura nativa indisponível: {error}")
-                item["native_layout"] = False
-                if not item["tabs"]:
-                    item["tabs"] = [{"panes": [{"cwd": str(Path.home()), "command": [], "state": "unresolved"}]}]
-                item["session_file"] = stored_session(shell_session(item["tabs"]))
-                # Preserve exact IDs even when the native layout could not be saved.
-                for tab in item["tabs"]:
-                    for pane in tab["panes"]:
-                        pane["restore_as_shell"] = not (pane.get("state") == "active" and valid_agent_session_id(pane.get("agent", ""), pane.get("session_id")))
+            data = probe["terminals"].get(pid)
+            old = cached.get(item["restore_id"], {})
+            if data is None and not old:
+                extra = probe_scene({pid})
+                data = extra["terminals"].get(pid)
+            reusable = (old.get("pid_start_ticks") == item["pid_start_ticks"] and old.get("session_file")
+                        and (STATE_DIR / old["session_file"]).is_file())
+            if reusable and (data is None or (data.get("fingerprint") and data["fingerprint"] == old.get("native_fingerprint"))):
+                for key in ("tabs", "agent_sessions", "session_file", "native_layout", "native_fingerprint", "structure_available", "warnings"):
+                    if key in old:
+                        item[key] = copy.deepcopy(old[key])
+            else:
+                try:
+                    if not data or "error" in data:
+                        raise ValueError((data or {}).get("error", "Leitura do Kitty pendente"))
+                    records = data["records"]
+                    item["tabs"] = native_structure(data["tree"], records)
+                    item["agent_sessions"] = list(records.values())
+                    item["structure_available"] = True
+                    item["native_fingerprint"] = data["fingerprint"]
+                    filename, result = save_kitty_session(pid, records)
+                    item.update(session_file=filename, native_layout=True)
+                    if result == "partial":
+                        item["warnings"].append("Chat sem ID: sua aba voltará como terminal")
+                except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError) as error:
+                    item["warnings"].append(f"Captura nativa indisponível: {error}")
+                    item["native_layout"] = False
+                    if not item["tabs"]:
+                        item["tabs"] = [{"panes": [{"cwd": str(Path.home()), "command": [], "state": "unresolved"}]}]
+                    item["session_file"] = stored_session(shell_session(item["tabs"]))
+                    for tab in item["tabs"]:
+                        for pane in tab["panes"]:
+                            pane["restore_as_shell"] = not (pane.get("state") == "active" and valid_agent_session_id(pane.get("agent", ""), pane.get("session_id")))
             item["restorable"] = True
         else:
             item.update(kind="application", restore_command=application_command(item["class"]))
@@ -584,10 +716,13 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
                 item["warnings"].append("Aplicativo sem comando de restauração conhecido")
         warnings.extend(f"{item['restore_id']}: {w}" for w in item["warnings"])
         rows.append(item)
-    state = {"schema": 2, "workspace": WORKSPACE_ID, "boot_id": boot_id(),
+    state = {"schema": 3, "workspace": WORKSPACE_ID, "boot_id": boot_id(),
              "updated_at": int(time.time()), "valid": True, "complete": not warnings,
-             "windows": rows, "warnings": warnings}
-    atomic_write(CAPTURE_FILE, (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
+             "windows": rows, "warnings": warnings, "monitors": probe["monitors"]}
+    layout.enrich(state, probe["native"])
+    old_capture = load_state(CAPTURE_FILE)
+    if not old_capture or scene_signature(old_capture) != scene_signature(state):
+        atomic_write(CAPTURE_FILE, (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode())
     if promote and (rows or allow_empty):
         promote_state(state)
     return state
@@ -602,7 +737,7 @@ def load_state(path: Path | None = None) -> dict[str, Any] | None:
         return None
     try:
         state = json.loads(path.read_text())
-        if (not isinstance(state, dict) or state.get("schema") not in {1, 2}
+        if (not isinstance(state, dict) or state.get("schema") not in {1, 2, 3}
                 or state.get("workspace") != WORKSPACE_ID or not isinstance(state.get("windows"), list)):
             return None
         if state["schema"] == 1 and not state.get("complete"):
@@ -708,6 +843,8 @@ def window_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
         return False
     return all(
         (not expected.get("native_layout") or x.get("layout") == y.get("layout"))
+        and ("active" not in x or x["active"] == y.get("active"))
+        and all("active" not in p or p["active"] == q.get("active") for p, q in zip(x["panes"], y["panes"]))
         and [pane_signature(p, expected=True) for p in x["panes"]]
         == [pane_signature(p, expected=False) for p in y["panes"]]
         for x, y in zip(a, b)
@@ -716,15 +853,20 @@ def window_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
 
 def group_matches(item: dict[str, Any], actual: dict[str, Any], expected: dict[str, Any], observed: dict[str, Any]) -> bool:
     def members(window: dict[str, Any], scene: dict[str, Any]) -> list[str]:
+        if "group_members" in window:
+            return window["group_members"]
         identities = {w.get("address"): w["restore_id"] for w in scene.get("windows", [])}
         return [identities.get(address, "unknown:" + str(address)) for address in window.get("grouped", [])]
-    return members(item, expected) == members(actual, observed)
+    return (members(item, expected) == members(actual, observed)
+            and (not item.get("group_active") or item["group_active"] == actual.get("group_active"))
+            and ("group_locked" not in item or item["group_locked"] == actual.get("group_locked")))
 
 
 def restore_matches(expected: dict[str, Any], observed: dict[str, Any]) -> bool:
     actual = {w["restore_id"]: w for w in observed.get("windows", [])}
     return all(w["restore_id"] in actual and window_matches(w, actual[w["restore_id"]])
                and group_matches(w, actual[w["restore_id"]], expected, observed)
+               and layout.matches(w, actual[w["restore_id"]], expected, observed)
                for w in expected.get("windows", []))
 
 
@@ -779,9 +921,8 @@ def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[
                 result["status"] = "ignorado"
                 continue
             command = json.dumps(shlex.join(entry["command"]), ensure_ascii=False)
-            group = "new" if item.get("grouped") else "barred"
-            # Rules target this launch even if the user changes the active workspace.
-            dispatch(f'hl.dsp.exec_cmd({command}, {{workspace="{WORKSPACE_ID} silent", group="{group}"}})')
+            # Start isolated: groups and geometry are reconstructed only after opening.
+            dispatch(f'hl.dsp.exec_cmd({command}, {{workspace="{WORKSPACE_ID} silent", float=true, group="barred"}})')
             result.update(status="iniciado", action="launch")
             deadline = time.monotonic() + 8
             while time.monotonic() < deadline:
@@ -802,7 +943,16 @@ def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, KeyError) as error:
             result.update(status="falhou", error=str(error))
         write_restore_status("em_andamento", "Restauração independente por janela.", items=results)
+    existing_scene = snapshot(promote=False) if results and all(r.get("action") == "existing" for r in results) else None
+    existing_by_id = {w["restore_id"]: w for w in (existing_scene or {}).get("windows", [])}
+    layout_unchanged = existing_scene is not None and all(
+        item["restore_id"] in existing_by_id
+        and group_matches(item, existing_by_id[item["restore_id"]], state, existing_scene)
+        and layout.matches(item, existing_by_id[item["restore_id"]], state, existing_scene)
+        for item in state["windows"])
+    layout_report = {"unchanged": True} if layout_unchanged else layout.restore(sys.modules[__name__], state)
     deadline = time.monotonic() + verify_seconds
+    observed = None
     while results:
         try:
             observed = snapshot(promote=False)
@@ -817,12 +967,17 @@ def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[
             if result["status"] in {"falhou", "ignorado"}:
                 continue
             actual = by_id.get(entry["restore_id"])
-            if actual and window_matches(entry["item"], actual):
-                if group_matches(entry["item"], actual, state, observed):
+            if actual:
+                checks = {"window": True, "terminal": window_matches(entry["item"], actual),
+                          "group": group_matches(entry["item"], actual, state, observed),
+                          "geometry": layout.matches(entry["item"], actual, state, observed)}
+                result["verified"] = checks
+                if all(checks.values()):
                     result["status"] = "verificado"
-                else:
+                    result.pop("error", None)
+                elif checks["terminal"]:
                     result["status"] = "grupo_pendente"
-                    result["error"] = "Janelas abertas, mas o grupo original ainda não foi recomposto"
+                    result["error"] = "Grupo ou geometria ainda não coincide com a captura desejada"
         if all(r["status"] in {"verificado", "falhou", "ignorado", "grupo_pendente"} for r in results) or time.monotonic() >= deadline:
             break
         time.sleep(1)
@@ -830,8 +985,10 @@ def restore_items(state: dict[str, Any], *, verify_seconds: float = 30) -> list[
     complete = bool(results) and done == len(results) and bool(state.get("complete"))
     launched = sum(r.get("action") == "launch" for r in results)
     label = ("concluida" if launched else "conferida") if complete else "parcial"
+    if observed:
+        save_restore_guard(state, observed, results)
     write_restore_status(label, f"{done}/{len(results)} janela(s) verificadas; {launched} iniciada(s) nesta execução.", items=results,
-                         capture_complete=bool(state.get("complete")), previous_boot=state.get("boot_id") != boot_id())
+                         layout=layout_report, capture_complete=bool(state.get("complete")), previous_boot=state.get("boot_id") != boot_id())
     return results
 
 
@@ -851,7 +1008,7 @@ def status() -> int:
         windows, tabs, panes = scene_counts(value)
         ready = sum(bool(e["command"]) for e in restore_plan(value))
         age = max(0, int(time.time()) - value["updated_at"])
-        print(f"{label}: {windows} janelas, {tabs} abas, {panes} painéis; {ids}/{len(agents)} IDs; {ready} janelas restauráveis; idade {age}s; detecção {'completa' if value.get('complete') else 'parcial'}.")
+        print(f"{label}: {windows} janelas, {len(value.get('groups', []))} grupos, {tabs} abas, {panes} painéis; {ids}/{len(agents)} IDs; {ready} janelas restauráveis; última alteração salva há {age}s; detecção {'completa' if value.get('complete') else 'parcial'}.")
         for warning in value.get("warnings", []):
             print("  PENDÊNCIA:", warning)
     try:
@@ -886,48 +1043,8 @@ def restoration_in_progress() -> bool:
 
 
 def login_loop() -> int:
-    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with LOCK_FILE.open("a+") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return 0
-        stopping = False
-        def stop(_signum: int, _frame: Any) -> None:
-            nonlocal stopping
-            stopping = True
-        signal.signal(signal.SIGTERM, stop)
-        signal.signal(signal.SIGINT, stop)
-        wait_for_hyprland()
-        previous = load_state()
-        if previous and previous.get("boot_id") != boot_id():
-            restore(previous)
-        shrink_since = None
-        while not stopping:
-            try:
-                if shutting_down():
-                    break
-                if restoration_in_progress():
-                    time.sleep(0.5)
-                    continue
-                candidate = snapshot(promote=False)
-                previous = load_state()
-                shrinking = previous and any(a < b for a, b in zip(scene_counts(candidate), scene_counts(previous)))
-                if shrinking:
-                    shrink_since = shrink_since or time.monotonic()
-                else:
-                    shrink_since = None
-                grace = EMPTY_GRACE_SECONDS if not candidate["windows"] else 30
-                if not shrinking or time.monotonic() - shrink_since >= grace:
-                    promote_state(candidate)
-            except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, KeyError) as error:
-                write_restore_status("monitoramento_com_erro", str(error))
-            # Short sleeps keep SIGTERM responsive; do not save a closing desktop on exit.
-            for _ in range(POLL_SECONDS * 4):
-                if stopping:
-                    break
-                time.sleep(0.25)
-    return 0
+    from INTERFACE_MONITOR import monitor
+    return monitor(sys.modules[__name__])
 
 
 def main(argv: list[str]) -> int:
