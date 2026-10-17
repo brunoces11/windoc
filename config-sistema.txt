@@ -1495,3 +1495,34 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * Shell recarregado via `omarchy-restart-shell` com código 0 e handshake IPC verificado com sucesso via `omarchy-shell shell ping` -> `ok`.
   * Instância do Quickshell ativa e saudável com zero erros de renderização.
 
+
+81. CORREÇÃO DA DETECÇÃO DO MODIFICADOR ALT NO WAYLAND E ELIMINAÇÃO DE AUTO-EXPANSÃO DO DESKBAND
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Diagnóstico da causa raiz:
+  1. No Wayland/Hyprland, a camada do dock (`dockLayer`) possuía `WlrLayershell.keyboardFocus: WlrKeyboardFocus.None`. Janelas de layer shell com foco de teclado nulo nunca recebem eventos `wl_keyboard.modifiers` do compositor, fazendo com que `mouse.modifiers` em `MouseArea` do Qt Quick fosse permanentemente reportado como `0`.
+  2. Em `BarWidget.qml`, o listener `onPlayingChanged` continha uma condicional residual que forçava `isExpanded = true` sempre que a reprodução iniciava (`media.playing`), e `onHasMediaChanged` / `Component.onCompleted` também interferiam no estado de expansão.
+- Soluções implementadas:
+  1. Habilitação de foco interativo sob demanda na dock (`dock/DockPanel.qml`): `WlrLayershell.keyboardFocus` atualizado para `WlrKeyboardFocus.OnDemand`, permitindo que o compositor envie a matriz de modificadores de teclado (`wl_keyboard.modifiers`) durante cliques no dock sem roubar o foco ativo de janelas em execução.
+  2. Injeção da propriedade `slotSize: root.slotSize` no objeto proxy `dockBarContext` para widgets hospedados.
+  3. Rastreamento robusto de modificadores no Amberol Deskband (`amberol-deskband/components/DeskbandCapsule.qml`):
+     - `iconMouse` agora captura modificadores tanto em `onPressed` quanto em `onClicked` via flag `altPressedAtDown`, eliminando condições de corrida entre a liberação da tecla Alt e o evento de clique.
+     - Suporte completo a `Qt.AltModifier` (Alt esquerdo), `Qt.GroupSwitchModifier` (AltGr / teclado ABNT2) e `Qt.MetaModifier`.
+  4. Neutralização total de efeitos colaterais de reprodução (`amberol-deskband/BarWidget.qml`):
+     - `onPlayingChanged` e `onHasMediaChanged` não alteram mais a geometria do painel (`isExpanded`).
+     - Separação estrita garantida:
+       * Clique padrão sem Alt: exclusivamente expande ou recolhe (Ultra Compacto 42px <-> Compacto 285px); nunca inicia ou pausa reprodução.
+       * Alt + Clique: exclusivamente alterna Play/Pause (ou abre o Amberol caso não haja mídia); mantém rigorosamente o painel no estado em que estiver (ultra-compacto permanece ultra-compacto; compacto permanece compacto).
+- Arquivos modificados:
+  * `amberol-deskband/components/DeskbandCapsule.qml`: captura com fallback em press/click para Alt/AltGr/Meta.
+  * `amberol-deskband/BarWidget.qml`: remoção de auto-expansão em `onPlayingChanged`, `onHasMediaChanged` e `Component.onCompleted`.
+  * `amberol-deskband/tests/mpris_runtime.py`: sincronização do teste de integração com o novo modelo independente ultra-compacto/compacto.
+  * `dock/DockPanel.qml`: `WlrKeyboardFocus.OnDemand` e `slotSize` no `dockBarContext`.
+  * Este histórico.
+- Validação técnica executada:
+  * 7 testes unitários do `amberol-deskband` executados com sucesso (código 0).
+  * Ciclo de vida MPRIS em runtime (`tests/mpris_runtime.py`) executado com sucesso e todos os passos aprovados (incluindo teste de clique alternando ultra-compacto <-> compacto mantendo a reprodução).
+  * 26 testes de integridade da dock (`dock/tests/test_dock_minimize.py`) aprovados.
+  * 39 testes do monitor de workspace (`PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py`) aprovados (total 65 testes).
+  * Shell reiniciado via `omarchy restart shell` com novo PID (306655), limpo e sem warnings.
+

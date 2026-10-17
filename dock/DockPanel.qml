@@ -1749,6 +1749,7 @@ Item {
         id: dockBarContext
         property bool vertical: root.isVertical
         property int barSize: root.slotSize + 8
+        property int slotSize: root.slotSize
         property int barH: root.slotSize + 8
         property int barW: root.slotSize + 8
         property string position: root.dockScreenPosition
@@ -3404,7 +3405,7 @@ Item {
                 // the dock is permanently on screen, so it stays on Top and
                 // lets fullscreen content win.
                 WlrLayershell.layer: root.autohide ? WlrLayer.Overlay : WlrLayer.Top
-                WlrLayershell.keyboardFocus: root.isEditMode ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+                WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
                 exclusionMode: root.dockRevealed && !dockLayer.slidOut && !root.overlayMode ? ExclusionMode.Auto : ExclusionMode.Ignore
                 color: "transparent"
                 surfaceFormat.opaque: false
