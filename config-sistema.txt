@@ -1428,3 +1428,16 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * Shell recarregado via `omarchy restart shell` com código 0.
   * Camada `omarchy-dock` confirmada ativa via `hyprctl layers` (`0 814 1536 50`).
   * Logs do Quickshell auditados em `/run/user/1000/quickshell/by-id/`: zero advertências ou erros QML.
+
+
+77. ATALHO ALT+CLIQUE PARA PLAY/PAUSE E SEPARAÇÃO DE MODOS NO AMBEROL DESKBAND
+Data: 17/10/2026. Estado: implementado, verificado e validado (Etapa 1).
+
+- Separação da funcionalidade do ícone na barra:
+  - Modo Ultra Compacto (42px) e Modo Compacto (~285px) agora são estritamente alternados pelo clique simples do mouse, sem afetar o estado da reprodução musical.
+  - O atalho Alt + Clique no ícone do Amberol foi implementado via detecção de modificador `mouse.modifiers & Qt.AltModifier`, acionando o Play/Pause silencioso (`controller.togglePlaying()`) tanto no modo Ultra Compacto quanto no Modo Compacto sem alterar a largura ou abrir/fechar a barra.
+  - Clique com botão direito preservado para focar/restaurar a janela principal do Amberol.
+  - Tooltip interativo atualizado com orientação clara de Clique (Expandir/Recolher) e Alt+Clique (Tocar/Pausar).
+- Arquivos: `amberol-deskband/BarWidget.qml`, `amberol-deskband/components/DeskbandCapsule.qml` e este histórico.
+- Validação técnica: 7 testes do submódulo aprovados; ciclo MPRIS em `dbus-run-session` concluído com sucesso; recarga no shell confirmada via `omarchy-shell shell rescanPlugins` e `rosakodu.dock refresh`.
+
