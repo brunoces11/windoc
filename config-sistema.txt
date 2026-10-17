@@ -1579,3 +1579,31 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * 26 testes unitários de minimização da dock aprovados.
   * 45 testes de persistência de workspace aprovados (totalizando 71 testes no WinDoc).
   * Captura visual e teste de IPC confirmando abertura imediata, posicionamento perfeito sobre a dock e fechamento gracioso do popup.
+
+
+85. SELEÇÃO DE PASTA (LOAD FOLDER) E PERSISTÊNCIA NATIVA NO AMBEROL DESKBAND
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Funcionalidade implementada:
+  1. No popup do player compacto (`amberol-deskband/components/DeskbandPopup.qml`):
+     - Adicionado o botão de ação "Load Folder" como o primeiro elemento de menu de baixo para cima.
+     - Estilizado com cantos arredondados, realce visual em hover/press no tom de destaque (`root.accent`), ícone de pasta (`󰉋`) e texto dinâmico exibindo o nome da pasta atualmente carregada ("Pasta: <nome>" ou "Selecionar pasta local de músicas").
+     - Integração assíncrona com `Quickshell.Io.FileView` monitorando `~/.config/amberol-deskband/config.json` para atualização instantânea da interface.
+  2. Utilitário nativo de seleção e persistência (`amberol-deskband/scripts/select_folder.py`):
+     - Interface com GTK 4 (`Gtk.FileDialog`) integrada ao XDG Desktop Portal para exibir a janela nativa do sistema operacional para seleção de diretórios.
+     - Persistência atômica da pasta selecionada em formato JSON local: `~/.config/amberol-deskband/config.json`.
+     - Despacho imediato para o Amberol via GApplication (`amberol <pasta>`), importando todas as músicas do diretório e deixando a primeira faixa posicionada "na agulha" pronta para tocar.
+     - Suporte a flags de consulta (`--get`), atribuição direta (`--set`), disparo inicial (`--play-default`) e flag isolada de testes (`--no-launch`).
+  3. Automação de inicialização e persistência de reinício / reboot (`~/.local/bin/amberol`):
+     - Wrapper transparente instalado no caminho prioritário do usuário (`$HOME/.local/bin/amberol`).
+     - Se o Amberol for aberto sem argumentos (seja no boot do sistema, lançadores de aplicativos, atalhos ou terminal), o wrapper detecta a ausência de processo ativo e inicia automaticamente o `/usr/bin/amberol` alimentado com a pasta padrão persistida em `config.json`.
+     - Caso o Amberol já esteja ativo, preserva o comportamento nativo de focar a janela existente sem duplicar ou reiniciar o player.
+  4. Suporte integrado no clique Alt+Click (`amberol-deskband/BarWidget.qml`):
+     - Quando o usuário clica com a tecla Alt pressionada no ícone do Amberol na dock e não há mídia ativa, o deskband inicia o Amberol passando explicitamente a pasta persistida, garantindo que as músicas estejam sempre prontas para reprodução imediata.
+- Testes e validação técnica:
+  * 11 testes unitários em `amberol-deskband/tests` (incluindo 4 novos testes cobrindo `select_folder.py`).
+  * 8 verificações MPRIS runtime completas sem erros (`tests/mpris_runtime.py`).
+  * 26 testes de minimização da dock aprovados.
+  * 45 testes de persistência de workspace aprovados (totalizando 90 testes automatizados no WinDoc).
+  * Recarregamento do shell Quickshell (`omarchy restart shell`) e verificação de logs e processos ativos.
+
