@@ -1526,3 +1526,21 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * 39 testes do monitor de workspace (`PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py`) aprovados (total 65 testes).
   * Shell reiniciado via `omarchy restart shell` com novo PID (306655), limpo e sem warnings.
 
+
+82. ESCALONAMENTO ÓPTICO EXCLUSIVO DO ÍCONE DE VOLUME NA SYSTEM ICON TRAY (+7%)
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Ajuste óptico específico e exclusivo para o ícone de som/volume (`omarchy.audio`):
+  - Aplicação de escalonamento vetorial de 7% (`scale: 1.07`) no componente Text do glifo de áudio em `dock/components/SystemIconTray.qml` e `dock/components/TrayOverflowPopup.qml`.
+  - Todos os demais ícones, dimensões de slot (21px), espaçamentos (1.46px) e chevron (12px/19px) foram rigorosamente preservados sem qualquer alteração.
+- Arquivos modificados:
+  * `dock/components/SystemIconTray.qml`: inclusão da propriedade reativa `scale: (modelData === "omarchy.audio") ? 1.07 : 1.0`.
+  * `dock/components/TrayOverflowPopup.qml`: inclusão da propriedade reativa `scale: (modelData && modelData.id === "omarchy.audio") ? 1.07 : 1.0`.
+  * `DIRETRIZES_DE_DESIGN.txt`: documentação do escalonamento óptico exclusivo do ícone de volume.
+  * Este histórico.
+- Validação técnica executada:
+  * Suíte de testes unitários da dock (`dock/tests/test_dock_minimize.py`) aprovada (26 testes).
+  * Suíte do monitor de workspaces (`PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py`) aprovada (39 testes, totalizando 65 testes).
+  * Shell recarregado via `omarchy-restart-shell` com código 0 e handshake IPC verificado via `omarchy-shell shell ping` -> `ok`.
+  * Validação visual e de runtime confirmando o ícone de volume 7% maior sem afetar os demais.
+

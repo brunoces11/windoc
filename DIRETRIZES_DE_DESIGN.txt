@@ -101,6 +101,7 @@
 #   * Glifo do Ícone (Glyph Size):
 #       - Tamanho: 14px (`font.pixelSize: 14`) — redução uniforme de 15% (de 17px para 14px; chevron de 14px para 12px), rigorosamente idêntico ao tamanho
 #         dos ícones fixados na barra de tarefas padrão (`SystemIconTray.qml`).
+#       - Escalonamento Exclusivo do Volume: o ícone de áudio/volume (`omarchy.audio`) recebe escalonamento óptico exclusivo de +7% (`scale: 1.07`), compensando a densidade visual do símbolo sem alterar dimensões de slots ou outros ícones.
 #       - Família tipográfica: Style.font.family.
 #   * Espaçamento Entre Ícones (Item Spacing):
 #       - `rowSpacing: 1.46` e `columnSpacing: 1.46` — redução de 27% (de 2px para 1.46px), rigorosamente idêntico ao espaçamento

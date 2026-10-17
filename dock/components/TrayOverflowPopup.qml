@@ -269,6 +269,7 @@ PanelWindow {
                         id: glyph
                         anchors.centerIn: parent
                         textFormat: Text.PlainText
+                        scale: (modelData && modelData.id === "omarchy.audio") ? 1.07 : 1.0
                         text: {
                             if (modelData.id === "omarchy.audio") {
                                 if (dockPanel && dockPanel.pipewireSinkMuted) return "󰝟"

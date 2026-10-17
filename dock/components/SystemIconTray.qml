@@ -135,6 +135,7 @@ Item {
                         id: pinnedGlyph
                         anchors.centerIn: parent
                         textFormat: Text.PlainText
+                        scale: (modelData === "omarchy.audio") ? 1.07 : 1.0
                         text: {
                             var indicator = TrayIndicators.itemForId(modelData)
                             if (indicator) return indicator.icon
