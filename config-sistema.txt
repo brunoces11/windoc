@@ -1325,3 +1325,23 @@ Data: 17/10/2026. Estado: corrigido e validado; teste completo de reboot permane
 - Arquivos: PERSISTIR_WORKSPACE/WORKSPACE1.py, TEST_WORKSPACE1.py, README.md e este histórico.
 - Validação: 30 testes automatizados aprovados, incluindo troca de ID no mesmo processo, cache sem evidência atual, preservação de dados durante falha, rejeição de herança entre processos/boots e atualização após recuperação. Serviço reiniciado e captura automática nova conferida com oito IDs. Falha de IPC também simulada usando cópia isolada do estado real: abas, IDs e comandos preservados, com aviso de confirmação pendente. Configurações do Hyprland não foram alteradas.
 - Pendências já conhecidas: reboot completo, recomposição de grupos com várias janelas e geometria exata dos tiles. Nenhuma dessas pendências é declarada resolvida por esta correção.
+
+
+71. UNIFICAÇÃO DO ÍCONE E PLAYER AMBEROL NA DOCK COM LAYOUT DE 2 LINHAS
+Data: 17/10/2026. Estado: implementado, verificado e validado.
+
+- Unificação do ícone do aplicativo e do player compacto Deskband: o Deskband passa a ser o único elemento do Amberol na dock, eliminando a redundância de ter um ícone fixado avulso no centro e a barra de controle à direita.
+- Modo Ícone Retrátil / Expansível: quando recolhido, o Deskband exibe apenas o ícone do Amberol em slot compacto (42px). Ao clicar no ícone:
+  - Se fechado: inicia `/usr/bin/amberol` e expande o player.
+  - Se recolhido: inicia a reprodução (Play) e expande suavemente para a largura completa (~285px).
+  - Se expandido: pausa a reprodução (Pause) e recolhe a cápsula de volta para 42px.
+  - Clique com botão direito: foca/restaura a janela principal do Amberol no Hyprland (`focuswindow class:io.bassi.Amberol`).
+  - Clique com botão do meio: alterna expansão/colapso sem pausar a música.
+- Novo layout estrutural da cápsula em 3 sessões e 2 linhas (reduzindo de 3 para 2 camadas verticais):
+  - Sessão 1 (Esquerda): Ícone do Amberol (ocupando a altura útil total) + linha divisória vertical fina (1px).
+  - Sessão 2 (Centro): Título da faixa na linha superior e Artista na linha inferior, com altura e espaçamento dedicados.
+  - Sessão 3 (Direita): Bloco de reprodução com 5 botões de controle na linha superior e a barra de progresso (seek) na linha inferior, estritamente alinhada e restrita à largura dos botões.
+- Filtro inteligente na Dock (`DockPanel.qml`): suprime `io.bassi.Amberol` da lista central de tarefas (`dockItems`) enquanto `amberol-deskband` estiver ativo em `dockWidgets`, e remoção de `io.bassi.Amberol` de `shell/dock-pinned.json`.
+- Arquivos: `amberol-deskband/BarWidget.qml`, `amberol-deskband/components/DeskbandCapsule.qml`, `dock/DockPanel.qml`, `shell/dock-pinned.json` e este histórico.
+- Validação: 7 testes do instalador e runtime Python no submódulo aprovados; ciclo MPRIS completo em `dbus-run-session` validado sem erros QML; 26 testes de minimização e lógica da dock aprovados; IPC `rescanPlugins` e `rosakodu.dock refresh/deskband` validados com o Amberol em execução; estado pausado e integridade de volume preservados.
+

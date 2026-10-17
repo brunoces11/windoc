@@ -2713,7 +2713,13 @@ Item {
         var allEntries = (typeof DesktopEntries !== "undefined" && DesktopEntries.applications && DesktopEntries.applications.values && DesktopEntries.applications.values.length > 0)
             ? DesktopEntries.applications.values
             : (lib && typeof lib.sortedEntries === "function" ? lib.sortedEntries("") : root.appRows)
-        root.dockItems = DockModel.buildDockItems(root.pinnedIds, toplevels, active, allEntries, lib, notifTracker.canonicalCounts, notifTracker.canonicalUrgent, root.maxDockItems, minTops)
+        var builtItems = DockModel.buildDockItems(root.pinnedIds, toplevels, active, allEntries, lib, notifTracker.canonicalCounts, notifTracker.canonicalUrgent, root.maxDockItems, minTops)
+        if (root.dockWidgets && root.dockWidgets.indexOf("amberol-deskband") !== -1) {
+            builtItems = builtItems.filter(function(it) {
+                return it && it.id !== "io.bassi.Amberol" && it.appId !== "io.bassi.Amberol" && it.appClass !== "io.bassi.Amberol"
+            })
+        }
+        root.dockItems = builtItems
 
         // Refresh active stack item contents if open
         if (root.activeStackItem) {

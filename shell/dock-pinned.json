@@ -12,7 +12,6 @@
     "com.obsproject.Studio",
     "org.kde.kdenlive",
     "concat",
-    "com.blackmagicdesign.resolve",
-    "io.bassi.Amberol"
+    "com.blackmagicdesign.resolve"
   ]
 }
