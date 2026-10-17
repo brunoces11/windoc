@@ -1629,3 +1629,35 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * Validação em runtime: teste do comando `playPause` e confirmação de transição real de estado no Amberol de `Stopped` -> `Playing` e `Playing` -> `Paused`. Shell Quickshell reiniciado com sucesso.
 
 
+
+87. AUTO-CARREGAMENTO DA ÚLTIMA PASTA E VINCULAÇÃO IMEDIATA DO PLAYER NO AMBEROL
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Diagnóstico da causa raiz:
+  1. O Amberol nativo (binário Rust GTK 4) não possui configuração nativa de persistência para reabrir a última pasta/playlist executada quando inicializado sem argumentos, abrindo com fila vazia (`Metadata: a{sv} 0`).
+  2. Ao selecionar uma pasta através do menu popup ("Load Folder"), o script anterior invocava `/usr/bin/amberol <pasta>` em background sem sincronização D-Bus e sem acionar o estado de reprodução. Devido ao escaneamento assíncrono das faixas pelo Amberol (~800ms), chamadas prematuras ao MPRIS resultavam em erro de asserção GStreamer (`gst_uri_is_valid: uri != NULL`), mantendo o player parado (`Stopped`) e desvinculado dos botões de controle do deskband.
+  3. Além disso, se o Amberol estivesse fechado ou sem faixas carregadas, a propriedade `canToggle` avaliava como falsa, desabilitando o botão de Play do deskband e impedindo o usuário de dar play a partir do caminho salvo em memória.
+- Soluções implementadas:
+  1. Automação e persistência nativa de inicialização no Amberol (`amberol-deskband/scripts/amberol-wrapper.sh` & `~/.local/bin/amberol`):
+     - Wrapper prioritário em `$HOME/.local/bin/amberol` interceptando todas as chamadas de inicialização (CLI, lançadores de aplicativos e ativação D-Bus).
+     - Quando iniciado sem argumentos (inclusive após reboot da máquina), lê automaticamente a pasta persistida em `~/.config/amberol-deskband/config.json` e carrega o Amberol diretamente com essa pasta. Caso o Amberol já esteja rodando, injeta as músicas via D-Bus `Open` e traz a janela em foco.
+     - Sempre que qualquer diretório for aberto via linha de comando (`amberol <pasta>`), a nova pasta é automaticamente persistida no JSON como novo padrão.
+     - Suporte transparente para ativação D-Bus em segundo plano (`--gapplication-service`): monitor de background aguarda o registro de `io.bassi.Amberol` e injeta a pasta padrão via D-Bus `org.freedesktop.Application.Open`.
+     - Sobrescrita de desktop entry em `~/.local/share/applications/io.bassi.Amberol.desktop` com `DBusActivatable=false` e `Exec=/home/brunoma/.local/bin/amberol %U`, garantindo que menus e docks sempre passem pelo wrapper.
+     - Sobrescrita de serviço D-Bus em `~/.local/share/dbus-1/services/io.bassi.Amberol.service`.
+  2. Utilitário de vinculação ativa (`amberol-deskband/scripts/select_folder.py`):
+     - Método `open_in_amberol` aprimorado com despacho D-Bus (`Application.Open`) com URI URL-encoded (`Path.as_uri()`).
+     - Rotina de verificação assíncrona aguardando o carregamento completo dos metadados antes de liberar a interface ou enviar play.
+     - Novas flags CLI: `--play-default` (inicia e começa a tocar imediatamente a pasta persistida) e `--ensure-loaded` (alimenta a fila se o player estiver rodando vazio).
+  3. Integração total no Deskband (`AmberolController.qml`, `DeskbandCapsule.qml` e `BarWidget.qml`):
+     - `AmberolController.qml` monitora `config.json` via `FileView` e mantém a propriedade `defaultFolder`.
+     - `canToggle` agora permanece ativo (`true`) caso exista uma pasta padrão persistida, mesmo com o Amberol parado ou fechado.
+     - Ao clicar no botão de Play (`togglePlaying()`) sem faixas ativas, o deskband dispara automaticamente o `--play-default`, vinculando a pasta e iniciando o áudio instantaneamente.
+     - No `DeskbandCapsule.qml`, quando parado, exibe "Amberol (Pronto)" e o nome da pasta padrão ("MPB LOVE"), dando feedback visual imediato de prontidão.
+- Validação técnica executada:
+  * 12 testes unitários em `amberol-deskband/tests/test_select_folder.py` e `test_install.py` aprovados com sucesso.
+  * 13 testes QML via `qmltestrunner` aprovados com código 0.
+  * Ciclo de vida runtime completo (`tests/mpris_runtime.py`) sob `dbus-run-session` executado com 100% de aprovação em todos os 8 estágios.
+  * 26 testes de minimização da dock em `dock/tests` aprovados com sucesso.
+  * Teste real de inicialização do Amberol sem argumentos confirmando abertura direta com todas as 41 músicas carregadas.
+  * Teste do comando `--play-default` confirmando transição para estado `Playing` com metadados completos da primeira faixa.
