@@ -1441,3 +1441,17 @@ Data: 17/10/2026. Estado: implementado, verificado e validado (Etapa 1).
 - Arquivos: `amberol-deskband/BarWidget.qml`, `amberol-deskband/components/DeskbandCapsule.qml` e este histórico.
 - Validação técnica: 7 testes do submódulo aprovados; ciclo MPRIS em `dbus-run-session` concluído com sucesso; recarga no shell confirmada via `omarchy-shell shell rescanPlugins` e `rosakodu.dock refresh`.
 
+
+78. ÍCONE VETORIAL DINÂMICO E MINI EQUALIZER COM DEGRADÊ DESLIZANTE NO AMBEROL DESKBAND
+Data: 17/10/2026. Estado: implementado, verificado e validado (Etapa 2).
+
+- Substituição do ícone estático do Amberol por um indicador de estado vivo e minimalista na Sessão 1 da cápsula:
+  - Estado Pause (Stand-by): Círculo vazado em vetor puro com contorno branco a 29% de opacidade (71% transparente) e seta de Play centralizada com correção ótica (+1.2px à direita) via `QtQuick.Shapes`.
+  - Estado Play (Tocando): Mini Equalizer com 3 barrinhas de pontas arredondadas oscilando em tempos assimétricos orgânicos (380ms, 420ms, 350ms), preenchidas na cor de destaque do tema (`root.accent`) com degradê deslizante (shimmer wave sinusoidal contínuo).
+  - Microtransição: Fade e scale cruzados de 160ms com suavização `Easing.OutCubic` entre o modo Pause e Play.
+  - Consumo Zero de CPU: Animações de altura e shimmer vinculadas estritamente a `controller.playing` (suspensas automaticamente quando pausado).
+  - Interação independente preservada: Clique simples alterna expansão/colapso (Ultra Compacto <-> Compacto) sem alterar a reprodução; Alt+Clique comanda Play/Pause diretamente com a microtransição no ícone sem alterar o tamanho da barra.
+- Arquivos: `amberol-deskband/components/DeskbandCapsule.qml` e este histórico.
+- Validação técnica: 7 testes do submódulo aprovados; ciclo MPRIS via `dbus-run-session` executado com código 0; recarga no shell confirmada via `omarchy-shell shell rescanPlugins` e `rosakodu.dock refresh`.
+
+
