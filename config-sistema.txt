@@ -1314,3 +1314,14 @@ Data: 17/10/2026. Estado: implementado, ativo e validado em ciclo isolado; reboo
 - Arquivos: PERSISTIR_WORKSPACE/WORKSPACE1.py, AGENT_SESSION_HOOK.py, TEST_WORKSPACE1.py e README.md; hyprland/autostart.lua; adotados/.config/systemd/user/windoc-workspace1.service; symlinks.tsv; este histórico. Estado privado continua somente em ESTADO_LOCAL, ignorado pelo Git.
 - Validação: 25 testes automatizados aprovados; ciclo real isolado com um Kitty, duas abas e três painéis salvo, fechado e restaurado por sessão nativa; grupo individual e diretórios conferidos; repetição não duplicou a janela. Janelas originais preservadas. Serviço e avanço automático do timestamp confirmados; dados locais contém nove abas e oito IDs distintos (dois Codex e seis Antigravity), além dos aplicativos gráficos conhecidos.
 - Limites: reboot completo ainda não realizado; grupos com várias janelas e geometria exata dos tiles ainda não são recompostos. Codex pode carregar a conversa antes de emitir o hook, deixando confirmação pendente; Claude foi validado por testes isolados, sem sessão real aberta. Detecção sem ID continua sendo uma pendência, não evidência de chat vazio.
+
+
+70. PRESERVAR O MAPA DO KITTY DURANTE FALHAS TRANSITÓRIAS DE LEITURA
+Data: 17/10/2026. Estado: corrigido e validado; teste completo de reboot permanece pendente.
+
+- Revisão identificou duas lacunas: cache por processo podia devolver ID antigo após troca de conversa sem novo hook; falha de leitura do Kitty podia substituir abas/IDs conhecidos por terminais vazios no manifesto principal.
+- Agora o cache de ID por PID é apenas histórico de diagnóstico. Na ausência de hook válido, a captura reconsulta arquivos nativos abertos pelo processo para identificar a conversa atual.
+- Quando a estrutura Kitty fica inacessível, preserva o último arquivo nativo, abas e IDs somente para a mesma identidade de janela, boot, PID e início do processo. Os dados ficam explicitamente marcados como antigos e pendentes de confirmação; a captura bruta mantém a falha e uma leitura bem-sucedida atualiza o mapa normalmente.
+- Arquivos: PERSISTIR_WORKSPACE/WORKSPACE1.py, TEST_WORKSPACE1.py, README.md e este histórico.
+- Validação: 30 testes automatizados aprovados, incluindo troca de ID no mesmo processo, cache sem evidência atual, preservação de dados durante falha, rejeição de herança entre processos/boots e atualização após recuperação. Serviço reiniciado e captura automática nova conferida com oito IDs. Falha de IPC também simulada usando cópia isolada do estado real: abas, IDs e comandos preservados, com aviso de confirmação pendente. Configurações do Hyprland não foram alteradas.
+- Pendências já conhecidas: reboot completo, recomposição de grupos com várias janelas e geometria exata dos tiles. Nenhuma dessas pendências é declarada resolvida por esta correção.

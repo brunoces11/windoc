@@ -60,6 +60,61 @@ class PersistenceTests(unittest.TestCase):
             sid,_,_=ws.session_id_for('codex',{'pid':2,'cmdline':['codex','resume',SID]},kitty_pid=1,kitty_window_id=1)
         self.assertEqual(sid,OTHER)
 
+    def test_process_cache_cannot_override_current_native_id(self):
+        registry=self.root/'AGENT_IDS.json'
+        registry.write_text(json.dumps({'42':{'agent':'antigravity','session_id':SID,'start_ticks':'100'}}))
+        with patch.object(ws,'AGENT_IDS_FILE',registry),patch.object(ws,'pane_registry_record',return_value=None), \
+             patch.object(ws,'process_start_ticks',return_value='100'), \
+             patch.object(ws,'process_fd_targets',return_value=['/presence/'+OTHER+'.lock']), \
+             patch.object(ws,'process_mapped_files',return_value=[]),patch.object(ws,'register_session_id'):
+            sid,_,_=ws.session_id_for('antigravity',{'pid':42,'cmdline':['agy']},kitty_pid=3,kitty_window_id=1)
+        self.assertEqual(sid,OTHER)
+
+    def test_process_cache_alone_does_not_prove_active_session(self):
+        registry=self.root/'AGENT_IDS.json'
+        registry.write_text(json.dumps({'42':{'agent':'antigravity','session_id':SID,'start_ticks':'100'}}))
+        with patch.object(ws,'AGENT_IDS_FILE',registry),patch.object(ws,'pane_registry_record',return_value=None), \
+             patch.object(ws,'process_start_ticks',return_value='100'),patch.object(ws,'process_fd_targets',return_value=[]), \
+             patch.object(ws,'process_mapped_files',return_value=[]):
+            sid,_,state=ws.session_id_for('antigravity',{'pid':42,'cmdline':['agy']},kitty_pid=3,kitty_window_id=1)
+        self.assertIsNone(sid);self.assertEqual(state,'unresolved')
+
+    def preserved_scene(self):
+        good=window(agent='codex',sid=SID,state='active')
+        good.update(pid=42,pid_start_ticks='100',native_layout=True,structure_available=True,session_file='known.session')
+        old={'schema':2,'workspace':1,'boot_id':'boot','updated_at':10,'complete':True,'warnings':[],'windows':[good]}
+        bad=copy.deepcopy(old);bad.update(updated_at=20,complete=False,warnings=['read failure'])
+        bad['windows'][0].update(structure_available=False,native_layout=False,session_file='fallback.session',
+                                 tabs=[{'panes':[pane(state='unresolved')]}],warnings=['read failure'])
+        return old,bad
+
+    def test_unreadable_kitty_preserves_known_data_with_warning(self):
+        old,bad=self.preserved_scene()
+        ws.promote_state(old);ws.promote_state(bad)
+        saved=ws.load_state();item=saved['windows'][0]
+        self.assertEqual(item['tabs'][0]['panes'][0]['session_id'],SID)
+        self.assertEqual(item['session_file'],'known.session')
+        self.assertTrue(item['capture_stale']);self.assertFalse(saved['complete'])
+        self.assertEqual(item['last_successful_capture_at'],10)
+        self.assertIsNone(bad['windows'][0]['tabs'][0]['panes'][0].get('session_id'))
+
+    def test_unreadable_different_process_or_boot_does_not_inherit_chat(self):
+        old,bad=self.preserved_scene()
+        for ticks,boot in [('200','boot'),('100','new-boot')]:
+            candidate=copy.deepcopy(bad);candidate['boot_id']=boot
+            candidate['windows'][0]['pid_start_ticks']=ticks
+            result=ws.preserve_unreadable_windows(candidate,old)
+            self.assertEqual(result['windows'][0]['session_file'],'fallback.session')
+            self.assertNotIn('capture_stale',result['windows'][0])
+
+    def test_successful_capture_replaces_stale_data(self):
+        old,bad=self.preserved_scene()
+        stale=ws.preserve_unreadable_windows(bad,old)
+        fresh=copy.deepcopy(old);fresh['windows'][0]['tabs'][0]['panes'][0]['session_id']=OTHER
+        result=ws.preserve_unreadable_windows(fresh,stale)
+        self.assertEqual(result['windows'][0]['tabs'][0]['panes'][0]['session_id'],OTHER)
+        self.assertNotIn('capture_stale',result['windows'][0])
+
     def record(self,state='unresolved',sid=None):
         return {'agent':'codex','session_id':sid,'state':state,'id_method':'test',
                 'kitty_tab_index':0,'kitty_pane_index':0,'kitty_tab_title':'x','kitty_window_id':1,'cwd':'/tmp'}

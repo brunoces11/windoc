@@ -7,6 +7,7 @@ Agent adapters store immutable session IDs; titles are deliberately ignored.
 
 from __future__ import annotations
 
+import copy
 import fcntl
 import hashlib
 import json
@@ -237,14 +238,8 @@ def session_id_for(
             return str(pane_id), str(pane_record.get("id_method") or "official-agent-hook"), "active"
         if pane_record.get("has_user_turn"):
             return None, str(pane_record.get("id_method") or "agent-session-id-missing"), "unresolved"
-    try:
-        registered = json.loads(AGENT_IDS_FILE.read_text()).get(str(pid), {})
-        registered_id = registered.get("session_id") if registered.get("agent") == agent else None
-        if (isinstance(registered_id, str) and UUID_RE.fullmatch(registered_id)
-                and start_ticks and registered.get("start_ticks") == start_ticks):
-            return registered_id, str(registered.get("id_method") or "process-session-registry"), "active"
-    except (OSError, ValueError, AttributeError):
-        pass
+    # A process can switch conversations without changing PID/start time. Cached
+    # process IDs are diagnostic history, not evidence of the currently open chat.
     targets = process_fd_targets(pid) + process_mapped_files(pid)
     if agent == "antigravity":
         for target in targets:
@@ -504,12 +499,40 @@ def scene_signature(state: dict[str, Any]) -> str:
 
 def promote_state(state: dict[str, Any]) -> None:
     old = load_state()
+    state = preserve_unreadable_windows(state, old)
     if old and scene_signature(old) != scene_signature(state):
         atomic_write(STATE_DIR / "PREVIOUS_WORKSPACE1.json", (json.dumps(old, ensure_ascii=False, indent=2) + "\n").encode())
     data = (json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     atomic_write(STATE_FILE, data)
     if state.get("complete"):
         atomic_write(STATE_DIR / "LAST_COMPLETE.json", data)
+
+
+def preserve_unreadable_windows(state: dict[str, Any], old: dict[str, Any] | None) -> dict[str, Any]:
+    """Retain explicitly stale last-known data only for the same live Kitty."""
+    if not old or state.get("boot_id") != old.get("boot_id"):
+        return state
+    previous = {w["restore_id"]: w for w in old.get("windows", [])}
+    result = copy.deepcopy(state)
+    for index, current in enumerate(result.get("windows", [])):
+        prior = previous.get(current.get("restore_id"))
+        if not (current.get("kind") == "kitty" and current.get("structure_available") is False
+                and prior and prior.get("pid") == current.get("pid") and prior.get("native_layout")
+                and current.get("pid_start_ticks")
+                and prior.get("pid_start_ticks") == current["pid_start_ticks"]):
+            continue
+        saved = copy.deepcopy(prior)
+        # Keep live compositor metadata; retain only the inaccessible terminal data.
+        saved.update({k: v for k, v in current.items()
+                      if k not in {"tabs", "agent_sessions", "session_file", "native_layout"}})
+        saved["capture_stale"] = True
+        saved["last_successful_capture_at"] = prior.get("last_successful_capture_at", old["updated_at"])
+        warning = "Kitty inacessível: estrutura e chats da última leitura válida preservados; confirmação atual pendente"
+        saved["warnings"].append(warning)
+        result["windows"][index] = saved
+        result.setdefault("warnings", []).append(f"{saved['restore_id']}: {warning}")
+        result["complete"] = False
+    return result
 
 
 def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, Any]:
@@ -521,13 +544,14 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
         item = {
             "restore_id": window_identity(client), "class": str(client.get("class") or ""),
             "address": client.get("address"), "pid": client.get("pid"),
+            "pid_start_ticks": process_start_ticks(int(client.get("pid") or 0)),
             "at": client.get("at"), "size": client.get("size"),
             "floating": bool(client.get("floating")), "fullscreen": client.get("fullscreen", 0),
             "monitor": client.get("monitor"), "grouped": client.get("grouped", []),
             "focus_order": client.get("focusHistoryID"), "warnings": [],
         }
         if item["class"].lower() == "kitty":
-            item.update(kind="kitty", tabs=[], agent_sessions=[])
+            item.update(kind="kitty", tabs=[], agent_sessions=[], structure_available=False)
             pid = int(client["pid"])
             try:
                 tree = json.loads(kitty_call(pid, "ls").stdout)
@@ -536,6 +560,7 @@ def snapshot(*, allow_empty: bool = False, promote: bool = True) -> dict[str, An
                 records = agent_records(pid, tree)
                 item["tabs"] = native_structure(tree, records)
                 item["agent_sessions"] = list(records.values())
+                item["structure_available"] = True
                 filename, result = save_kitty_session(pid, records)
                 item["session_file"] = filename
                 item["native_layout"] = True

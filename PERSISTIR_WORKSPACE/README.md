@@ -44,7 +44,9 @@ Um chat comprovadamente vazio volta como shell na mesma aba. Falta de ID, arquiv
 inacessível ou formato desconhecido **não provam que o chat está vazio**. Um chat
 sem ID também volta como shell, com pendência explícita, sem selecionar a conversa
 mais recente. Um registro de hook atualizado tem prioridade sobre argumentos
-antigos do processo, pois o usuário pode trocar de conversa dentro do agente.
+antigos do processo, pois o usuário pode trocar de conversa dentro do agente. O cache
+de ID por PID não é usado como prova da conversa atual: sem hook, o arquivo nativo
+aberto pelo processo é consultado novamente em cada captura.
 
 A verificação distingue o ID pedido no comando do ID confirmado pelo agente.
 Durante o teste desta versão, uma retomada Codex carregou a conversa correta, mas
@@ -64,6 +66,14 @@ até haver evidência nativa. O monitor não envia mensagens para provocar o hoo
 - `AGENT_IDS.json`: associação local entre painel e conversa.
 - `RECOVERY.json` e `RECOVERY-<hash>.json`: captura preservada antes de cada tentativa.
 - `RESTORE_STATUS.json`: resultado individual de cada janela e da verificação.
+
+Se a estrutura de um Kitty ficar temporariamente inacessível, o estado principal
+preserva sua última estrutura nativa, abas e IDs, somente quando boot, identidade
+da janela, PID e início do processo continuam iguais. Essa informação recebe
+`capture_stale=true`, data da última leitura válida e aviso explícito; não é uma
+confirmação do conteúdo atual. A captura bruta continua em `LATEST_CAPTURE.json`.
+Uma leitura bem-sucedida substitui os dados anteriores normalmente. Um processo
+novo não herda conversas antigas por essa proteção.
 
 Gravações usam arquivo temporário, troca atômica e sincronização em disco. A redução
 da quantidade de janelas/abas/painéis aguarda 30 segundos; workspace vazio aguarda
@@ -93,7 +103,7 @@ abas, painéis, diretórios, programas, IDs e associação aos grupos.
 
 ## Validação e limites atuais
 
-Em 17/10/2026 passaram 25 testes automatizados. Um ciclo real em workspace isolado
+Em 17/10/2026 passaram 30 testes automatizados. Um ciclo real em workspace isolado
 abriu um Kitty com duas abas e três painéis, capturou pelo recurso nativo, fechou
 somente essa janela, restaurou e conferiu diretórios, layout e grupo individual.
 Repetir a restauração não duplicou a janela. As janelas originais foram preservadas.
