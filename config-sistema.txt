@@ -1730,3 +1730,22 @@ Data: 18/10/2026. Estado: implementado, verificado e validado em tempo real.
   * `hyprctl getoption input:follow_mouse` verificado em tempo real confirmando `int: 0, set: true`.
   * Eliminação do descompasso entre borda ativa e foco de teclado no terminal Kitty / Herdr.
 
+
+91. DESATIVAÇÃO DE TELEPORTE/WARP DO CURSOR DO MOUSE AO FOCAR JANELAS OU WORKSPACES (COMPORTAMENTO WINDOWS)
+Data: 18/10/2026. Estado: implementado, verificado e validado em tempo real.
+
+- Contexto e Objetivo:
+  - No Omarchy/Hyprland, por padrão, ao ativar ou selecionar uma janela via WinDoc (ou outro seletor de abas), o cursor do mouse era teletransportado automaticamente para o centro geométrico da janela selecionada.
+  - O usuário considerava esse comportamento contra-intuitivo e solicitou o comportamento padrão do Windows: ao clicar em uma aba/ícone da dock, a janela correspondente é ativada e trazida ao foco, mas o cursor do mouse permanece exatamente na posição onde o usuário clicou.
+- Configurações implementadas:
+  1. No arquivo `hyprland/input.lua`:
+     - Adicionada a seção `cursor` com:
+       * `no_warps = true`: impede o Hyprland de teletransportar o ponteiro do mouse ao focar janelas por atalhos, comandos IPC de dock/abas ou requisições de ativação de aplicativos.
+       * `warp_on_change_workspace = 0`: desativa o teletransporte automático do mouse para a última janela ativa ao trocar de workspace.
+- Validação técnica executada:
+  * 26 testes de minimização/foco da dock (`dock/tests/test_dock_minimize.py`) executados e aprovados com 100% de sucesso.
+  * 12 testes unitários de `amberol-deskband/tests/` executados e aprovados.
+  * `hyprctl reload` e `hyprctl configerrors` executados com código 0 (zero erros).
+  * `hyprctl getoption cursor:no_warps` confirmado em tempo real (`bool: true, set: true`).
+  * `hyprctl getoption cursor:warp_on_change_workspace` confirmado em tempo real (`int: 0, set: true`).
+  * Teste runtime de foco via IPC (`hl.dsp.focus`): verificado que as coordenadas do cursor via `hyprctl cursorpos` mantêm-se estritamente idênticas antes e depois do foco da janela.

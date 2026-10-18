@@ -9,7 +9,12 @@ hl.config({
     follow_mouse = 0,
     float_switch_override_focus = 0,
   },
+  cursor = {
+    no_warps = true,
+    warp_on_change_workspace = 0,
+  },
 })
+
 
 -- Keyboard layout and options.
 -- See https://wiki.hypr.land/Configuring/Basics/Variables/#input
