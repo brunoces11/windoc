@@ -12,6 +12,7 @@
     "com.obsproject.Studio",
     "org.kde.kdenlive",
     "concat",
-    "com.blackmagicdesign.resolve"
+    "com.blackmagicdesign.resolve",
+    "affinity-designer"
   ]
 }

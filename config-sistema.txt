@@ -1692,3 +1692,26 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * 45 testes de persistência de workspace aprovados (totalizando 91 testes automatizados).
   * Confirmação em runtime via `hyprctl clients`: Amberol alocado no workspace `special:special` (id -99), zero sobreposição no workspace visível e comandos `playPause`, `next`, `previous` plenamente operacionais.
 
+
+89. INSTALAÇÃO DO AFFINITY DESIGNER E FIXAÇÃO DO ÍCONE NO WINDOC DOCK
+Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Contexto e Objetivo:
+  - Instalação e integração do Affinity Designer / Affinity Creative Suite no Omarchy Linux com suporte a Wayland e fixação permanente do seu ícone na barra de tarefas (WinDoc Dock).
+- Configurações implementadas:
+  1. Binário e Ambiente Runtime:
+     - Download e instalação do pacote completo em `/opt/affinity/Affinity.AppImage` (versão 3.3.0.4850) com Wine e Proton integrados.
+     - Criação do wrapper executável `/opt/affinity/affinity-designer` e symlinks em `/usr/local/bin/affinity-designer` e `/usr/local/bin/affinity`, configurados com `GDK_BACKEND=x11` e `WINEDLLOVERRIDES="d3d12=n"` para máxima estabilidade gráfica sob Wayland/Hyprland.
+     - Inicialização do prefixo Wine do usuário em `~/.affinity-appimage-wineprefix` e configuração automática de DPI padrão (96) em `~/.affinity-appimage-dpi.conf` e `~/.affinity-appimage-dpi-preference.conf`.
+  2. Ícones e Integração Desktop:
+     - Instalação dos ícones vetoriais e rasterizados em `/usr/share/icons/hicolor/scalable/apps/affinity-designer.svg` e `/usr/share/icons/hicolor/256x256/apps/affinity-designer.png`.
+     - Criação da entrada de desktop `/usr/share/applications/affinity-designer.desktop` (com link simbólico `/usr/share/applications/affinity.desktop`), configurando `StartupWMClass=affinity.exe`, categorias gráficas e metadados.
+  3. WinDoc Dock e DockMatcher (`dock/DockMatcher.js` e `shell/dock-pinned.json`):
+     - Registro de `affinity-designer`, `affinity` e `designer` em `KNOWN_APP_DEFAULTS` e `FALLBACK_ICON_CANDIDATES` do `DockMatcher.js` para garantir resolução imediata de metadados, títulos e ícones nativos.
+     - Fixação de `affinity-designer` em `shell/dock-pinned.json` e sincronização imediata no symlink `~/.config/omarchy/dock-pinned.json`.
+- Validação técnica executada:
+  * 26 testes de minimização da dock em `dock/tests/test_dock_minimize.py` aprovados com 100% de sucesso.
+  * Validação de integridade do arquivo AppImage, prefixo Wine de usuário, permissões e symlinks do sistema.
+  * Verificação do symlink `~/.config/omarchy/dock-pinned.json` sincronizado com o WinDoc.
+
+
