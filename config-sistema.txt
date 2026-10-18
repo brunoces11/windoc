@@ -1715,3 +1715,18 @@ Data: 17/10/2026. Estado: implementado, verificado e validado em runtime.
   * Verificação do symlink `~/.config/omarchy/dock-pinned.json` sincronizado com o WinDoc.
 
 
+90. CORREÇÃO DE FOCO EXCLUSIVO POR CLIQUE NO HYPRLAND (ELIMINAÇÃO DO CURSOR OCO)
+Data: 18/10/2026. Estado: implementado, verificado e validado em tempo real.
+
+- Contexto e Objetivo:
+  - O usuário utiliza foco estrito por clique (o foco e digitação só devem seguir para a janela quando for clicada).
+  - No entanto, com `follow_mouse = 2` ("Detached Focus"), o Hyprland desacoplava o foco do cursor do teclado. Ao trocar de workspace ou selecionar uma janela na árvore, o Hyprland pintava a borda ativa mas não despachava o evento Wayland de foco de teclado (`wl_keyboard.enter`). Ao clicar na janela, por ela já ser considerada `m_pLastWindow`, o Hyprland não reexecutava a rotina de foco, mantendo o Kitty no estado desfocado com cursor em contorno oco (`cursor_shape_unfocused: hollow`) e descartando qualquer caractere digitado.
+- Configurações implementadas:
+  1. No arquivo `hyprland/input.lua`:
+     - Alterado `follow_mouse = 2` para `follow_mouse = 0`.
+     - O modo `0` é a implementação nativa de "Click-to-Focus" real no Hyprland: o movimento do mouse nunca transfere foco involuntariamente, e todo clique em uma janela transfere o foco completo e unificado (ponteiro + teclado) via `wl_keyboard.enter`.
+- Validação técnica executada:
+  * `hyprctl reload` e `hyprctl configerrors` executados com sucesso (código 0, zero erros de sintaxe).
+  * `hyprctl getoption input:follow_mouse` verificado em tempo real confirmando `int: 0, set: true`.
+  * Eliminação do descompasso entre borda ativa e foco de teclado no terminal Kitty / Herdr.
+
