@@ -135,7 +135,7 @@ Estado: aplicativos instalados e configurações de usuário verificadas.
 Estado: configuração local verificada. Segredos não são copiados para este
 registro.
 
-- Aliases SSH `brunote` e `brunout` definidos para o PC Windows na rede local.
+- Alias SSH `brunote` definido para o PC Windows na rede local.
   Configuração: `~/.ssh/config`; identidade privada fica fora deste registro.
 - Codex CLI configurado com `sandbox_mode = "danger-full-access"` e
   `approval_policy = "never"`.
