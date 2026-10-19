@@ -45,6 +45,26 @@ o.bind("SUPER + ALT + SHIFT + F", "File manager (Dolphin, cwd)", "setsid uwsm-ap
 o.bind("SUPER + V", "Pre-select Vertical Split (Side-by-side)", "hyprctl dispatch layoutmsg preselect r")
 o.bind("SUPER + H", "Pre-select Horizontal Split (Top/Bottom)", "hyprctl dispatch layoutmsg preselect d")
 
+-- Ciclo de três estágios: Grade (0) -> Maximizado (1) -> Fullscreen total (2) -> Grade (0)
+-- Maximizado preserva as barras/dock inferior e as abas de grupo do Hyprland.
+local function cycle_fullscreen()
+  local w = hl.get_active_window()
+  if not w then
+    return
+  end
+  local fs = w.fullscreen
+  if fs == 0 then
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized" }))
+  elseif fs == 1 then
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+  else
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+  end
+end
+
+hl.unbind("SUPER + F")
+o.bind("SUPER + F", "Alternar janela: Grade / Maximizar / Fullscreen", cycle_fullscreen)
+
 -- Group tabs: replace workspace cycling and group focus shortcuts.
 -- Workspace cycling remains available on SUPER + mouse wheel / number keys.
 hl.unbind("SUPER + TAB")

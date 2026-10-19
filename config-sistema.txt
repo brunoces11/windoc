@@ -1749,3 +1749,25 @@ Data: 18/10/2026. Estado: implementado, verificado e validado em tempo real.
   * `hyprctl getoption cursor:no_warps` confirmado em tempo real (`bool: true, set: true`).
   * `hyprctl getoption cursor:warp_on_change_workspace` confirmado em tempo real (`int: 0, set: true`).
   * Teste runtime de foco via IPC (`hl.dsp.focus`): verificado que as coordenadas do cursor via `hyprctl cursorpos` mantêm-se estritamente idênticas antes e depois do foco da janela.
+
+
+92. ATALHO SUPER + F COM CICLO DE TRÊS ESTÁGIOS: GRADE / MAXIMIZADO / FULLSCREEN
+Data: 19/10/2026. Estado: implementado, verificado e validado em tempo real.
+
+- Contexto e Objetivo:
+  - O atalho original SUPER + F apenas alternava entre o modo de grade (tiled) e o modo fullscreen total (modo 2). No modo fullscreen total, todas as decorações, a barra inferior (dock/waybar) e as abas de grupos do Hyprland eram ocultadas.
+  - O usuário solicitou que a tecla SUPER + F operasse em um ciclo de 3 estágios: Grade -> Maximizado -> Fullscreen -> Grade.
+  - O modo Maximizado (estágio intermediário) expande a janela para ocupar toda a área de trabalho útil, mas preserva a barra/dock inferior e as abas dos grupos de janelas do Hyprland.
+- Configurações implementadas:
+  1. No arquivo `hyprland/bindings.lua`:
+     - Implementada a função nativa `cycle_fullscreen()` que inspeciona `w.fullscreen` da janela ativa (`hl.get_active_window()`):
+       * Se `0` (Grade): despacha `hl.dsp.window.fullscreen({ mode = "maximized" })` -> transiciona para Maximizado (1).
+       * Se `1` (Maximizado): despacha `hl.dsp.window.fullscreen({ mode = "fullscreen" })` -> transiciona para Fullscreen total (2).
+       * Se `2` (Fullscreen): despacha `hl.dsp.window.fullscreen({ mode = "fullscreen" })` -> retorna para Grade (0).
+     - Executado `hl.unbind("SUPER + F")` para sobrescrever a ligação padrão do Omarchy e registrado `o.bind("SUPER + F", "Alternar janela: Grade / Maximizar / Fullscreen", cycle_fullscreen)`.
+- Validação técnica executada:
+  * Verificação via `hyprctl binds -j` confirmando o registro da nova descrição e ligação em tempo real.
+  * Verificação via `omarchy menu keybindings --print` confirmando exibição correta no menu do sistema.
+  * Execução dos testes automatizados: 26 testes de `dock/tests/test_dock_minimize.py` e 12 testes de `amberol-deskband/tests/` aprovados com 100% de sucesso.
+  * Validação de sintaxe e reload com `hyprctl reload config-only` e `hyprctl configerrors` retornando código 0 e zero erros.
+
