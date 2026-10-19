@@ -37,4 +37,5 @@ o.window({ class = "kitty", title = ".*([bB]runote|WINDOWS|conhost).*" }, {
 o.window("io.bassi.Amberol", {
   workspace = "special silent",
   no_initial_focus = true,
+  suppress_event = "activate activatefocus",
 })

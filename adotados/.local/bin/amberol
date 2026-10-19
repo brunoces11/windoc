@@ -96,8 +96,9 @@ if [ $HAS_REAL_ARGS -eq 0 ]; then
             if [ -n "$URI" ]; then
                 busctl --user call io.bassi.Amberol /io/bassi/Amberol org.freedesktop.Application Open "asa{sv}" 1 "$URI" 0 >/dev/null 2>&1 || true
             fi
-            # Bring running instance window to front
-            exec "$REAL_AMBEROL"
+            # This wrapper is also used by the compact Deskband/autostart.
+            # Keep the existing MPRIS service running without activating its GTK window.
+            exit 0
         else
             # Launch new instance with default folder loaded
             exec "$REAL_AMBEROL" "$DEFAULT_FOLDER"

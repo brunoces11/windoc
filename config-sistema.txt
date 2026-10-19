@@ -1797,3 +1797,12 @@ Data: 19/10/2026. Estado: implementado e validado em runtime.
   * Wrapper seleciona o build do usuário; `./BUILD_AMBEROL_LOCAL.sh --restore-stock` renomeia o binário local e reativa o fallback `/usr/bin/amberol`.
 - Dependências de build: Rust/Cargo, Meson, Ninja, Blueprint Compiler, GTK 4, libadwaita, GStreamer, gettext e GLib, listadas no README do subprojeto.
 
+94. AMBEROL DO WINDOCK SEM ATIVAÇÃO DA JANELA GTK
+Data: 19/10/2026. Estado: validado em runtime.
+
+- Problema: a regra do Hyprland enviava a janela do Amberol ao workspace especial e evitava o foco inicial, mas ainda permitia eventos de ativação. O wrapper também executava novamente o Amberol após enviar a pasta padrão ao processo já ativo, trazendo a janela GTK para frente.
+- Correções:
+  1. `hyprland/hyprland.lua`: a regra do Amberol agora suprime eventos `activate` e `activatefocus`, mantendo o workspace especial silencioso e sem foco inicial.
+  2. `adotados/.local/bin/amberol`: quando o processo já está ativo, o wrapper pode enviar a pasta padrão via D-Bus e encerra sem relançar o binário nem levantar a janela.
+- Validação: `hyprctl reload` retornou `ok`; `hyprctl configerrors` não reportou erros; `bash -n` passou; links do Hyprland e do wrapper apontam para os arquivos adotados no WinDoc. Em execução, o Amberol permaneceu em `special:special` e comandos MPRIS mantiveram o workspace e a janela ativa anteriores.
+- Limite: o Amberol continua sendo uma aplicação GTK e pode manter uma janela mapeada internamente no workspace especial; esta configuração impede que ela apareça ou roube foco durante o uso do painel.
