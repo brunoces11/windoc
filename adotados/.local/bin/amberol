@@ -5,6 +5,9 @@
 
 set -e
 
+# The custom Amberol build honors this flag and never presents its GTK window.
+export AMBEROL_DESKBAND_HEADLESS=1
+
 DESKBAND_AMBEROL_PREFIX="$HOME/.local/lib/amberol-deskband"
 DESKBAND_AMBEROL_BIN="$DESKBAND_AMBEROL_PREFIX/bin/amberol"
 if [ -x "$DESKBAND_AMBEROL_BIN" ]; then

@@ -1806,3 +1806,16 @@ Data: 19/10/2026. Estado: validado em runtime.
   2. `adotados/.local/bin/amberol`: quando o processo já está ativo, o wrapper pode enviar a pasta padrão via D-Bus e encerra sem relançar o binário nem levantar a janela.
 - Validação: `hyprctl reload` retornou `ok`; `hyprctl configerrors` não reportou erros; `bash -n` passou; links do Hyprland e do wrapper apontam para os arquivos adotados no WinDoc. Em execução, o Amberol permaneceu em `special:special` e comandos MPRIS mantiveram o workspace e a janela ativa anteriores.
 - Limite: o Amberol continua sendo uma aplicação GTK e pode manter uma janela mapeada internamente no workspace especial; esta configuração impede que ela apareça ou roube foco durante o uso do painel.
+
+95. AMBEROL INICIA SEM INTERFACE E MANTÉM O PLAYER DO WINDOCK
+Data: 19/10/2026. Estado: build instalada e validada em runtime.
+
+- Causa: `hyprland/autostart.lua` iniciava `amberol` sem `--gapplication-service`. O wrapper carregava a pasta padrão pela ativação `Open`, e o Amberol original apresentava sua janela no callback GTK. A regra de workspace apenas a escondia depois da criação.
+- Alterações:
+  1. `hyprland/autostart.lua` inicia Amberol como serviço D-Bus.
+  2. `adotados/.local/bin/amberol` define `AMBEROL_DESKBAND_HEADLESS=1` para o build customizado.
+  3. `amberol-deskband/AMBEROL_HEADLESS.patch` altera o callback do Amberol 2026.1 para continuar carregando arquivos e processando comandos sem chamar `present()`; também deixa MPRIS Raise sem apresentação de janela.
+  4. `amberol-deskband/BUILD_AMBEROL_LOCAL.sh` aplica e fixa o hash do patch junto ao patch MPRIS existente; o README documenta o comportamento.
+  5. `pacotes-sistema.txt` registra Meson, Ninja e Blueprint Compiler, necessários para reconstruir o player.
+- Validação: patches aplicados à fonte oficial 2026.1 com SHA-256 conferido; build release e instalação concluídas; wrapper e script passam `bash -n`; `ldd` não reporta bibliotecas ausentes; Hyprland recarregado sem erros. O serviço iniciado com o mesmo comando do autostart carregou os metadados da pasta persistida, respondeu a Play/Pause e MPRIS Raise e permaneceu com zero janelas Amberol mapeadas.
+- Resultado: a dock permanece como interface de controle; o Amberol fornece o motor de reprodução/MPRIS sem abrir a interface GTK.

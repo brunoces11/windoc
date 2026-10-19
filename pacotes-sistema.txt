@@ -4,3 +4,6 @@ amberol
 gst-libav
 gst-plugins-bad
 gst-plugins-ugly
+blueprint-compiler
+meson
+ninja
