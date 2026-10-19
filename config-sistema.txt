@@ -1771,3 +1771,29 @@ Data: 19/10/2026. Estado: implementado, verificado e validado em tempo real.
   * Execução dos testes automatizados: 26 testes de `dock/tests/test_dock_minimize.py` e 12 testes de `amberol-deskband/tests/` aprovados com 100% de sucesso.
   * Validação de sintaxe e reload com `hyprctl reload config-only` e `hyprctl configerrors` retornando código 0 e zero erros.
 
+93. SHUFFLE E REPETIÇÃO NO PLAYER COMPACTO DO AMBEROL
+Data: 19/10/2026. Estado: implementado e validado em runtime.
+
+- Contexto e Objetivo:
+  - O Amberol 2026.1 mantinha Shuffle em sua fila interna, mas não conectava a propriedade MPRIS Shuffle a essa fila. O botão do painel não conseguia ativar o modo aleatório no Amberol stock.
+  - Adicionar repetição de faixa/playlist ao lado do Shuffle no player compacto.
+- Alterações:
+  1. No subprojeto `amberol-deskband`:
+     - `components/AmberolController.qml` habilita Shuffle para o Amberol customizado e expõe os três estados de LoopStatus.
+     - `components/DeskbandCapsule.qml` atualiza o estado e o rótulo do Shuffle e adiciona o botão de repetição com ciclo: desativado -> repetir playlist -> repetir faixa -> desativado.
+     - `AMBEROL_SHUFFLE_MPRIS.patch` conecta Shuffle MPRIS à fila existente do Amberol e sincroniza o estado com a interface GTK da playlist.
+     - `BUILD_AMBEROL_LOCAL.sh` baixa a versão oficial 2026.1 com SHA-256 fixado, aplica o patch, compila no diretório do usuário e oferece retorno seguro ao pacote stock.
+     - `README.md` documenta dependências, licença do patch, instalação e retorno ao stock.
+  2. No caminho de execução do Amberol:
+     - `~/.local/bin/amberol` foi incorporado ao WinDoc e prioriza `~/.local/lib/amberol-deskband/bin/amberol`; usa `/usr/bin/amberol` se o binário customizado não estiver instalado.
+     - O serviço D-Bus em `~/.local/share/dbus-1/services/io.bassi.Amberol.service` inicia pelo wrapper adotado.
+     - O pacote `/usr/bin/amberol` permaneceu intacto.
+- Validação executada:
+  * Build release do Amberol 2026.1 completado e instalado em `~/.local/lib/amberol-deskband`; `ldd` não encontrou bibliotecas ausentes.
+  * Testes do painel: 13 verificações QML e 12 testes Python aprovados.
+  * Teste MPRIS privado e no Amberol customizado ativo: Shuffle alternou true/false; LoopStatus percorreu Playlist/Track/None; o player permaneceu pausado.
+  * O Quickshell foi reiniciado e reconheceu a identidade `Amberol Deskband`, a faixa e os estados MPRIS sem erros QML do painel.
+  * Playlist restaurada com 41 faixas; `Agora Eu Quero Ir` pausada em aproximadamente 1:42, com volume MPRIS em 1.0.
+  * Wrapper seleciona o build do usuário; `./BUILD_AMBEROL_LOCAL.sh --restore-stock` renomeia o binário local e reativa o fallback `/usr/bin/amberol`.
+- Dependências de build: Rust/Cargo, Meson, Ninja, Blueprint Compiler, GTK 4, libadwaita, GStreamer, gettext e GLib, listadas no README do subprojeto.
+

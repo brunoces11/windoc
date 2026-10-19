@@ -16,3 +16,7 @@
 ~/.claude/settings.json	adotados/.claude/settings.json
 
 ~/.config/systemd/user/windoc-workspace1.service	adotados/.config/systemd/user/windoc-workspace1.service
+
+~/.local/bin/amberol	adotados/.local/bin/amberol
+
+~/.local/share/dbus-1/services/io.bassi.Amberol.service	adotados/.local/share/dbus-1/services/io.bassi.Amberol.service
