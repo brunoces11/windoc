@@ -1878,3 +1878,14 @@ Data: 20/10/2026. Estado: validado em build, testes e execução real.
   4. `amberol-deskband/BUILD_AMBEROL_LOCAL.sh`: aplica e fixa o hash do novo patch, incluindo migração segura do cache de fonte previamente validado.
   5. `amberol-deskband/tests/test_select_folder.py` e `README.md`: testes da confirmação da fila e documentação do comportamento.
 - Validação: build release do Amberol 2026.1 concluído; 14/14 testes Python aprovados; sintaxe Python/Bash e `git diff --check` aprovados; shell Quickshell reiniciado sem erros QML recentes. Em execução real, a fila foi substituída de 137 faixas misturadas por 29 faixas exclusivas de BJJ e a faixa atual mudou para `Ambitionz Az A Ridah`, com status Playing e zero janelas Amberol. Depois, a pasta padrão PORRADAO foi restaurada, o player ficou pausado e sem janela visível.
+
+100. ATIVAÇÃO DE BARRA DE ROLAGEM LATERAL (SCROLLBAR) NO KITTY
+Data: 20/10/2026. Estado: configurado, testado e recarregado em runtime.
+
+- Ação: ativação e estilização da barra de rolagem lateral nativa no terminal Kitty (`terminal/kitty.conf`) para facilitar navegação e visualização em telas com histórico/buffer longo de texto.
+- Alterações:
+  1. `terminal/kitty.conf`: configuradas diretivas `scrollbar always`, `scrollbar_interactive yes`, `scrollbar_jump_on_click yes`, `scrollbar_width 0.5`, `scrollbar_hover_width 1.0`, `scrollbar_handle_opacity 0.6`, `scrollbar_track_opacity 0.15` e `scrollbar_track_hover_opacity 0.25`.
+- Validação:
+  - Sintaxe e opções validadas com sucesso via `kitty.config.load_config`.
+  - Sinal SIGUSR1 enviado a todas as instâncias em execução do Kitty para recarga a quente sem fechamento de janelas.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
