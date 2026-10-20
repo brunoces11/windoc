@@ -1833,3 +1833,21 @@ Data: 20/10/2026. Estado: validado em runtime.
   - Testes de regressão `TEST_WORKSPACE1.py` executados com 45/45 testes passando (0 erros).
   - Serviço `antigravity-tab-daemon.service` reiniciado com sucesso.
   - `hyprctl clients` conferido em tempo real exibindo `title: ✳️ ⠇ Hyprland Window Group Tabs Management` com rotação do spinner ativa.
+
+97. INSTALAÇÃO DO FONTBASE E FIXAÇÃO NA DOCK DO WINDOCK
+Data: 20/10/2026. Estado: instalado e validado em runtime.
+
+- Ação: instalação do gerenciador de fontes FontBase via AUR (versão 2.23.1) e fixação permanente do seu ícone na dock do WinDoc.
+- Alterações:
+  1. `aur/fontbase`: instalado com dependências `electron` e `7zip`.
+  2. `/usr/share/icons/hicolor`: criados symlinks de `fontbase.png` apontando para `fontbase-app.png` em todas as resoluções (16x16 até 1024x1024), com cache GTK atualizado via `gtk-update-icon-cache`.
+  3. `dock/IconResolver.js`: mapeamento de fallback `"fontbase": "fontbase-app"` registrado.
+  4. `dock/DockMatcher.js`: entrada padrão `"fontbase"` registrada em `KNOWN_APP_DEFAULTS`.
+  5. `shell/dock-pinned.json`: adicionado `"fontbase"` à lista de aplicativos fixados da dock.
+  6. `pacotes-sistema.txt`: registrado o pacote `fontbase`.
+- Validação:
+  - Executável `/usr/bin/fontbase` verificado e inicializado com sucesso.
+  - Desktop entry `/usr/share/applications/fontbase.desktop` validado.
+  - JSON de `shell/dock-pinned.json` validado via `python3 -m json.tool`.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` passando.
+  - 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` passando.

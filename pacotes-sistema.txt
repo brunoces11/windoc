@@ -7,3 +7,4 @@ gst-plugins-ugly
 blueprint-compiler
 meson
 ninja
+fontbase

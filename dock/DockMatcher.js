@@ -47,6 +47,7 @@ var KNOWN_APP_DEFAULTS = {
     "google-chrome": { id: "google-chrome", icon: "google-chrome", rawIcon: "google-chrome", name: "Google Chrome" },
     "steam": { id: "steam", icon: "steam", rawIcon: "steam", name: "Steam" },
     "antigravity": { id: "antigravity", icon: "antigravity", rawIcon: "antigravity", name: "Antigravity" },
+    "fontbase": { id: "fontbase", icon: "fontbase-app", rawIcon: "fontbase-app", name: "FontBase" },
     "libreoffice-writer": { id: "libreoffice-writer", icon: "libreoffice-writer", rawIcon: "libreoffice-writer", name: "LibreOffice Writer" },
     "libreoffice-impress": { id: "libreoffice-impress", icon: "libreoffice-impress", rawIcon: "libreoffice-impress", name: "LibreOffice Impress" },
     "libreoffice-calc": { id: "libreoffice-calc", icon: "libreoffice-calc", rawIcon: "libreoffice-calc", name: "LibreOffice Calc" },

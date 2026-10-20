@@ -49,7 +49,8 @@ var FALLBACK_MAP = {
     "youtube": "youtube",
     "amberol": "io.bassi.Amberol",
     "io.bassi.amberol": "io.bassi.Amberol",
-    "bassi.amberol": "io.bassi.Amberol"
+    "bassi.amberol": "io.bassi.Amberol",
+    "fontbase": "fontbase-app"
 };
 
 function sanitizeName(name) {

@@ -2,7 +2,6 @@
   "pinned": [
     "org.gnome.Nautilus",
     "sublime_text",
-    "com.microsoft.VSCode",
     "orca-ide",
     "org.telegram",
     "WhatsApp",
@@ -13,6 +12,6 @@
     "org.kde.kdenlive",
     "concat",
     "com.blackmagicdesign.resolve",
-    "affinity-designer"
+    "fontbase"
   ]
 }
