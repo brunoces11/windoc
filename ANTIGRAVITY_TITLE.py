@@ -66,8 +66,9 @@ def record_active_session(payload):
 
 
 def format_title(payload):
+    icon = "✳️"
     if not isinstance(payload, dict):
-        return "✦ Antigravity"
+        return f"{icon} Antigravity"
     record_active_session(payload)
     topic = conversation_title(payload.get("conversation_id"))
     cwd = payload.get("cwd")
@@ -79,13 +80,15 @@ def format_title(payload):
     busy = payload.get("agent_state") in (
         "thinking", "working", "tool_use", "initializing", "authenticating", "running", "busy"
     ) or (isinstance(tasks, int) and tasks > 0)
-    marker = "◈" if payload.get("tool_confirmation_pending") is True else "⠋" if busy else "✦"
-    title = f"{marker} Antigravity"
-    if topic:
-        title += f": {topic}"
-    if folder:
-        title += f" | {folder}"
-    return title
+
+    clean_topic = clean(topic, 105) if topic else (folder or "Chat")
+    if len(clean_topic) > 40:
+        clean_topic = clean_topic[:40].rstrip() + "..."
+
+    marker = "◈" if payload.get("tool_confirmation_pending") is True else "⠋" if busy else ""
+    if marker:
+        return f"{icon} {marker} {clean_topic}"
+    return f"{icon} {clean_topic}"
 
 
 def install():
@@ -143,7 +146,7 @@ def main():
         payload = json.load(sys.stdin)
         title = format_title(payload)
     except (ValueError, TypeError, OSError):
-        title = "✦ Antigravity"
+        title = "✳️ Antigravity"
     print(title)
 
 

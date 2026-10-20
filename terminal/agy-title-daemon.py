@@ -15,14 +15,23 @@ Comportamento padrão garantido:
 import glob
 import json
 import os
+import re
 import signal
 import sqlite3
 import subprocess
 import sys
 import time
 
+# Ícone dos modelos/agentes (personalizável por agente ou glifo vetorial)
+AGENT_ICONS = {
+    "antigravity": "✳️",
+    "codex": "✳️",
+    "claude": "✳️",
+    "default": "✳️",
+}
+
 SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-SPINNER_CHARS = set("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▖▘▝▗◐◓◑◒*")
+SPINNER_CHARS = set("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▖▘▝▗◐◓◑◒*◈✦✳️")
 AGY_DB_PATH = os.path.expanduser("~/.gemini/antigravity-cli/conversation_summaries.db")
 
 
@@ -33,9 +42,25 @@ def has_spinner(title: str) -> bool:
 
 def clean_title(title: str) -> str:
     t = title.strip()
-    if t and t[0] in SPINNER_CHARS:
-        return t[1:].strip()
+    while t and (t[0] in SPINNER_CHARS or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈")):
+        if t.startswith("✳️"):
+            t = t[2:].strip()
+        else:
+            t = t[1:].strip()
+    t = re.sub(r'^(Antigravity|Codex|Claude)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'\s*\|\s*[\w~./-]+$', '', t).strip()
     return t
+
+
+def format_display_title(icon: str, raw_title: str, spinner_frame: str | None = None, max_len: int = 40) -> str:
+    clean = clean_title(raw_title)
+    if not clean:
+        clean = "Chat"
+    if len(clean) > max_len:
+        clean = clean[:max_len].rstrip() + "..."
+    if spinner_frame:
+        return f"{icon} {spinner_frame} {clean}"
+    return f"{icon} {clean}"
 
 
 def get_agy_conv_id(pid: int) -> str | None:
@@ -152,6 +177,7 @@ def main():
                         has_any_running = False
                         active_pts = None
                         active_title = ""
+                        active_agent = "default"
                         active_is_natively_spinning = False
 
                         for tab in os_win.get("tabs", []):
@@ -179,21 +205,20 @@ def main():
                                 if conv_id and agy_conn:
                                     t_name, tab_is_running = get_agy_conv_data(conv_id, agy_conn)
                                     if is_active:
-                                        # Obtém pasta atual
-                                        cwd_name = "~"
-                                        try:
-                                            cwd = os.readlink(f"/proc/{fg_pid}/cwd")
-                                            cwd_name = os.path.basename(cwd) or "~"
-                                        except OSError:
-                                            pass
-                                        active_title = f"{t_name} | {cwd_name}"
+                                        active_agent = "antigravity"
+                                        active_title = t_name
                             elif is_codex or is_claude:
                                 has_ai_agent_in_window = True
+                                agent_name = "codex" if is_codex else "claude"
                                 # Codex e Claude Code prefixam o título da aba com o spinner quando trabalhando
                                 if has_spinner(t_title):
                                     tab_is_running = True
                                     if is_active:
                                         active_is_natively_spinning = True
+
+                                if is_active:
+                                    active_agent = agent_name
+                                    active_title = clean_title(t_title)
 
                             if tab_is_running:
                                 has_any_running = True
@@ -215,7 +240,8 @@ def main():
                         prev = window_states.get(sock, {})
                         window_states[sock] = {
                             "active_pts": active_pts,
-                            "active_title": active_title or "Terminal",
+                            "active_title": active_title or "Chat",
+                            "active_agent": active_agent if active_title else prev.get("active_agent", "default"),
                             "active_is_natively_spinning": active_is_natively_spinning,
                             "has_any_running": has_any_running,
                             "last_set_title": prev.get("last_set_title", ""),
@@ -233,29 +259,23 @@ def main():
                 if not pts or not os.path.exists(pts):
                     continue
 
-                title = st.get("active_title", "Terminal")
+                title = st.get("active_title", "Chat")
+                agent = st.get("active_agent", "default")
+                icon = AGENT_ICONS.get(agent, AGENT_ICONS["default"])
                 has_running = st.get("has_any_running", False)
-                active_spinning = st.get("active_is_natively_spinning", False)
 
                 if has_running:
-                    # Se a aba ativa já está girando nativamente (ex: Codex ou Claude ativo e trabalhando),
-                    # não sobrepomos para não conflitar com a animação nativa
-                    if active_spinning:
-                        st["we_are_animating"] = False
-                    else:
-                        # Antigravity trabalhando OU processo de IA em aba de segundo plano:
-                        # Injetamos o spinner na aba ativa para que a aba do Hyprland gire!
-                        frame = SPINNER_FRAMES[spinner_idx % len(SPINNER_FRAMES)]
-                        full_title = f"{frame} {title}"
-                        set_terminal_title(pts, full_title)
-                        st["last_set_title"] = full_title
-                        st["we_are_animating"] = True
+                    frame = SPINNER_FRAMES[spinner_idx % len(SPINNER_FRAMES)]
+                    full_title = format_display_title(icon, title, spinner_frame=frame, max_len=40)
+                    set_terminal_title(pts, full_title)
+                    st["last_set_title"] = full_title
+                    st["we_are_animating"] = True
                 else:
                     # Todos os processos da janela estão ociosos
-                    if st.get("we_are_animating") or st.get("last_set_title") != title:
-                        clean = clean_title(title)
-                        set_terminal_title(pts, clean)
-                        st["last_set_title"] = clean
+                    idle_title = format_display_title(icon, title, spinner_frame=None, max_len=40)
+                    if st.get("we_are_animating") or st.get("last_set_title") != idle_title:
+                        set_terminal_title(pts, idle_title)
+                        st["last_set_title"] = idle_title
                         st["we_are_animating"] = False
 
             spinner_idx += 1
@@ -265,8 +285,11 @@ def main():
         for sock, st in window_states.items():
             pts = st.get("active_pts")
             if pts and os.path.exists(pts):
-                clean = clean_title(st.get("active_title", "Terminal"))
-                set_terminal_title(pts, clean)
+                title = st.get("active_title", "Chat")
+                agent = st.get("active_agent", "default")
+                icon = AGENT_ICONS.get(agent, AGENT_ICONS["default"])
+                idle_title = format_display_title(icon, title, spinner_frame=None, max_len=40)
+                set_terminal_title(pts, idle_title)
 
         if agy_conn:
             try:

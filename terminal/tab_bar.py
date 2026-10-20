@@ -14,12 +14,12 @@ from kitty.tab_bar import (
     get_boss,
 )
 
-# Nerd Font glyphs
+# Nerd Font glyphs & Emojis
 ICON_WINDOWS = "\U000f0372"  # 󰍲 nf-md-microsoft_windows
-ICON_CLAUDE = "\U000f06a9"   # 󰚩 nf-md-robot
-ICON_CODEX = "\U000f0610"    # 󰘐 nf-md-code_tags
-ICON_AGY = "✦"               # ✦ Antigravity sparkle/star
-ICON_OPENAI = "\U000f06a9"   # 󰚩 nf-md-robot
+ICON_CLAUDE = "✳️"           # ✳️ Claude
+ICON_CODEX = "✳️"            # ✳️ Codex
+ICON_AGY = "✳️"              # ✳️ Antigravity
+ICON_OPENAI = "✳️"           # ✳️ OpenAI
 ICON_TERMINAL = "\ue795"     #  nf-dev-terminal
 
 # Ativação do ícone dinâmico por agente/modelo (False = ícone padrão , True = dinâmico 󰍲/✦/󰚩/󰘐)
@@ -27,6 +27,22 @@ USE_DYNAMIC_ICONS = False
 
 
 AGY_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+
+def clean_agent_topic(topic: str, max_chars: int = 40) -> str:
+    if not topic:
+        return "Chat"
+    t = topic.strip()
+    while t and (t[0] in AGY_FRAMES or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈")):
+        if t.startswith("✳️"):
+            t = t[2:].strip()
+        else:
+            t = t[1:].strip()
+    t = re.sub(r'^(Antigravity|Codex|Claude)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'\s*\|\s*[\w~./-]+$', '', t).strip()
+    if len(t) > max_chars:
+        return t[:max_chars].rstrip() + "..."
+    return t
 
 
 def animate_agy_titles(timer_id):
@@ -217,14 +233,8 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
         or "antigravity" in t_lower
     )
     if is_agy:
-        if raw_title and raw_title.strip().lower() not in ("agy", "antigravity"):
-            return ICON_AGY, raw_title if "Antigravity" in raw_title else f"Antigravity: {raw_title}"
-        agy_title = get_agy_conversation_title(pid)
-        if agy_title:
-            return ICON_AGY, f"Antigravity: {agy_title}"
-        elif raw_title and raw_title != "agy":
-            return ICON_AGY, f"Antigravity: {raw_title}"
-        return ICON_AGY, "Antigravity Chat"
+        agy_title = get_agy_conversation_title(pid) or raw_title
+        return ICON_AGY, clean_agent_topic(agy_title)
 
     # 2. Claude Code
     is_claude = (
@@ -235,9 +245,7 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
     )
     if is_claude:
         topic = raw_title.lstrip("✳").strip()
-        if topic and topic.lower() != "claude":
-            return ICON_CLAUDE, f"Claude: {topic}"
-        return ICON_CLAUDE, "Claude Code"
+        return ICON_CLAUDE, clean_agent_topic(topic or "Claude Code")
 
     # 3. Windows SSH / remote session (brunote)
     is_windows = (
@@ -261,12 +269,8 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
     )
     if is_codex:
         clean = raw_title.replace("| brunoma", "").strip()
-        if clean and clean.lower() not in ("codex", "brunoma"):
-            return ICON_CODEX, f"Codex: {clean}"
-        codex_title = get_codex_thread_title()
-        if codex_title:
-            return ICON_CODEX, f"Codex: {codex_title}"
-        return ICON_CODEX, "Codex Assistant"
+        codex_title = get_codex_thread_title() or clean
+        return ICON_CODEX, clean_agent_topic(codex_title)
 
     # 5. OpenAI / Whisper
     is_openai = (
@@ -309,7 +313,10 @@ def draw_tab(
             spinner = f"{AGY_FRAMES[state['frame']]} "
         else:
             spinner = ""
-        formatted_title = f"{spinner}{icon}  {session_title}"
+        if spinner:
+            formatted_title = f"{icon} {spinner}{session_title}"
+        else:
+            formatted_title = f"{icon} {session_title}"
 
         new_tab = tab._replace(title=formatted_title)
         return draw_tab_with_powerline(

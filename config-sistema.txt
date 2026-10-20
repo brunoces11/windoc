@@ -1819,3 +1819,17 @@ Data: 19/10/2026. Estado: build instalada e validada em runtime.
   5. `pacotes-sistema.txt` registra Meson, Ninja e Blueprint Compiler, necessários para reconstruir o player.
 - Validação: patches aplicados à fonte oficial 2026.1 com SHA-256 conferido; build release e instalação concluídas; wrapper e script passam `bash -n`; `ldd` não reporta bibliotecas ausentes; Hyprland recarregado sem erros. O serviço iniciado com o mesmo comando do autostart carregou os metadados da pasta persistida, respondeu a Play/Pause e MPRIS Raise e permaneceu com zero janelas Amberol mapeadas.
 - Resultado: a dock permanece como interface de controle; o Amberol fornece o motor de reprodução/MPRIS sem abrir a interface GTK.
+
+96. PADRONIZAÇÃO DE TÍTULOS E SPINNER DE ABAS PARA AGENTES IA (HYPRLAND E KITTY)
+Data: 20/10/2026. Estado: validado em runtime.
+
+- Objetivo: uniformizar a exibição das abas do Hyprland e do Kitty para agentes de IA (Antigravity, Codex, Claude Code), exibindo o ícone do modelo (`✳️`), o spinner animado (`⠋`) quando ativo e apenas os primeiros 40 caracteres do título da sessão, sem prefixos de nome de agente ("Antigravity:", "Codex:") nem sufixos de diretório (" | Desktop").
+- Alterações:
+  1. `ANTIGRAVITY_TITLE.py`: atualizado para o formato `✳️ [marker] [titulo_40]`, truncando títulos para até 40 caracteres com reticências quando necessário, removendo o prefixo "Antigravity:" e sufixos de pasta.
+  2. `terminal/agy-title-daemon.py`: adicionado mapeamento `AGENT_ICONS`, sanitização de títulos via `clean_title` para extrair apenas o tópico da conversa/thread e formatação universal via `format_display_title`. Quando o agente está em execução, injeta dinamicamente o frame do spinner logo após o ícone (`✳️ ⠋ [titulo_40]`), atualizando a cada 80ms no Hyprland. Em estado idle, exibe `✳️ [titulo_40]`.
+  3. `terminal/tab_bar.py`: ícones e resolução de títulos das abas internas do Kitty padronizados para o mesmo formato de 40 caracteres e ordenação `ícone + spinner + título`.
+- Validação:
+  - `python3 -m py_compile` validado sem erros nos 3 arquivos modificados.
+  - Testes de regressão `TEST_WORKSPACE1.py` executados com 45/45 testes passando (0 erros).
+  - Serviço `antigravity-tab-daemon.service` reiniciado com sucesso.
+  - `hyprctl clients` conferido em tempo real exibindo `title: ✳️ ⠇ Hyprland Window Group Tabs Management` com rotação do spinner ativa.
