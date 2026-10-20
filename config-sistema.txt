@@ -1889,3 +1889,17 @@ Data: 20/10/2026. Estado: configurado, testado e recarregado em runtime.
   - Sintaxe e opções validadas com sucesso via `kitty.config.load_config`.
   - Sinal SIGUSR1 enviado a todas as instâncias em execução do Kitty para recarga a quente sem fechamento de janelas.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+99. FIXAÇÃO DO GUCHARMAP (MAPA DE CARACTERES) NA DOCK DO WINDOCK
+Data: 20/10/2026. Estado: instalado e validado em runtime.
+
+- Ação: inclusão do aplicativo de mapa de caracteres oficial do Linux (Gucharmap) na dock do WinDoc para visualização rápida e completa de glifos, emojis e ícones vetoriais.
+- Alterações:
+  1. `dock/IconResolver.js`: mapeamento de fallback `"gucharmap": "accessories-character-map"` registrado.
+  2. `dock/DockMatcher.js`: entrada padrão `"gucharmap"` registrada em `KNOWN_APP_DEFAULTS`.
+  3. `shell/dock-pinned.json`: adicionado `"gucharmap"` aos aplicativos fixados.
+  4. `pacotes-sistema.txt`: registrado o pacote `gucharmap`.
+- Validação:
+  - Sintaxe JSON de `shell/dock-pinned.json` validada via `python3 -m json.tool`.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+  - Janela de teste do `gucharmap` conferida via `hyprctl clients` associando `class: gucharmap` à entrada do desktop.

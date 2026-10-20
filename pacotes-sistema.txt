@@ -10,3 +10,4 @@ ninja
 fontbase
 fontforge
 python-fonttools
+gucharmap
