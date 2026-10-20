@@ -1866,3 +1866,15 @@ Data: 20/10/2026. Estado: implementado e validado em runtime.
   - `build_typeface.py` executado com sucesso gerando a fonte e instalando em `~/.local/share/fonts/`.
   - `fc-list` e `fc-scan` validaram a família `BRUNOMA TYPEFACE`.
   - 26/26 testes da dock e 45/45 testes do workspace executados e aprovados.
+
+99. LOAD FOLDER SUBSTITUI A FILA DO AMBEROL
+Data: 20/10/2026. Estado: validado em build, testes e execução real.
+
+- Problema: ao escolher outra pasta no botão Load Folder, o Amberol acrescentava as novas faixas à fila antiga e podia manter a música anterior em reprodução.
+- Alterações:
+  1. `amberol-deskband/AMBEROL_REPLACE_FOLDER.patch`: no modo headless do Deskband, limpa a fila atual do Amberol antes de carregar a pasta. A interface GTK normal mantém seu comportamento original.
+  2. `amberol-deskband/components/DeskbandPopup.qml`: Load Folder solicita reprodução imediata após a escolha.
+  3. `amberol-deskband/scripts/select_folder.py`: aguarda a atualização confirmada de `current.pls` para a pasta selecionada antes de enviar Play; reporta falhas de D-Bus/abertura e usa o wrapper para manter o modo headless em inicialização fria. A detecção de processo evita casar com o próprio script.
+  4. `amberol-deskband/BUILD_AMBEROL_LOCAL.sh`: aplica e fixa o hash do novo patch, incluindo migração segura do cache de fonte previamente validado.
+  5. `amberol-deskband/tests/test_select_folder.py` e `README.md`: testes da confirmação da fila e documentação do comportamento.
+- Validação: build release do Amberol 2026.1 concluído; 14/14 testes Python aprovados; sintaxe Python/Bash e `git diff --check` aprovados; shell Quickshell reiniciado sem erros QML recentes. Em execução real, a fila foi substituída de 137 faixas misturadas por 29 faixas exclusivas de BJJ e a faixa atual mudou para `Ambitionz Az A Ridah`, com status Playing e zero janelas Amberol. Depois, a pasta padrão PORRADAO foi restaurada, o player ficou pausado e sem janela visível.
