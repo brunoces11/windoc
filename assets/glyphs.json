@@ -1,0 +1,32 @@
+{
+  "antigravity": {
+    "name": "antigravity",
+    "codepoint": "U+E000",
+    "unicode_escape": "\\ue000",
+    "file": "antigravity.svg"
+  },
+  "claude": {
+    "name": "claude",
+    "codepoint": "U+E001",
+    "unicode_escape": "\\ue001",
+    "file": "claude.svg"
+  },
+  "codex-light": {
+    "name": "codex-light",
+    "codepoint": "U+E002",
+    "unicode_escape": "\\ue002",
+    "file": "codex-light.svg"
+  },
+  "codex": {
+    "name": "codex",
+    "codepoint": "U+E003",
+    "unicode_escape": "\\ue003",
+    "file": "codex.svg"
+  },
+  "fireworks": {
+    "name": "fireworks",
+    "codepoint": "U+E004",
+    "unicode_escape": "\\ue004",
+    "file": "fireworks.svg"
+  }
+}

@@ -8,3 +8,5 @@ blueprint-compiler
 meson
 ninja
 fontbase
+fontforge
+python-fonttools

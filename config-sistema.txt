@@ -1851,3 +1851,18 @@ Data: 20/10/2026. Estado: instalado e validado em runtime.
   - JSON de `shell/dock-pinned.json` validado via `python3 -m json.tool`.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` passando.
   - 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` passando.
+
+98. GERADOR SOB DEMANDA DE FONTE DE ÍCONES (BRUNOMA_TYPEFACE)
+Data: 20/10/2026. Estado: implementado e validado em runtime.
+
+- Ação: criação da estrutura e do script para compilação automática de ícones vetoriais SVG em fonte TrueType (`BRUNOMA_TYPEFACE.ttf`) para uso global no Hyprland, Kitty e no sistema.
+- Alterações:
+  1. `assets/svgs/`: diretório criado para abrigar arquivos vetoriais SVG (inicializado com as logos oficiais de antigravity.svg, claude.svg, codex.svg, codex-light.svg e fireworks.svg).
+  2. `assets/build_typeface.py`: script de compilação automatizada usando a biblioteca Python do FontForge. Importa todos os SVGs da pasta, mapeia para caracteres privados Unicode (U+E000 em diante), gera `assets/BRUNOMA_TYPEFACE.ttf`, exporta `assets/glyphs.json` e atualiza o symlink em `~/.local/share/fonts/` executando `fc-cache`.
+  3. `assets/BRUNOMA_TYPEFACE.ttf`: fonte gerada e validada.
+  4. `assets/glyphs.json`: mapa de caracteres gerado com códigos hexadecimais e escapes Unicode correspondentes.
+  5. `pacotes-sistema.txt`: registrados `fontforge` e `python-fonttools`.
+- Validação:
+  - `build_typeface.py` executado com sucesso gerando a fonte e instalando em `~/.local/share/fonts/`.
+  - `fc-list` e `fc-scan` validaram a família `BRUNOMA TYPEFACE`.
+  - 26/26 testes da dock e 45/45 testes do workspace executados e aprovados.
