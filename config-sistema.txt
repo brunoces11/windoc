@@ -1982,5 +1982,19 @@ Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
   - `hyprctl clients` validado em tempo real exibindo `\ue000 ⠼ HYPRLAND CUNTOM TABS` para Antigravity e `\ue003 Claude Code` para Claude.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
+106. ATIVAÇÃO DE CORES NATIVAS (OPENTYPE COLR/CPAL) NOS ÍCONES DA BRUNOMA TYPEFACE
+Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
+
+- Ação: injeção de tabelas OpenType `COLR` (Color Layers) e `CPAL` (Color Palette) na fonte `BRUNOMA TYPEFACE` para renderização de cores nativas nos glifos das abas do Hyprland: Claude Code em Laranja (`#D97757`), OpenAI em Verde Claro (`#25E28D`) e Antigravity em Azul (`#3186FF`), mantendo o texto do título em branco puro.
+- Alterações:
+  1. `assets/build_typeface.py`: adicionado gerador automatizado de tabelas COLR/CPAL via FontTools e rotinas de pós-processamento de curvas vetoriais (`correctDirection()`, `round()`, `autoHint()`).
+  2. `assets/svgs/AGY_CLI.svg`: substituído o mosaico de 100 retângulos de pixel-art por um contorno vetorial contínuo com curvas de Bézier suaves, eliminando o efeito serrilhado.
+  3. `assets/BRUNOMA_TYPEFACE.ttf`: fonte recompilada com as tabelas de cores e instalada no sistema.
+- Validação:
+  - Cairo/Pango validou a renderização de 154 pixels laranja para Claude, 148 pixels verde claro para OpenAI e 175 pixels azul para Antigravity, conservando texto branco puro no layout.
+  - `systemctl --user restart antigravity-tab-daemon.service` executado com sucesso e ativo.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
 
 

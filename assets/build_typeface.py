@@ -17,6 +17,9 @@ except ImportError:
     print("[ERRO] fontforge não encontrado. Instale com: sudo pacman -S fontforge", file=sys.stderr)
     sys.exit(1)
 
+import fontTools.ttLib as ttLib
+from fontTools.colorLib.builder import buildCOLR, buildCPAL
+
 BASE_DIR = Path(__file__).resolve().parent
 SVGS_DIR = BASE_DIR / "svgs"
 OUTPUT_TTF = BASE_DIR / "BRUNOMA_TYPEFACE.ttf"
@@ -54,6 +57,9 @@ def build():
         try:
             glyph.importOutlines(str(svg_path))
             glyph.width = 1000
+            glyph.correctDirection()
+            glyph.round()
+            glyph.autoHint()
             char_hex = f"U+{codepoint:04X}"
             mapping[glyph_name] = {
                 "name": glyph_name,
@@ -67,6 +73,30 @@ def build():
 
     font.generate(str(OUTPUT_TTF))
     font.close()
+
+    # Injeção de tabelas OpenType COLR / CPAL para ícones coloridos por padrão
+    try:
+        tt = ttLib.TTFont(str(OUTPUT_TTF))
+        palette = [
+            (217 / 255.0, 119 / 255.0, 87 / 255.0, 1.0),   # 0: Claude Laranja (#D97757)
+            (37 / 255.0, 226 / 255.0, 141 / 255.0, 1.0),   # 1: OpenAI Verde Claro (#25E28D)
+            (49 / 255.0, 134 / 255.0, 255 / 255.0, 1.0),   # 2: Antigravity Azul Google (#3186FF)
+        ]
+        color_glyphs = {}
+        if "CLAUDE_LARANJA" in tt["glyf"]:
+            color_glyphs["CLAUDE_LARANJA"] = [("CLAUDE_LARANJA", 0)]
+        if "openai_black_vazado" in tt["glyf"]:
+            color_glyphs["openai_black_vazado"] = [("openai_black_vazado", 1)]
+        if "AGY_CLI" in tt["glyf"]:
+            color_glyphs["AGY_CLI"] = [("AGY_CLI", 2)]
+
+        tt["CPAL"] = buildCPAL([palette])
+        tt["COLR"] = buildCOLR(color_glyphs, version=0)
+        tt.save(str(OUTPUT_TTF))
+        tt.close()
+        print("[OK] Tabelas OpenType COLR/CPAL injetadas com sucesso (Cores dos glifos ativadas)!")
+    except Exception as e:
+        print(f"[!] Falha ao injetar COLR/CPAL: {e}", file=sys.stderr)
 
     # Salva o mapa de caracteres em JSON
     with open(MAPPING_JSON, "w", encoding="utf-8") as f:
