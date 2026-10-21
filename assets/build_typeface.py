@@ -41,10 +41,6 @@ def build():
     font.version = "1.0"
     font.em = 1000
 
-    # Espaço padrão
-    sp = font.createChar(0x20, "space")
-    sp.width = 500
-
     start_codepoint = 0xE000
     mapping = {}
 
@@ -56,7 +52,7 @@ def build():
         glyph = font.createChar(codepoint, glyph_name)
         try:
             glyph.importOutlines(str(svg_path))
-            glyph.width = 1000
+            glyph.width = 1400
             glyph.correctDirection()
             glyph.round()
             glyph.autoHint()

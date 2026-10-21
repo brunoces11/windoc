@@ -300,6 +300,17 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
     return ICON_TERMINAL, f"Terminal: {clean}"
 
 
+def is_tab_spinning(tab: TabBarData) -> bool:
+    """Verifica se o título nativo de uma aba externa (Claude, Codex) contém um frame de spinner."""
+    t = (tab.title or "").strip()
+    return bool(t and (
+        t[0] in AGY_FRAMES
+        or any(f" {f} " in t for f in AGY_FRAMES)
+        or (len(t) > 2 and t[2] in AGY_FRAMES)
+        or (len(t) > 3 and t[3] in AGY_FRAMES)
+    ))
+
+
 def draw_tab(
     draw_data: DrawData,
     screen: Screen,
@@ -313,9 +324,12 @@ def draw_tab(
     try:
         agent_icon, session_title = resolve_smart_session(tab)
         icon = agent_icon if USE_DYNAMIC_ICONS else ICON_TERMINAL
-        if agent_icon == ICON_AGY and is_agy_tab_running(tab):
-            state = get_boss()._windoc_agy_title_animation
-            spinner = f"{AGY_FRAMES[state['frame']]} "
+        is_running = (agent_icon == ICON_AGY and is_agy_tab_running(tab)) or is_tab_spinning(tab)
+        if is_running:
+            boss = get_boss()
+            state = getattr(boss, "_windoc_agy_title_animation", None) if boss else None
+            frame = AGY_FRAMES[state["frame"]] if state else "⠋"
+            spinner = f"{frame} "
         else:
             spinner = ""
         if spinner:

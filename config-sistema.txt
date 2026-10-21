@@ -1998,3 +1998,22 @@ Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
 
 
 
+107. PADRONIZAÇÃO DE ESPAÇAMENTO ENTRE ÍCONE E LOADER (AGY, CODEX E CLAUDE)
+Data: 21/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Ação: padronização universal do espaçamento visual entre o ícone correspondente do agente de IA e o loader/spinner nas abas do Hyprland e Kitty, garantindo a simetria exata `[icone] [loader] [primeiros 40 caracteres]` para Antigravity (AGY), Codex/OpenAI e Claude Code.
+- Causa raiz identificada:
+  1. A fonte vetorial `BRUNOMA TYPEFACE` continha uma definição vazia para o caractere ASCII `0x20` (espaço). No Pango/HarfBuzz, a fonte de ícones prioritária capturava o espaço com avanço de `0.0px`, colapsando o distanciamento entre o ícone e o loader.
+  2. Os glifos tinham avanço fixado em 1000 unidades, exatamente na borda do desenho SVG, gerando encavalamento com caracteres subsequentes.
+- Alterações implementadas:
+  1. `assets/build_typeface.py`: remoção da declaração de `0x20` na fonte PUA para permitir que o Fontconfig/Pango delegue o espaçamento à fonte monospace padrão (`JetBrainsMono Nerd Font`); ajuste do avanço horizontal dos glifos para 1400 unidades, proporcionando respiro lateral idêntico ao padrão dos terminais.
+  2. `assets/BRUNOMA_TYPEFACE.ttf`: fonte recompilada e reinstalada em `~/.local/share/fonts/` com cache atualizado.
+  3. `terminal/tab_bar.py`: adicionada detecção de abas em execução via `is_tab_spinning()` para Claude e Codex/OpenAI, e padronizada a formatação `f"{icon} {spinner}{session_title}"` em todas as abas.
+  4. `terminal/agy-title-daemon.py` e `ANTIGRAVITY_TITLE.py`: mantido e validado o formato `f"{icon} {frame} {clean}"` com sanitização e corte máximo de 40 caracteres.
+- Validação:
+  - Análise em Cairo/Pango confirmou equilíbrio milimétrico: GAP (ícone -> loader) = 10px e GAP (loader -> título) = 11px em todos os três agentes (`\ue000` AGY, `\ue003` Claude e `\ue00a` Codex/OpenAI).
+  - `systemctl --user restart antigravity-tab-daemon.service` ativo com status 0.
+  - Sinais SIGUSR1 enviados ao Kitty recarregando configurações a quente.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
