@@ -121,6 +121,10 @@ Pedidos somente de análise ou parecer não acionam mudanças reais.
 ### REGRA 8: Exclusão Mútua e Não Duplicação de Ícones da System Tray (OBRIGATÓRIO)
 > **MUITO IMPORTANTE:** É terminantemente proibida a duplicação de ícones na interface: qualquer ícone fixado ou exposto na barra de tarefas (taskbar) deve ser automaticamente omitido do pop-up de overflow (^), exibindo na pop-up exclusivamente os ícones não visíveis na barra, mantendo unicidade funcional e visual absoluta no sistema.
 
+### REGRA 9: Consulta e Atualização do Mapeamento de Ícones (BRUNOMA TYPEFACE)
+> **MUITO IMPORTANTE:** Ao aplicar ou usar logos/ícones em títulos de janelas/abas no Hyprland ou Kitty, consulte obrigatoriamente [`~/Desktop/windoc/assets/svgs/mapeamento-icones.txt`](file:///home/brunoma/Desktop/windoc/assets/svgs/mapeamento-icones.txt) para obter o código Unicode correto; toda vez que novos ícones SVG forem adicionados ou recompilados, garanta que esse arquivo TXT de transcrição seja atualizado ao final.
+
+
 ## 4. Status vigente: System Icon Tray
 
 A feature **System Icon Tray** foi planejada, implementada e validada em tempo real com máxima precisão:

@@ -1,0 +1,23 @@
+MAPEAMENTO DE ÍCONES COMPILADOS - BRUNOMA TYPEFACE
+======================================================================
+
+ÍCONE / NOME             | UNICODE  | ESCAPE   | ARQUIVO SVG
+----------------------------------------------------------------------
+AGY_CLI                  | U+E000   | \ue000   | AGY_CLI.svg
+AGY_COLOR                | U+E001   | \ue001   | AGY_COLOR.svg
+ANTHROPIC                | U+E002   | \ue002   | ANTHROPIC.svg
+CLAUDE_LARANJA           | U+E003   | \ue003   | CLAUDE_LARANJA.svg
+antigravity              | U+E004   | \ue004   | antigravity.svg
+chatgpt_verde            | U+E005   | \ue005   | chatgpt_verde.svg
+claude                   | U+E006   | \ue006   | claude.svg
+codex-black              | U+E007   | \ue007   | codex-black.svg
+codex-light              | U+E008   | \ue008   | codex-light.svg
+fireworks                | U+E009   | \ue009   | fireworks.svg
+openai_black_vazado      | U+E00A   | \ue00a   | openai_black_vazado.svg
+
+======================================================================
+COMO USAR:
+1. Python / Scripts:
+   icone = chr(0xE000)  # ou "\ue000"
+2. Hyprland / Kitty / Sistema:
+   O Fontconfig faz fallback automático para 'BRUNOMA TYPEFACE' ao encontrar o código.

@@ -1925,3 +1925,19 @@ Data: 20/10/2026. Estado: compilado, testado e validado em runtime.
   - `fc-list : family | grep BRUNOMA` confirmou disponibilidade da família `BRUNOMA TYPEFACE`.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
+102. MAPEAMENTO TEXTUAL DE ÍCONES E INSTRUÇÕES AGENTS.MD PARA BRUNOMA TYPEFACE
+Data: 20/10/2026. Estado: configurado, testado e sincronizado.
+
+- Ação: criação de arquivo textual com a transcrição completa do mapeamento dos ícones compilados da fonte `BRUNOMA TYPEFACE` na raiz da pasta `assets/svgs/`, atualização do script `build_typeface.py` para sincronização contínua e adição de diretriz global/local em `AGENTS.md`.
+- Alterações:
+  1. `assets/svgs/mapeamento-icones.txt`: criado com tabela legível contendo nome do ícone, código Unicode (PUA), escape hexadecimal e arquivo SVG correspondente.
+  2. `assets/build_typeface.py`: atualizado para reescrever e sincronizar `assets/svgs/mapeamento-icones.txt` automaticamente a cada compilação de fonte.
+  3. `~/.gemini/config/AGENTS.md` (e `Desktop/SESSION/S_ANTIGRAVITY/config/AGENTS.md`): adicionada diretriz global instruindo os agentes a consultar `assets/svgs/mapeamento-icones.txt` ao aplicar ícones/logos em títulos do Hyprland/Kitty e garantir a atualização do arquivo TXT ao compilar.
+  4. `AGENTS.md` (WinDoc): adicionada Regra 9 correspondente para o ecossistema do projeto.
+  5. `shell/dock-pinned.json`: sincronizadas preferências visuais da dock do usuário.
+- Validação:
+  - `python3 assets/build_typeface.py` executado com código de saída 0 gerando `assets/svgs/mapeamento-icones.txt`.
+  - Sintaxe de `shell/dock-pinned.json` validada via `python3 -m json.tool`.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+

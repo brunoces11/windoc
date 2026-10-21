@@ -1,5 +1,6 @@
 {
   "pinned": [
+    "org.kde.dolphin",
     "org.gnome.Nautilus",
     "sublime_text",
     "orca-ide",
@@ -9,9 +10,6 @@
     "chromium",
     "kitty",
     "com.obsproject.Studio",
-    "org.kde.kdenlive",
-    "concat",
-    "com.blackmagicdesign.resolve",
     "fontbase",
     "gucharmap"
   ]

@@ -21,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent
 SVGS_DIR = BASE_DIR / "svgs"
 OUTPUT_TTF = BASE_DIR / "BRUNOMA_TYPEFACE.ttf"
 MAPPING_JSON = BASE_DIR / "glyphs.json"
+TXT_MAPPING = SVGS_DIR / "mapeamento-icones.txt"
 USER_FONTS_DIR = Path.home() / ".local/share/fonts"
 
 
@@ -67,10 +68,26 @@ def build():
     font.generate(str(OUTPUT_TTF))
     font.close()
 
-    # Salva o mapa de caracteres
+    # Salva o mapa de caracteres em JSON
     with open(MAPPING_JSON, "w", encoding="utf-8") as f:
         json.dump(mapping, f, indent=2, ensure_ascii=False)
     print(f"[OK] Mapa exportado para {MAPPING_JSON.name}")
+
+    # Salva o arquivo de transcrição textual de mapeamento na raiz da pasta svgs
+    with open(TXT_MAPPING, "w", encoding="utf-8") as f:
+        f.write("MAPEAMENTO DE ÍCONES COMPILADOS - BRUNOMA TYPEFACE\n")
+        f.write("=" * 70 + "\n\n")
+        f.write(f"{'ÍCONE / NOME':<24} | {'UNICODE':<8} | {'ESCAPE':<8} | {'ARQUIVO SVG'}\n")
+        f.write("-" * 70 + "\n")
+        for name, data in mapping.items():
+            f.write(f"{name:<24} | {data['codepoint']:<8} | {data['unicode_escape']:<8} | {data['file']}\n")
+        f.write("\n" + "=" * 70 + "\n")
+        f.write("COMO USAR:\n")
+        f.write("1. Python / Scripts:\n")
+        f.write("   icone = chr(0xE000)  # ou \"\\ue000\"\n")
+        f.write("2. Hyprland / Kitty / Sistema:\n")
+        f.write("   O Fontconfig faz fallback automático para 'BRUNOMA TYPEFACE' ao encontrar o código.\n")
+    print(f"[OK] Mapeamento textual exportado para svgs/{TXT_MAPPING.name}")
 
     # Atualiza o cache de fontes do usuário
     USER_FONTS_DIR.mkdir(parents=True, exist_ok=True)
