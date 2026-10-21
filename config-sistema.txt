@@ -1890,6 +1890,13 @@ Data: 20/10/2026. Estado: configurado, testado e recarregado em runtime.
   - Sinal SIGUSR1 enviado a todas as instâncias em execução do Kitty para recarga a quente sem fechamento de janelas.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
+102. SCROLLBAR VISÍVEL E SCROLLBACK AMPLIADO NO KITTY
+Data: 20/10/2026. Estado: configurado e validado visualmente em runtime.
+
+- Problema: embora a scrollbar estivesse habilitada, a largura de 0,5 célula a deixava quase imperceptível; o buffer também permanecia no padrão de 2.000 linhas.
+- Alterações: `terminal/kitty.conf` mantém `scrollbar always`, aumenta a largura para 1,5 célula (2,0 ao passar o cursor), torna o indicador mais opaco e amplia o scrollback para 10.000 linhas.
+- Validação: parser oficial do Kitty confirmou todos os valores sem erros; configuração recarregada nas quatro instâncias abertas. Uma janela temporária exibindo 5.000 linhas confirmou visualmente a barra lateral; a janela de teste foi fechada. O symlink `~/.config/kitty/kitty.conf` continua apontando para o arquivo adotado em `terminal/kitty.conf`.
+
 99. FIXAÇÃO DO GUCHARMAP (MAPA DE CARACTERES) NA DOCK DO WINDOCK
 Data: 20/10/2026. Estado: instalado e validado em runtime.
 
