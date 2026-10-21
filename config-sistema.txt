@@ -1903,3 +1903,18 @@ Data: 20/10/2026. Estado: instalado e validado em runtime.
   - Sintaxe JSON de `shell/dock-pinned.json` validada via `python3 -m json.tool`.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
   - Janela de teste do `gucharmap` conferida via `hyprctl clients` associando `class: gucharmap` à entrada do desktop.
+
+101. RECOMPILAÇÃO E ATUALIZAÇÃO DA FONTE DE ÍCONES BRUNOMA TYPEFACE
+Data: 20/10/2026. Estado: compilado, testado e validado em runtime.
+
+- Ação: compilação automática dos novos vetores SVG em `assets/svgs/` para a fonte TrueType `assets/BRUNOMA_TYPEFACE.ttf`, atualização do catálogo `assets/glyphs.json` e recarga de cache no sistema.
+- Alterações:
+  1. `assets/svgs/`: incorporados novos arquivos vetoriais `AGY_CLI.svg`, `AGY_COLOR.svg`, `ANTHROPIC.svg`, `CLAUDE_LARANJA.svg`, `chatgpt_verde.svg`, `codex-black.svg`, `openai_black_vazado.svg` e atualizado `codex-light.svg`.
+  2. `assets/BRUNOMA_TYPEFACE.ttf`: fonte TrueType recompilada com 11 glifos na Private Use Area (U+E000 até U+E00A).
+  3. `assets/glyphs.json`: mapa de caracteres atualizado com nomes e códigos hexadecimais correspondentes.
+  4. `~/.local/share/fonts/BRUNOMA_TYPEFACE.ttf`: symlink atualizado e cache do sistema recarregado via `fc-cache -f`.
+- Validação:
+  - `python3 assets/build_typeface.py` executado com código de saída 0.
+  - `fc-list : family | grep BRUNOMA` confirmou disponibilidade da família `BRUNOMA TYPEFACE`.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+

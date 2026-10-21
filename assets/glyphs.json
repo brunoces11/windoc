@@ -1,32 +1,68 @@
 {
-  "antigravity": {
-    "name": "antigravity",
+  "AGY_CLI": {
+    "name": "AGY_CLI",
     "codepoint": "U+E000",
     "unicode_escape": "\\ue000",
+    "file": "AGY_CLI.svg"
+  },
+  "AGY_COLOR": {
+    "name": "AGY_COLOR",
+    "codepoint": "U+E001",
+    "unicode_escape": "\\ue001",
+    "file": "AGY_COLOR.svg"
+  },
+  "ANTHROPIC": {
+    "name": "ANTHROPIC",
+    "codepoint": "U+E002",
+    "unicode_escape": "\\ue002",
+    "file": "ANTHROPIC.svg"
+  },
+  "CLAUDE_LARANJA": {
+    "name": "CLAUDE_LARANJA",
+    "codepoint": "U+E003",
+    "unicode_escape": "\\ue003",
+    "file": "CLAUDE_LARANJA.svg"
+  },
+  "antigravity": {
+    "name": "antigravity",
+    "codepoint": "U+E004",
+    "unicode_escape": "\\ue004",
     "file": "antigravity.svg"
+  },
+  "chatgpt_verde": {
+    "name": "chatgpt_verde",
+    "codepoint": "U+E005",
+    "unicode_escape": "\\ue005",
+    "file": "chatgpt_verde.svg"
   },
   "claude": {
     "name": "claude",
-    "codepoint": "U+E001",
-    "unicode_escape": "\\ue001",
+    "codepoint": "U+E006",
+    "unicode_escape": "\\ue006",
     "file": "claude.svg"
+  },
+  "codex-black": {
+    "name": "codex-black",
+    "codepoint": "U+E007",
+    "unicode_escape": "\\ue007",
+    "file": "codex-black.svg"
   },
   "codex-light": {
     "name": "codex-light",
-    "codepoint": "U+E002",
-    "unicode_escape": "\\ue002",
+    "codepoint": "U+E008",
+    "unicode_escape": "\\ue008",
     "file": "codex-light.svg"
-  },
-  "codex": {
-    "name": "codex",
-    "codepoint": "U+E003",
-    "unicode_escape": "\\ue003",
-    "file": "codex.svg"
   },
   "fireworks": {
     "name": "fireworks",
-    "codepoint": "U+E004",
-    "unicode_escape": "\\ue004",
+    "codepoint": "U+E009",
+    "unicode_escape": "\\ue009",
     "file": "fireworks.svg"
+  },
+  "openai_black_vazado": {
+    "name": "openai_black_vazado",
+    "codepoint": "U+E00A",
+    "unicode_escape": "\\ue00a",
+    "file": "openai_black_vazado.svg"
   }
 }
