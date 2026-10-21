@@ -1940,4 +1940,22 @@ Data: 20/10/2026. Estado: configurado, testado e sincronizado.
   - Sintaxe de `shell/dock-pinned.json` validada via `python3 -m json.tool`.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
+103. INTEGRAÇÃO DOS ÍCONES DA BRUNOMA TYPEFACE NAS ABAS DO HYPRLAND E KITTY
+Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
+
+- Ação: configuração das abas do Hyprland (groupbar) e do Kitty para exibição dos glifos da fonte vetorial `BRUNOMA TYPEFACE` específicos de cada agente de IA: Antigravity com `AGY_COLOR` (U+E001), OpenAI / Codex com `codex-light` (U+E008) e Claude Code com `CLAUDE_LARANJA` (U+E003), mantendo o padrão universal de formatação e spinner dinâmico.
+- Alterações:
+  1. `hyprland/looknfeel.lua`: configurada a diretiva `group.groupbar.font_family = "BRUNOMA TYPEFACE, monospace"` para priorização dos glifos personalizados na barra de abas dos grupos do Hyprland.
+  2. `terminal/kitty.conf`: adicionada diretiva `symbol_map U+E000-U+E00A BRUNOMA TYPEFACE` para roteamento vetorial explícito dos glifos PUA no emulador Kitty.
+  3. `terminal/agy-title-daemon.py`: mapeamento `AGENT_ICONS` atualizado (`antigravity: \ue001`, `codex: \ue008`, `openai: \ue008`, `claude: \ue003`), suporte expandido para detecção de processos em subshells em `foreground_processes` e sanitização aprimorada de títulos com glifos PUA.
+  4. `terminal/tab_bar.py`: ícones estáticos e inteligentes atualizados (`ICON_AGY: \ue001`, `ICON_CODEX: \ue008`, `ICON_OPENAI: \ue008`, `ICON_CLAUDE: \ue003`).
+  5. `ANTIGRAVITY_TITLE.py`: atualizado para emitir o glifo `\ue001` no título nativo do Antigravity CLI.
+- Validação:
+  - `hyprctl getoption group:groupbar:font_family` confirmou `BRUNOMA TYPEFACE, monospace`.
+  - `systemctl --user restart antigravity-tab-daemon.service` executado com sucesso e ativo em runtime.
+  - Sinais SIGUSR1 enviados ao Kitty recarregando configurações a quente.
+  - `hyprctl clients` validado em tempo real exibindo `\ue001 Desktop` para Antigravity e `\ue008 ⠦ Analisar foco das janelas` para Codex/OpenAI.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
 

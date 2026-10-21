@@ -14,12 +14,12 @@ from kitty.tab_bar import (
     get_boss,
 )
 
-# Nerd Font glyphs & Emojis
+# Nerd Font glyphs & BRUNOMA TYPEFACE icons
 ICON_WINDOWS = "\U000f0372"  # 󰍲 nf-md-microsoft_windows
-ICON_CLAUDE = "✳️"           # ✳️ Claude
-ICON_CODEX = "✳️"            # ✳️ Codex
-ICON_AGY = "✳️"              # ✳️ Antigravity
-ICON_OPENAI = "✳️"           # ✳️ OpenAI
+ICON_CLAUDE = "\ue003"       # CLAUDE_LARANJA (U+E003 da BRUNOMA TYPEFACE)
+ICON_CODEX = "\ue008"        # codex-light (U+E008 da BRUNOMA TYPEFACE)
+ICON_AGY = "\ue001"          # AGY_COLOR (U+E001 da BRUNOMA TYPEFACE)
+ICON_OPENAI = "\ue008"       # codex-light (U+E008 da BRUNOMA TYPEFACE)
 ICON_TERMINAL = "\ue795"     #  nf-dev-terminal
 
 # Ativação do ícone dinâmico por agente/modelo (False = ícone padrão , True = dinâmico 󰍲/✦/󰚩/󰘐)
@@ -33,12 +33,12 @@ def clean_agent_topic(topic: str, max_chars: int = 40) -> str:
     if not topic:
         return "Chat"
     t = topic.strip()
-    while t and (t[0] in AGY_FRAMES or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈")):
+    while t and (t[0] in AGY_FRAMES or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈") or ("\ue000" <= t[0] <= "\ue00a")):
         if t.startswith("✳️"):
             t = t[2:].strip()
         else:
             t = t[1:].strip()
-    t = re.sub(r'^(Antigravity|Codex|Claude)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'^(Antigravity|Codex|Claude|OpenAI)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
     t = re.sub(r'\s*\|\s*[\w~./-]+$', '', t).strip()
     if len(t) > max_chars:
         return t[:max_chars].rstrip() + "..."
@@ -238,13 +238,14 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
 
     # 2. Claude Code
     is_claude = (
-        raw_title.startswith("✳")
+        raw_title.startswith("\ue003")
+        or raw_title.startswith("✳")
         or "claude" in exe_lower
         or "claude" in cmd_lower
         or "anthropic" in t_lower
     )
     if is_claude:
-        topic = raw_title.lstrip("✳").strip()
+        topic = raw_title.lstrip("✳\ue003").strip()
         return ICON_CLAUDE, clean_agent_topic(topic or "Claude Code")
 
     # 3. Windows SSH / remote session (brunote)
@@ -262,7 +263,8 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
 
     # 4. Codex
     is_codex = (
-        "codex" in exe_lower
+        raw_title.startswith("\ue008")
+        or "codex" in exe_lower
         or "codex" in cmd_lower
         or "codex" in t_lower
         or "| brunoma" in raw_title
@@ -274,14 +276,15 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
 
     # 5. OpenAI / Whisper
     is_openai = (
-        "openai" in t_lower
+        raw_title.startswith("\ue008")
+        or "openai" in t_lower
         or "chatgpt" in t_lower
         or "whisper" in t_lower
         or "gpt" in t_lower
     )
     if is_openai:
-        clean = raw_title.lstrip("✳").strip()
-        return ICON_OPENAI, f"OpenAI: {clean}"
+        clean = raw_title.lstrip("✳\ue008").strip()
+        return ICON_OPENAI, clean_agent_topic(clean or "OpenAI")
 
     # 6. Terminal genérico (bash, zsh, utilitários CLI)
     clean = raw_title.strip()

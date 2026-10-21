@@ -55,4 +55,10 @@ hl.config({
     force_split = 0,
     smart_split = true,
   },
+  group = {
+    groupbar = {
+      font_family = "BRUNOMA TYPEFACE, monospace",
+    },
+  },
 })
+

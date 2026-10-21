@@ -22,32 +22,37 @@ import subprocess
 import sys
 import time
 
-# Ícone dos modelos/agentes (personalizável por agente ou glifo vetorial)
+# Ícone dos modelos/agentes (personalizável por agente ou glifo vetorial da BRUNOMA TYPEFACE)
 AGENT_ICONS = {
-    "antigravity": "✳️",
-    "codex": "✳️",
-    "claude": "✳️",
-    "default": "✳️",
+    "antigravity": "\ue001",  # AGY_COLOR (U+E001)
+    "codex": "\ue008",        # codex-light (U+E008)
+    "openai": "\ue008",       # codex-light (U+E008)
+    "claude": "\ue003",       # CLAUDE_LARANJA (U+E003)
+    "default": "\ue001",      # Fallback padrão
 }
 
 SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-SPINNER_CHARS = set("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▖▘▝▗◐◓◑◒*◈✦✳️")
+SPINNER_CHARS = set("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▖▘▝▗◐◓◑◒*◈✦✳️\ue000\ue001\ue002\ue003\ue004\ue005\ue006\ue007\ue008\ue009\ue00a")
 AGY_DB_PATH = os.path.expanduser("~/.gemini/antigravity-cli/conversation_summaries.db")
 
 
 def has_spinner(title: str) -> bool:
     t = title.strip()
-    return bool(t and t[0] in SPINNER_CHARS)
+    if t and (t[0] in SPINNER_CHARS or ("\ue000" <= t[0] <= "\ue00a")):
+        parts = t.split(None, 1)
+        if len(parts) > 1 and (parts[0] in SPINNER_CHARS or ("\ue000" <= parts[0] <= "\ue00a")):
+            t = parts[1].strip()
+    return bool(t and t[0] in {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"})
 
 
 def clean_title(title: str) -> str:
     t = title.strip()
-    while t and (t[0] in SPINNER_CHARS or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈")):
+    while t and (t[0] in SPINNER_CHARS or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈") or ("\ue000" <= t[0] <= "\ue00a")):
         if t.startswith("✳️"):
             t = t[2:].strip()
         else:
             t = t[1:].strip()
-    t = re.sub(r'^(Antigravity|Codex|Claude)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'^(Antigravity|Codex|Claude|OpenAI)\s*:\s*', '', t, flags=re.IGNORECASE).strip()
     t = re.sub(r'\s*\|\s*[\w~./-]+$', '', t).strip()
     return t
 
@@ -189,27 +194,29 @@ def main():
                             win = windows[0]
                             w_pid = win.get("pid", 0)
                             fg = win.get("foreground_processes", [])
-                            fg_cmd = " ".join(fg[0]["cmdline"]) if fg else ""
-                            fg_pid = fg[0].get("pid", 0) if fg else 0
+                            all_cmdlines = [" ".join(p.get("cmdline", [])) for p in fg]
+                            all_cmds_lower = " ".join(all_cmdlines).lower()
 
-                            cmd_lower = fg_cmd.lower()
-                            is_agy = "agy" in cmd_lower or (fg_cmd == "agy")
-                            is_codex = "codex" in cmd_lower
-                            is_claude = "claude" in cmd_lower
+                            is_agy = any("agy" in c or "antigravity" in c for c in all_cmdlines)
+                            is_codex = any("codex" in c for c in all_cmdlines)
+                            is_claude = any("claude" in c for c in all_cmdlines)
+                            is_openai = any("openai" in c or "chatgpt" in c for c in all_cmdlines)
+
+                            agy_pid = next((p.get("pid", 0) for p in fg if any("agy" in arg or "antigravity" in arg for arg in p.get("cmdline", []))), 0)
 
                             tab_is_running = False
 
-                            if is_agy and fg_pid > 0:
+                            if is_agy and agy_pid > 0:
                                 has_ai_agent_in_window = True
-                                conv_id = get_agy_conv_id(fg_pid)
+                                conv_id = get_agy_conv_id(agy_pid)
                                 if conv_id and agy_conn:
                                     t_name, tab_is_running = get_agy_conv_data(conv_id, agy_conn)
                                     if is_active:
                                         active_agent = "antigravity"
                                         active_title = t_name
-                            elif is_codex or is_claude:
+                            elif is_codex or is_claude or is_openai:
                                 has_ai_agent_in_window = True
-                                agent_name = "codex" if is_codex else "claude"
+                                agent_name = "claude" if is_claude else ("openai" if is_openai else "codex")
                                 # Codex e Claude Code prefixam o título da aba com o spinner quando trabalhando
                                 if has_spinner(t_title):
                                     tab_is_running = True
