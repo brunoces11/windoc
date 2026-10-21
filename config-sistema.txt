@@ -1957,5 +1957,15 @@ Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
   - `hyprctl clients` validado em tempo real exibindo `\ue001 Desktop` para Antigravity e `\ue008 ⠦ Analisar foco das janelas` para Codex/OpenAI.
   - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
+104. PRESERVAÇÃO DO FOCO DE TECLADO AO PASSAR PELA DOCK
+Data: 21/10/2026. Estado: aplicado e validado em runtime.
+
+- Problema reproduzido: passar o ponteiro sobre a dock e voltar ao Kitty mantinha a janela ativa no Hyprland, mas o Kitty informava perda de foco de teclado. O foco só retornava com uma ação explícita de refoco.
+- Alteração: `dock/DockPanel.qml` solicita teclado com `WlrKeyboardFocus.OnDemand` somente enquanto `root.isEditMode` está ativo; no uso normal utiliza `WlrKeyboardFocus.None`. Os popups continuam gerenciando seu próprio foco.
+- Vínculos: os caminhos `~/.config/omarchy/plugins/rosakodu.dock` e `~/.config/omarchy/plugins/brunoma.windoc` foram validados apontando para `dock/`; ambos já são restaurados por `sync-symlinks.sh`.
+- Ativação: a gravação do arquivo e `rescanPlugins` não atualizaram o comportamento em execução; foi necessário `omarchy restart shell`. Confirmados novo processo, superfície da dock visível e IPC respondendo.
+- Validação: três passagens pela dock e retornos ao terminal preservaram o foco informado pelo Kitty. Modo de edição recebeu teclado e Escape devolveu o foco; nova passagem pela dock continuou preservando o foco. O seletor de widgets abriu com teclado, fechou com Escape e devolveu o foco. Janela e ponteiro originais restaurados ao final.
+- Logs: shell carregado sem erro QML observado; permanece o aviso de registro no portal já existente antes da alteração. Nenhuma mudança em `follow_mouse`, regras de janela ou configuração do Kitty.
+- Limite: validada a sequência reproduzida e as interações descritas; outras ocorrências intermitentes precisam de observação no uso diário. Nenhuma dependência adicionada.
 
 

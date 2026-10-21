@@ -3409,7 +3409,9 @@ Item {
                 // the dock is permanently on screen, so it stays on Top and
                 // lets fullscreen content win.
                 WlrLayershell.layer: root.autohide ? WlrLayer.Overlay : WlrLayer.Top
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+                // Normal dock interaction must leave keyboard focus with the app.
+                // Edit mode needs Escape; popup windows manage their own focus.
+                WlrLayershell.keyboardFocus: root.isEditMode ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                 exclusionMode: root.dockRevealed && !dockLayer.slidOut && !root.overlayMode ? ExclusionMode.Auto : ExclusionMode.Ignore
                 color: "transparent"
                 surfaceFormat.opaque: false
