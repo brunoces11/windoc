@@ -21,6 +21,7 @@ ICON_CODEX = "\ue00a"        # openai_black_vazado (U+E00A da BRUNOMA TYPEFACE)
 ICON_AGY = "\ue000"          # AGY_CLI (U+E000 da BRUNOMA TYPEFACE)
 ICON_OPENAI = "\ue00a"       # openai_black_vazado (U+E00A da BRUNOMA TYPEFACE)
 ICON_TERMINAL = "\ue795"     #  nf-dev-terminal
+ICON_CLOSE = "✕"            # Botão de fechar minimalista para abas
 
 # Ativação do ícone dinâmico por agente/modelo (False = ícone padrão , True = dinâmico 󰍲/✦/󰚩/󰘐)
 USE_DYNAMIC_ICONS = False
@@ -333,9 +334,9 @@ def draw_tab(
         else:
             spinner = ""
         if spinner:
-            formatted_title = f"{icon} {spinner}{session_title}"
+            formatted_title = f"{icon} {spinner}{session_title}  {ICON_CLOSE}"
         else:
-            formatted_title = f"{icon} {session_title}"
+            formatted_title = f"{icon} {session_title}  {ICON_CLOSE}"
 
         new_tab = tab._replace(title=formatted_title)
         return draw_tab_with_powerline(
@@ -355,4 +356,45 @@ def draw_title(data: dict) -> str:
         return ""
 
 
+def install_tab_close_click_handler():
+    """Habilita clique com botão esquerdo sobre o ícone ✕ para fechar a aba."""
+    try:
+        from kitty.tabs import TabManager, get_tab_being_dragged, set_tab_being_dragged
+        from kitty.fast_data_types import GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE
+
+        if getattr(TabManager, "_windoc_close_handler_installed", False):
+            return
+
+        _orig_handle = TabManager.handle_tab_bar_mouse
+
+        def _patched_handle_tab_bar_mouse(self, x: float, y: float, button: int, modifiers: int, action: int) -> None:
+            if button == GLFW_MOUSE_BUTTON_LEFT and action == GLFW_RELEASE:
+                drag_info = get_tab_being_dragged()
+                drag_started = drag_info[1] if drag_info else False
+                if not drag_started:
+                    tab_id = self.tab_bar.tab_id_at(int(x), int(y))
+                    if tab_id > 0:
+                        tab = self.tab_for_id(tab_id)
+                        if tab is not None:
+                            g = self.tab_bar.window_geometry
+                            col = (int(x) - g.left) // self.tab_bar.cell_width
+                            for te in self.tab_bar.tab_extents:
+                                if te.tab_id == tab_id:
+                                    # O botão '✕' e seu espaçamento ocupam as últimas 4 células da aba
+                                    if te.x.end - 4 <= col <= te.x.end:
+                                        set_tab_being_dragged()
+                                        self.recent_tab_bar_mouse_events.clear()
+                                        boss = get_boss()
+                                        if boss:
+                                            boss.close_tab(tab)
+                                        return
+            return _orig_handle(self, x, y, button, modifiers, action)
+
+        TabManager.handle_tab_bar_mouse = _patched_handle_tab_bar_mouse
+        TabManager._windoc_close_handler_installed = True
+    except Exception:
+        pass
+
+
 install_agy_title_animation()
+install_tab_close_click_handler()

@@ -2058,5 +2058,18 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+111. BOTÃO MINIMALISTA DE FECHAR (✕) NAS ABAS DO KITTY E INTEGRAÇÃO DE CLIQUE
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: renderização de botão de fechar minimalista `✕` nas abas do Kitty e interceptação de clique esquerdo para encerramento direto da aba clicada. Esclarecimento técnico sobre a arquitetura do Hyprland (fechamento nativo por clique do meio no groupbar).
+- Alterações:
+  1. `terminal/tab_bar.py`: adicionado glifo `✕` (`ICON_CLOSE`) no final do título formatado das abas (`draw_tab`). Criada a rotina `install_tab_close_click_handler()` que intercepta `TabManager.handle_tab_bar_mouse` para detectar clique com o botão esquerdo do mouse nas últimas células da aba onde o `✕` reside, despachando `boss.close_tab(tab)` diretamente.
+  2. `hyprland/bindings.lua`: sincronizado atalho `CTRL + SHIFT + Escape` para acionamento do btop.
+- Validação:
+  - Compilação do `tab_bar.py` via `py_compile` validada sem erros.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
+
 
 

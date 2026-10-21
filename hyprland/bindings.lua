@@ -29,6 +29,9 @@
 o.bind("SCROLL_LOCK", "Voxtype: start/stop recording", "voxtype record toggle")
 o.bind("PAUSE", "WinDoc TTS: Ler seleção / Interromper", "windoc-tts")
 
+-- Gerenciador de tarefas / Processos (equivalente ao Ctrl+Shift+Esc do Windows)
+o.bind("CTRL + SHIFT + Escape", "Gerenciador de Tarefas", { tui = "btop" })
+
 -- Amberol media controls and system-wide audio volume.
 o.bind("SUPER + F1", "Amberol: play/pause", "gdbus call --session --dest org.mpris.MediaPlayer2.io.bassi.Amberol --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.PlayPause")
 o.bind("SUPER + F2", "Diminuir volume", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")
