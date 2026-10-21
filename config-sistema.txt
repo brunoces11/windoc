@@ -2032,3 +2032,16 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - 26/26 testes em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+109. ESTABILIZAÇÃO DE FOCO DE TECLADO HYPRLAND / WAYLAND (CLICK-TO-FOCUS ROBUSTO)
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: resolução definitiva da instabilidade de foco em clientes Wayland (notadamente o Kitty apresentando cursor oco/outline e recusa de entrada de digitação após clique). Substituição da diretiva falha `follow_mouse = 0` pela especificação canônica de Click-to-Focus `follow_mouse = 2` com `mouse_refocus = true` no Hyprland.
+- Alterações:
+  1. `hyprland/input.lua`: atualizado `follow_mouse = 2` e adicionado `mouse_refocus = true`. O modo `2` desacopla a posição do ponteiro do foco do teclado (o movimento do cursor não rouba foco), garantindo a entrega mandatória do assento Wayland (`wl_keyboard::enter`) no exato momento do clique do mouse, eliminando o cursor cego/outline e a necessidade de forçar foco via Super+Tab.
+- Validação:
+  - `hyprctl reload` aplicado com sucesso em runtime.
+  - Consulta ativa via `hyprctl getoption input:follow_mouse` retornou `int: 2` (set: true) e `input:mouse_refocus` retornou `bool: true` (set: true).
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
+
