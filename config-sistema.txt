@@ -2044,4 +2044,19 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+110. INTEGRAÇÃO TEXT-TO-SPEECH (TTS) NEURAL VIA EDGE-TTS COM ATALHO PAUSE
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: disponibilização de leitor de tela/voz neural de alta fidelidade em português brasileiro (`pt-BR-AntonioNeural`) integrado globalmente no sistema e acessível via tecla de atalho `PAUSE` com comportamento toggle (reproduzir seleção / interromper).
+- Alterações:
+  1. `adotados/.local/bin/windoc-tts`: utilitário Python dotado de captura de texto selecionado no Wayland (`wl-paste --primary` e fallback para clipboard `wl-paste`), higienização de Markdown (omissão de blocos de código grandes, links e formatação pesada para fluidez auditiva), envio para síntese neural via `edge-playback` com arquivo temporário seguro e gerenciamento de PID para interrupção instantânea ao pressionar a tecla novamente.
+  2. `symlinks.tsv`: registrada a adoção de `~/.local/bin/windoc-tts` para versionamento centralizado no repositório.
+  3. `hyprland/bindings.lua`: adicionado vínculo global `o.bind("PAUSE", "WinDoc TTS: Ler seleção / Interromper", "windoc-tts")`, criando simetria com a tecla `SCROLL_LOCK` dedicada ao STT (Voxtype).
+- Validação:
+  - Execução validada no terminal Kitty com seleção primária e envio de notificações `notify-send`.
+  - `hyprctl reload` executado e tecla `PAUSE` verificada ativamente em `hyprctl binds`.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
+
 

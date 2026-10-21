@@ -27,6 +27,7 @@
 -- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")
 -- o.bind("SUPER + H", nil, "voxtype record toggle")
 o.bind("SCROLL_LOCK", "Voxtype: start/stop recording", "voxtype record toggle")
+o.bind("PAUSE", "WinDoc TTS: Ler seleção / Interromper", "windoc-tts")
 
 -- Amberol media controls and system-wide audio volume.
 o.bind("SUPER + F1", "Amberol: play/pause", "gdbus call --session --dest org.mpris.MediaPlayer2.io.bassi.Amberol --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.PlayPause")

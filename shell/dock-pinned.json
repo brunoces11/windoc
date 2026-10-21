@@ -11,6 +11,8 @@
     "kitty",
     "com.obsproject.Studio",
     "fontbase",
-    "gucharmap"
+    "gucharmap",
+    "org.omarchy.agent",
+    "com.microsoft.VSCode"
   ]
 }

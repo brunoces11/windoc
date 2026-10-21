@@ -57,7 +57,7 @@ hl.config({
   },
   group = {
     groupbar = {
-      font_family = "BRUNOMA TYPEFACE, monospace",
+      font_family = "BRUNOMA TYPEFACE",
     },
   },
 })

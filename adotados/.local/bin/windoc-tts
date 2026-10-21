@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""
+WinDoc Text-to-Speech (TTS) Toggle
+Ativado por tecla de atalho (ex: PAUSE).
+Lê o texto selecionado na tela (Kitty, navegador ou qualquer janela) usando Edge-TTS (pt-BR).
+Se já estiver falando, interrompe o áudio na hora (função toggle/stop).
+"""
+
+import os
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+
+PID_FILE = "/tmp/windoc-tts.pid"
+DEFAULT_VOICE = os.environ.get("WINDOC_TTS_VOICE", "pt-BR-AntonioNeural")
+
+
+def notify(title: str, message: str, timeout_ms: int = 2500):
+    try:
+        subprocess.run(
+            ["notify-send", "-a", "WinDoc TTS", "-t", str(timeout_ms), title, message],
+            check=False,
+        )
+    except Exception:
+        pass
+
+
+def stop_existing_playback() -> bool:
+    """Se já houver uma reprodução em andamento, interrompe e retorna True."""
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, "r") as f:
+                pid = int(f.read().strip())
+            # Verifica se o processo ainda existe
+            os.kill(pid, 0)
+            # Mata o grupo de processos para fechar edge-playback e o mpv filho
+            try:
+                pgid = os.getpgid(pid)
+                os.killpg(pgid, signal.SIGTERM)
+            except Exception:
+                os.kill(pid, signal.SIGTERM)
+            if os.path.exists(PID_FILE):
+                os.remove(PID_FILE)
+            notify("🔇 TTS", "Leitura interrompida", 1500)
+            return True
+        except (ProcessLookupError, ValueError):
+            # Processo já morreu, limpa o arquivo residual
+            if os.path.exists(PID_FILE):
+                os.remove(PID_FILE)
+        except Exception:
+            pass
+
+    # Garantia adicional: mata qualquer edge-playback ou mpv de TTS órfão
+    try:
+        res = subprocess.run(["pgrep", "-f", "edge-playback.*pt-BR"], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            subprocess.run(["pkill", "-f", "edge-playback.*pt-BR"], check=False)
+            notify("🔇 TTS", "Leitura interrompida", 1500)
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def get_selected_text() -> str:
+    """Captura o texto selecionado (Primary Selection) ou da área de transferência."""
+    # 1. Tenta a seleção primária (texto destacado com mouse/cursor no Kitty/Wayland)
+    try:
+        res = subprocess.run(
+            ["wl-paste", "--primary"],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout
+    except Exception:
+        pass
+
+    # 2. Se a seleção primária estiver vazia, tenta a área de transferência normal
+    try:
+        res = subprocess.run(
+            ["wl-paste"],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout
+    except Exception:
+        pass
+
+    return ""
+
+
+def clean_markdown_and_formatting(text: str) -> str:
+    """Limpa formatação Markdown pesada para tornar a leitura por voz mais natural."""
+    # Substitui blocos de código grandes por aviso breve para não ditar sintaxe
+    text = re.sub(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", " [bloco de código] ", text)
+    # Remove crases de código inline: `variavel` -> variavel
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    # Remove títulos markdown (# Titulo -> Titulo)
+    text = re.sub(r"^\s*#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Remove negrito e itálico: **texto** ou *texto* -> texto
+    text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)
+    # Remove marcadores de citação (> texto -> texto)
+    text = re.sub(r"^\s*>\s*", "", text, flags=re.MULTILINE)
+    # Transforma links [nome](url) apenas em nome
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    # Remove URLs longas isoladas (leitura de URLs caractere a caractere soa mal)
+    text = re.sub(r"https?://\S+", "link", text)
+    # Reduz linhas em branco consecutivas
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def main():
+    # Se já estiver falando, a tecla atua como Stop/Toggle
+    if stop_existing_playback():
+        sys.exit(0)
+
+    raw_text = get_selected_text()
+    if not raw_text or not raw_text.strip():
+        notify("TTS", "Nenhum texto selecionado", 2000)
+        sys.exit(0)
+
+    clean_text = clean_markdown_and_formatting(raw_text)
+    if not clean_text:
+        notify("TTS", "Texto vazio após limpeza", 2000)
+        sys.exit(0)
+
+    # Cria seu próprio grupo de processos para que SIGTERM feche o mpv filho
+    try:
+        os.setpgrp()
+    except Exception:
+        pass
+
+    # Registra PID atual
+    with open(PID_FILE, "w") as f:
+        f.write(str(os.getpid()))
+
+    # Notificação com prévia da leitura
+    preview = clean_text.replace("\n", " ")[:60]
+    if len(clean_text) > 60:
+        preview += "..."
+    notify("🔊 TTS (Edge)", preview, 3000)
+
+    # Cria arquivo temporário com o texto limpo para evitar problemas de limite de linha de comando
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as tf:
+        tf.write(clean_text)
+        temp_file_path = tf.name
+
+    try:
+        subprocess.run(
+            [
+                "edge-playback",
+                "--voice",
+                DEFAULT_VOICE,
+                "--file",
+                temp_file_path,
+            ],
+            check=False,
+        )
+    finally:
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
+        if os.path.exists(PID_FILE):
+            try:
+                with open(PID_FILE, "r") as f:
+                    stored_pid = int(f.read().strip())
+                if stored_pid == os.getpid():
+                    os.remove(PID_FILE)
+            except Exception:
+                pass
+
+
+if __name__ == "__main__":
+    main()
