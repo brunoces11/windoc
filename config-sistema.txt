@@ -1968,4 +1968,19 @@ Data: 21/10/2026. Estado: aplicado e validado em runtime.
 - Logs: shell carregado sem erro QML observado; permanece o aviso de registro no portal já existente antes da alteração. Nenhuma mudança em `follow_mouse`, regras de janela ou configuração do Kitty.
 - Limite: validada a sequência reproduzida e as interações descritas; outras ocorrências intermitentes precisam de observação no uso diário. Nenhuma dependência adicionada.
 
+105. ATUALIZAÇÃO DE ÍCONES DE MODELOS: AGY_CLI E OPENAI_BLACK_VAZADO
+Data: 21/10/2026. Estado: configurado, testado e validado em tempo real.
+
+- Ação: substituição do ícone do Antigravity pelo glifo limpo de contorno vetorial `AGY_CLI` (U+E000) e dos ícones da OpenAI/Codex pelo glifo `openai_black_vazado` (U+E00A da `BRUNOMA TYPEFACE`), preservando `CLAUDE_LARANJA` (U+E003) para Claude Code.
+- Alterações:
+  1. `terminal/agy-title-daemon.py`: mapeamento `AGENT_ICONS` atualizado (`antigravity: \ue000`, `codex: \ue00a`, `openai: \ue00a`, `claude: \ue003`, `default: \ue000`).
+  2. `terminal/tab_bar.py`: alinhados `ICON_AGY` para `\ue000` e `ICON_CODEX` / `ICON_OPENAI` para `\ue00a`.
+  3. `ANTIGRAVITY_TITLE.py`: atualizado para emitir o glifo `\ue000` no título nativo do Antigravity CLI.
+- Validação:
+  - `systemctl --user restart antigravity-tab-daemon.service` executado com sucesso e ativo em runtime.
+  - Sinais SIGUSR1 enviados ao Kitty recarregando configurações a quente.
+  - `hyprctl clients` validado em tempo real exibindo `\ue000 ⠼ HYPRLAND CUNTOM TABS` para Antigravity e `\ue003 Claude Code` para Claude.
+  - 26/26 testes de `dock/tests/test_dock_minimize.py` e 45/45 testes de `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
 

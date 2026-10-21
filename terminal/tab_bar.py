@@ -17,9 +17,9 @@ from kitty.tab_bar import (
 # Nerd Font glyphs & BRUNOMA TYPEFACE icons
 ICON_WINDOWS = "\U000f0372"  # 󰍲 nf-md-microsoft_windows
 ICON_CLAUDE = "\ue003"       # CLAUDE_LARANJA (U+E003 da BRUNOMA TYPEFACE)
-ICON_CODEX = "\ue008"        # codex-light (U+E008 da BRUNOMA TYPEFACE)
-ICON_AGY = "\ue001"          # AGY_COLOR (U+E001 da BRUNOMA TYPEFACE)
-ICON_OPENAI = "\ue008"       # codex-light (U+E008 da BRUNOMA TYPEFACE)
+ICON_CODEX = "\ue00a"        # openai_black_vazado (U+E00A da BRUNOMA TYPEFACE)
+ICON_AGY = "\ue000"          # AGY_CLI (U+E000 da BRUNOMA TYPEFACE)
+ICON_OPENAI = "\ue00a"       # openai_black_vazado (U+E00A da BRUNOMA TYPEFACE)
 ICON_TERMINAL = "\ue795"     #  nf-dev-terminal
 
 # Ativação do ícone dinâmico por agente/modelo (False = ícone padrão , True = dinâmico 󰍲/✦/󰚩/󰘐)
@@ -263,7 +263,8 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
 
     # 4. Codex
     is_codex = (
-        raw_title.startswith("\ue008")
+        raw_title.startswith("\ue00a")
+        or raw_title.startswith("\ue008")
         or "codex" in exe_lower
         or "codex" in cmd_lower
         or "codex" in t_lower
@@ -276,14 +277,15 @@ def resolve_smart_session(tab: TabBarData) -> tuple[str, str]:
 
     # 5. OpenAI / Whisper
     is_openai = (
-        raw_title.startswith("\ue008")
+        raw_title.startswith("\ue00a")
+        or raw_title.startswith("\ue008")
         or "openai" in t_lower
         or "chatgpt" in t_lower
         or "whisper" in t_lower
         or "gpt" in t_lower
     )
     if is_openai:
-        clean = raw_title.lstrip("✳\ue008").strip()
+        clean = raw_title.lstrip("✳\ue008\ue00a").strip()
         return ICON_OPENAI, clean_agent_topic(clean or "OpenAI")
 
     # 6. Terminal genérico (bash, zsh, utilitários CLI)

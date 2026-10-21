@@ -66,7 +66,7 @@ def record_active_session(payload):
 
 
 def format_title(payload):
-    icon = "\ue001"  # AGY_COLOR (U+E001 da BRUNOMA TYPEFACE)
+    icon = "\ue000"  # AGY_CLI (U+E000 da BRUNOMA TYPEFACE)
     if not isinstance(payload, dict):
         return f"{icon} Antigravity"
     record_active_session(payload)
@@ -146,7 +146,7 @@ def main():
         payload = json.load(sys.stdin)
         title = format_title(payload)
     except (ValueError, TypeError, OSError):
-        title = "\ue001 Antigravity"
+        title = "\ue000 Antigravity"
     print(title)
 
 

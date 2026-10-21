@@ -24,11 +24,11 @@ import time
 
 # Ícone dos modelos/agentes (personalizável por agente ou glifo vetorial da BRUNOMA TYPEFACE)
 AGENT_ICONS = {
-    "antigravity": "\ue001",  # AGY_COLOR (U+E001)
-    "codex": "\ue008",        # codex-light (U+E008)
-    "openai": "\ue008",       # codex-light (U+E008)
+    "antigravity": "\ue000",  # AGY_CLI (U+E000)
+    "codex": "\ue00a",        # openai_black_vazado (U+E00A)
+    "openai": "\ue00a",       # openai_black_vazado (U+E00A)
     "claude": "\ue003",       # CLAUDE_LARANJA (U+E003)
-    "default": "\ue001",      # Fallback padrão
+    "default": "\ue000",      # Fallback padrão (AGY_CLI)
 }
 
 SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
