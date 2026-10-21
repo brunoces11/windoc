@@ -2017,3 +2017,18 @@ Data: 21/10/2026. Estado: implementado, verificado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+108. AJUSTE CRITERIOSO DE PALETA COLR: CLAUDE LARANJA, OPENAI VERDE CLARO E ANTIGRAVITY LILÁS
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: redefinição criteriosa e cobertura completa das cores nativas na tabela OpenType COLR/CPAL da fonte `BRUNOMA TYPEFACE`: Claude Code fixado em Laranja (`#D97757`), OpenAI/Codex fixado em Verde Claro (`#25E28D`) e Antigravity atualizado para Lilás (`#BA78EB`), preservando o texto dos títulos em branco puro.
+- Alterações:
+  1. `assets/build_typeface.py`: paleta CPAL atualizada no índice 2 com Lilás vibrante `(186, 120, 235)` (`#BA78EB`). Cobertura expandida para registrar mapeamentos de camadas em todas as variantes de glifos (`CLAUDE_LARANJA`, `claude`, `openai_black_vazado`, `codex-light`, `chatgpt_verde`, `AGY_CLI`, `antigravity`, `AGY_COLOR`).
+  2. `assets/BRUNOMA_TYPEFACE.ttf`: fonte recompilada e cache do sistema recarregado via `fc-cache -f`.
+  3. `~/.config/fontconfig/conf.d/99-brunoma-typeface.conf`: adicionada regra explícita de binding forte para `BRUNOMA TYPEFACE` garantindo roteamento primário dos glifos PUA no pipeline do Fontconfig e Pango.
+- Validação:
+  - Teste em C++ com `PangoCairo` validou a renderização isolada de cada glifo: Claude Code em `(217, 119, 87)` (Laranja), OpenAI em `(37, 226, 141)` (Verde Claro) e Antigravity em `(186, 120, 235)` (Lilás).
+  - Teste em layout composto com texto validou 68 pixels Lilás e 349 pixels branco puro para Antigravity, 49 pixels Laranja e 349 pixels branco puro para Claude, e 55 pixels Verde Claro e 349 pixels branco puro para OpenAI.
+  - `systemctl --user restart antigravity-tab-daemon.service` reiniciado com sucesso.
+  - 26/26 testes em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+

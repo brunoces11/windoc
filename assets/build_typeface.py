@@ -76,15 +76,21 @@ def build():
         palette = [
             (217 / 255.0, 119 / 255.0, 87 / 255.0, 1.0),   # 0: Claude Laranja (#D97757)
             (37 / 255.0, 226 / 255.0, 141 / 255.0, 1.0),   # 1: OpenAI Verde Claro (#25E28D)
-            (49 / 255.0, 134 / 255.0, 255 / 255.0, 1.0),   # 2: Antigravity Azul Google (#3186FF)
+            (186 / 255.0, 120 / 255.0, 235 / 255.0, 1.0),  # 2: Antigravity Lilás (#BA78EB)
         ]
         color_glyphs = {}
-        if "CLAUDE_LARANJA" in tt["glyf"]:
-            color_glyphs["CLAUDE_LARANJA"] = [("CLAUDE_LARANJA", 0)]
-        if "openai_black_vazado" in tt["glyf"]:
-            color_glyphs["openai_black_vazado"] = [("openai_black_vazado", 1)]
-        if "AGY_CLI" in tt["glyf"]:
-            color_glyphs["AGY_CLI"] = [("AGY_CLI", 2)]
+        for glyph_name, color_idx in [
+            ("CLAUDE_LARANJA", 0),
+            ("claude", 0),
+            ("openai_black_vazado", 1),
+            ("codex-light", 1),
+            ("chatgpt_verde", 1),
+            ("AGY_CLI", 2),
+            ("antigravity", 2),
+            ("AGY_COLOR", 2),
+        ]:
+            if glyph_name in tt["glyf"]:
+                color_glyphs[glyph_name] = [(glyph_name, color_idx)]
 
         tt["CPAL"] = buildCPAL([palette])
         tt["COLR"] = buildCOLR(color_glyphs, version=0)
