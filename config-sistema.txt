@@ -2125,6 +2125,37 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+115. CONTROLE TOTAL DE PLAY/PAUSE VIA SUPER+F1 COM AUTOLOAD HEADLESS DO AMBEROL
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Contexto e Objetivo:
+  - Permitir acionar a reprodução e pausa de música a qualquer instante pelo atalho global Super + F1 (Hyprland), operando perfeitamente mesmo que o Amberol não tenha sido iniciado previamente pelo usuário.
+  - O Amberol opera 100% no modo Headless no sistema (sem abrir janela GTK, com motor silencioso em background), integrado com o player compacto na Windows Dock (`amberol-deskband`).
+  - Durante a reprodução, o ícone do player compacto na dock alterna dinamicamente para o equalizador animado em loop (3 barras coloridas com degradê deslizante). Ao pausar (Super + F1), a música é interrompida e o ícone reverte imediatamente ao estado standby com o círculo vazado e seta de play.
+- Alterações implementadas:
+  1. Criação do utilitário `adotados/.local/bin/windoc-amberol-toggle`:
+     - Rota rápida via D-Bus MPRIS (`org.mpris.MediaPlayer2.io.bassi.Amberol`):
+       * Se status for "Playing": aciona `Pause` instantaneamente (~4ms).
+       * Se status for "Paused": aciona `Play` instantaneamente (~4ms).
+       * Se status for "Stopped": aciona `Play` para iniciar a faixa carregada.
+     - Inicialização a frio (cold start headless):
+       * Se o Amberol não estiver em execução, recupera a pasta de música padrão persistida (`~/.config/amberol-deskband/config.json`) e dispara o motor via `setsid "$AMBEROL_BIN" "$DEFAULT_FOLDER"` com flag headless (`AMBEROL_DESKBAND_HEADLESS=1`).
+       * Monitora a disponibilidade do D-Bus e metadados da fila via loop assíncrono e dispara a reprodução via método `Play` assim que a fila é indexada, sem qualquer flash ou janela gráfica na tela.
+     - Proteção contra race condition com `flock` sem vazamento de descritores de arquivo para processos filhos (`200>&-`).
+  2. Registro e Sincronização de Symlinks (`symlinks.tsv` e `sync-symlinks.sh`):
+     - Adicionado mapeamento `~/.local/bin/windoc-amberol-toggle -> adotados/.local/bin/windoc-amberol-toggle`.
+     - Validado com `sync-symlinks.sh`.
+  3. Atalho Global no Hyprland (`hyprland/bindings.lua`):
+     - Atualizada a linha de `SUPER + F1` de chamada estática do D-Bus para o novo despachante inteligente:
+       `o.bind("SUPER + F1", "Amberol: play/pause", "windoc-amberol-toggle")`
+     - Recarregado em tempo real com `hyprctl reload`.
+- Validação técnica executada:
+  * Teste a quente (Amberol ativo): alternância instantânea entre Play e Pause validada em runtime com status D-Bus e feedback visual.
+  * Teste a frio (Amberol encerrado/morto): inicialização completa a frio, carregamento silencioso de 96 faixas e início automático de reprodução sem exibição de janelas (`hyprctl clients` com 0 ocorrências do Amberol).
+  * Testes de regressão: 26/26 em `dock/tests/test_dock_minimize.py`, 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` e testes do `amberol-deskband` (14/14 unitários + MPRIS runtime) todos aprovados com 100% de sucesso.
+
+
+
 
 
 

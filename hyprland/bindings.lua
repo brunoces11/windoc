@@ -33,7 +33,7 @@ o.bind("PAUSE", "WinDoc TTS: Ler seleção / Interromper", "windoc-tts")
 o.bind("CTRL + SHIFT + Escape", "Gerenciador de Tarefas", { tui = "btop" })
 
 -- Amberol media controls and system-wide audio volume.
-o.bind("SUPER + F1", "Amberol: play/pause", "gdbus call --session --dest org.mpris.MediaPlayer2.io.bassi.Amberol --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.PlayPause")
+o.bind("SUPER + F1", "Amberol: play/pause", "windoc-amberol-toggle")
 o.bind("SUPER + F2", "Diminuir volume", "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")
 o.bind("SUPER + F3", "Aumentar volume", "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+")
 o.bind("SUPER + F4", "Alternar mudo", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")

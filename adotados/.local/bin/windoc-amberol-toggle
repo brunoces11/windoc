@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# WinDoc Amberol Play/Pause Toggle
+# Acionado por hotkey (SUPER + F1) a qualquer momento.
+# Se o Amberol estiver tocando: pausa a música.
+# Se o Amberol estiver pausado ou parado: retoma a reprodução.
+# Se o Amberol não estiver em execução: inicializa em modo Headless com a pasta
+# padrão persistida e inicia a música imediatamente sem exibir janelas.
+# ==============================================================================
+
+set -euo pipefail
+
+MPRIS_DEST="org.mpris.MediaPlayer2.io.bassi.Amberol"
+MPRIS_PATH="/org/mpris/MediaPlayer2"
+MPRIS_PLAYER="org.mpris.MediaPlayer2.Player"
+
+LOCKFILE="${XDG_RUNTIME_DIR:-/tmp}/windoc-amberol-toggle.lock"
+exec 200>"$LOCKFILE"
+flock -n 200 || exit 0
+trap 'flock -u 200 2>/dev/null || true' EXIT
+
+# 1. Caminho ultra-rápido: checa o status de reprodução do Amberol via D-Bus MPRIS
+STATUS=$(busctl --user get-property "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" PlaybackStatus 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
+
+if [ "$STATUS" = "Playing" ]; then
+    busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Pause >/dev/null 2>&1
+    exit 0
+elif [ "$STATUS" = "Paused" ]; then
+    busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1
+    exit 0
+elif [ "$STATUS" = "Stopped" ]; then
+    # No estado Stopped, o método Play inicia a faixa atual da fila
+    busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1 || true
+    NEW_STATUS=$(busctl --user get-property "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" PlaybackStatus 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
+    if [ "$NEW_STATUS" = "Playing" ]; then
+        exit 0
+    fi
+fi
+
+# 2. Resolução da pasta de músicas padrão (configuração do WinDoc / Amberol Deskband)
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/amberol-deskband/config.json"
+DEFAULT_FOLDER=""
+if [ -f "$CONFIG_FILE" ]; then
+    DEFAULT_FOLDER=$(python3 -c "import json, os; d=json.load(open('$CONFIG_FILE')); f=d.get('default_folder',''); print(f if os.path.isdir(f) else '')" 2>/dev/null || true)
+fi
+if [ -z "$DEFAULT_FOLDER" ] && [ -d "$HOME/Music" ]; then
+    DEFAULT_FOLDER="$HOME/Music"
+fi
+
+# Se o processo do Amberol já estiver ativo (mas sem faixas ou fila vazia)
+if busctl --user status io.bassi.Amberol >/dev/null 2>&1 || pgrep -x "amberol" >/dev/null 2>&1; then
+    if [ -n "$DEFAULT_FOLDER" ] && [ -d "$DEFAULT_FOLDER" ]; then
+        URI=$(python3 -c "from pathlib import Path; print(Path('$DEFAULT_FOLDER').as_uri())" 2>/dev/null || true)
+        if [ -n "$URI" ]; then
+            busctl --user call io.bassi.Amberol /io/bassi/Amberol org.freedesktop.Application Open "asa{sv}" 1 "$URI" 0 >/dev/null 2>&1 || true
+        fi
+    fi
+    # Aguarda metadados estarem prontos e inicia reprodução
+    for i in {1..40}; do
+        META=$(busctl --user get-property "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Metadata 2>/dev/null || true)
+        if echo "$META" | grep -q "xesam:title"; then
+            busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1 || true
+            exit 0
+        fi
+        sleep 0.05
+    done
+    busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1 || true
+    exit 0
+fi
+
+# 3. Amberol não está em execução: inicia motor em modo headless silencioso
+AMBEROL_BIN="$HOME/.local/bin/amberol"
+if [ ! -x "$AMBEROL_BIN" ]; then
+    AMBEROL_BIN="/usr/bin/amberol"
+fi
+
+if [ -n "$DEFAULT_FOLDER" ] && [ -d "$DEFAULT_FOLDER" ]; then
+    setsid "$AMBEROL_BIN" "$DEFAULT_FOLDER" >/dev/null 2>&1 200>&- &
+else
+    setsid "$AMBEROL_BIN" >/dev/null 2>&1 200>&- &
+fi
+
+# Aguarda a interface D-Bus e os metadados da fila carregarem
+for i in {1..60}; do
+    META=$(busctl --user get-property "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Metadata 2>/dev/null || true)
+    if echo "$META" | grep -q "xesam:title"; then
+        busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1 || true
+        exit 0
+    fi
+    sleep 0.05
+done
+
+# Fallback: envia Play para garantir início da reprodução
+busctl --user call "$MPRIS_DEST" "$MPRIS_PATH" "$MPRIS_PLAYER" Play >/dev/null 2>&1 || true
+exit 0
