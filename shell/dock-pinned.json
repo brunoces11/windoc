@@ -12,7 +12,6 @@
     "com.obsproject.Studio",
     "fontbase",
     "gucharmap",
-    "org.omarchy.agent",
-    "com.microsoft.VSCode"
+    "org.omarchy.agent"
   ]
 }

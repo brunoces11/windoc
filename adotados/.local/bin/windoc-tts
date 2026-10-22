@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-WinDoc Text-to-Speech (TTS) Toggle
+WinDoc Text-to-Speech (TTS) Toggle com Overlay Visual (Estilo Voxtype)
 Ativado por tecla de atalho (ex: PAUSE).
 Lê o texto selecionado na tela (Kitty, navegador ou qualquer janela) usando Edge-TTS (pt-BR).
-Se já estiver falando, interrompe o áudio na hora (função toggle/stop).
+Exibe uma cápsula flutuante (OSD) no topo da tela com transição de estados:
+- Cinza + Spinner enquanto conecta e sintetiza.
+- Azul + Onda sonora enquanto reproduz.
+- Fecha automaticamente ao terminar ou ao apertar PAUSE novamente (Stop/Toggle).
 """
 
 import os
@@ -17,7 +20,7 @@ PID_FILE = "/tmp/windoc-tts.pid"
 DEFAULT_VOICE = os.environ.get("WINDOC_TTS_VOICE", "pt-BR-AntonioNeural")
 
 
-def notify(title: str, message: str, timeout_ms: int = 2500):
+def notify(title: str, message: str, timeout_ms: int = 2000):
     try:
         subprocess.run(
             ["notify-send", "-a", "WinDoc TTS", "-t", str(timeout_ms), title, message],
@@ -29,40 +32,42 @@ def notify(title: str, message: str, timeout_ms: int = 2500):
 
 def stop_existing_playback() -> bool:
     """Se já houver uma reprodução em andamento, interrompe e retorna True."""
+    stopped = False
     if os.path.exists(PID_FILE):
         try:
             with open(PID_FILE, "r") as f:
                 pid = int(f.read().strip())
-            # Verifica se o processo ainda existe
             os.kill(pid, 0)
-            # Mata o grupo de processos para fechar edge-playback e o mpv filho
             try:
                 pgid = os.getpgid(pid)
                 os.killpg(pgid, signal.SIGTERM)
             except Exception:
                 os.kill(pid, signal.SIGTERM)
-            if os.path.exists(PID_FILE):
-                os.remove(PID_FILE)
-            notify("🔇 TTS", "Leitura interrompida", 1500)
-            return True
+            stopped = True
         except (ProcessLookupError, ValueError):
-            # Processo já morreu, limpa o arquivo residual
-            if os.path.exists(PID_FILE):
-                os.remove(PID_FILE)
+            pass
         except Exception:
             pass
+        finally:
+            if os.path.exists(PID_FILE):
+                try:
+                    os.remove(PID_FILE)
+                except Exception:
+                    pass
 
-    # Garantia adicional: mata qualquer edge-playback ou mpv de TTS órfão
+    # Garante encerramento de processos filhos e OSD
     try:
-        res = subprocess.run(["pgrep", "-f", "edge-playback.*pt-BR"], capture_output=True, text=True)
+        subprocess.run(["pkill", "-f", "windoc-tts-osd"], check=False)
+        res = subprocess.run(["pgrep", "-f", "edge-tts.*pt-BR"], capture_output=True, text=True)
         if res.returncode == 0 and res.stdout.strip():
-            subprocess.run(["pkill", "-f", "edge-playback.*pt-BR"], check=False)
-            notify("🔇 TTS", "Leitura interrompida", 1500)
-            return True
+            subprocess.run(["pkill", "-f", "edge-tts.*pt-BR"], check=False)
+            stopped = True
     except Exception:
         pass
 
-    return False
+    if stopped:
+        notify("🔇 TTS", "Leitura interrompida", 1200)
+    return stopped
 
 
 def get_selected_text() -> str:
@@ -98,28 +103,19 @@ def get_selected_text() -> str:
 
 def clean_markdown_and_formatting(text: str) -> str:
     """Limpa formatação Markdown pesada para tornar a leitura por voz mais natural."""
-    # Substitui blocos de código grandes por aviso breve para não ditar sintaxe
     text = re.sub(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", " [bloco de código] ", text)
-    # Remove crases de código inline: `variavel` -> variavel
     text = re.sub(r"`([^`]+)`", r"\1", text)
-    # Remove títulos markdown (# Titulo -> Titulo)
     text = re.sub(r"^\s*#{1,6}\s+", "", text, flags=re.MULTILINE)
-    # Remove negrito e itálico: **texto** ou *texto* -> texto
     text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
     text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)
-    # Remove marcadores de citação (> texto -> texto)
     text = re.sub(r"^\s*>\s*", "", text, flags=re.MULTILINE)
-    # Transforma links [nome](url) apenas em nome
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-    # Remove URLs longas isoladas (leitura de URLs caractere a caractere soa mal)
     text = re.sub(r"https?://\S+", "link", text)
-    # Reduz linhas em branco consecutivas
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
 
 def main():
-    # Se já estiver falando, a tecla atua como Stop/Toggle
     if stop_existing_playback():
         sys.exit(0)
 
@@ -133,44 +129,94 @@ def main():
         notify("TTS", "Texto vazio após limpeza", 2000)
         sys.exit(0)
 
-    # Cria seu próprio grupo de processos para que SIGTERM feche o mpv filho
+    # Cria seu próprio grupo de processos para que SIGTERM feche filhos e OSD
     try:
         os.setpgrp()
     except Exception:
         pass
 
-    # Registra PID atual
     with open(PID_FILE, "w") as f:
         f.write(str(os.getpid()))
 
-    # Notificação com prévia da leitura
-    preview = clean_text.replace("\n", " ")[:60]
-    if len(clean_text) > 60:
-        preview += "..."
-    notify("🔊 TTS (Edge)", preview, 3000)
+    # Inicia o overlay visual (OSD) no milissegundo 0 (Estado 1: Cinza + Conectando)
+    osd_proc = None
+    try:
+        osd_proc = subprocess.Popen(
+            ["windoc-tts-osd"],
+            stdin=subprocess.PIPE,
+            text=True,
+        )
+    except Exception:
+        osd_proc = None
 
-    # Cria arquivo temporário com o texto limpo para evitar problemas de limite de linha de comando
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as tf:
-        tf.write(clean_text)
-        temp_file_path = tf.name
+    temp_text_path = None
+    temp_mp3_path = None
 
     try:
-        subprocess.run(
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as tf:
+            tf.write(clean_text)
+            temp_text_path = tf.name
+
+        with tempfile.NamedTemporaryFile("wb", suffix=".mp3", delete=False) as mf:
+            temp_mp3_path = mf.name
+
+        # Fase de Síntese Neural na Nuvem
+        res = subprocess.run(
             [
-                "edge-playback",
-                "--voice",
-                DEFAULT_VOICE,
-                "--file",
-                temp_file_path,
+                "edge-tts",
+                f"--voice={DEFAULT_VOICE}",
+                f"--file={temp_text_path}",
+                f"--write-media={temp_mp3_path}",
             ],
             check=False,
         )
+
+        if res.returncode == 0 and os.path.exists(temp_mp3_path) and os.path.getsize(temp_mp3_path) > 0:
+            # Transiciona o OSD para o Estado 2 (Azul + Onda Sonora)
+            if osd_proc and osd_proc.stdin:
+                try:
+                    preview = clean_text.replace("\n", " ")[:36]
+                    if len(clean_text) > 36:
+                        preview += "..."
+                    osd_proc.stdin.write(f"PLAYING:{preview}\n")
+                    osd_proc.stdin.flush()
+                except Exception:
+                    pass
+
+            # Reproduz o áudio via mpv
+            subprocess.run(
+                [
+                    "mpv",
+                    "--msg-level=all=error",
+                    "--no-terminal",
+                    temp_mp3_path,
+                ],
+                check=False,
+            )
     finally:
-        if os.path.exists(temp_file_path):
+        # Encerra o OSD
+        if osd_proc:
             try:
-                os.remove(temp_file_path)
+                if osd_proc.stdin:
+                    osd_proc.stdin.write("QUIT\n")
+                    osd_proc.stdin.flush()
+                osd_proc.terminate()
+                osd_proc.wait(timeout=0.4)
             except Exception:
                 pass
+
+        if temp_text_path and os.path.exists(temp_text_path):
+            try:
+                os.remove(temp_text_path)
+            except Exception:
+                pass
+
+        if temp_mp3_path and os.path.exists(temp_mp3_path):
+            try:
+                os.remove(temp_mp3_path)
+            except Exception:
+                pass
+
         if os.path.exists(PID_FILE):
             try:
                 with open(PID_FILE, "r") as f:

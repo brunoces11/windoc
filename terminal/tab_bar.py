@@ -34,7 +34,7 @@ def clean_agent_topic(topic: str, max_chars: int = 40) -> str:
     if not topic:
         return "Chat"
     t = topic.strip()
-    while t and (t[0] in AGY_FRAMES or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈") or ("\ue000" <= t[0] <= "\ue00a")):
+    while t and (t[0] in AGY_FRAMES or t.startswith("✳️") or t.startswith("✦") or t.startswith("◈") or ("\ue000" <= t[0] <= "\ue00a") or t[0] in " ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"):
         if t.startswith("✳️"):
             t = t[2:].strip()
         else:
@@ -88,6 +88,15 @@ def get_tab_process_info(tab_id: int):
         pid = 0
         procs = tab.active_window.child.foreground_processes
         if procs:
+            for p in reversed(procs):
+                p_cmd = " ".join(p.get("cmdline", []))
+                p_cmd_lower = p_cmd.lower()
+                arg0 = (p.get("cmdline") or [""])[0].lower().split("/")[-1]
+                if arg0 in ("agy", "antigravity", "codex", "claude", "claude-code") or any(
+                    k in p_cmd_lower for k in ("antigravity", "/agy", "/codex", "/claude")
+                ):
+                    return exe, p_cmd, p.get("pid", 0)
+
             last_p = procs[-1]
             if last_p and last_p.get("cmdline"):
                 cmdline = " ".join(last_p["cmdline"])
@@ -325,7 +334,12 @@ def draw_tab(
     try:
         agent_icon, session_title = resolve_smart_session(tab)
         icon = agent_icon if USE_DYNAMIC_ICONS else ICON_TERMINAL
-        is_running = (agent_icon == ICON_AGY and is_agy_tab_running(tab)) or is_tab_spinning(tab)
+        if agent_icon == ICON_AGY:
+            is_running = is_agy_tab_running(tab)
+        elif agent_icon in (ICON_CLAUDE, ICON_CODEX, ICON_OPENAI):
+            is_running = is_tab_spinning(tab)
+        else:
+            is_running = False
         if is_running:
             boss = get_boss()
             state = getattr(boss, "_windoc_agy_title_animation", None) if boss else None

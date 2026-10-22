@@ -134,7 +134,7 @@ def main():
             agy_conn = None
 
     last_topology_scan = 0.0
-    topology_interval = 1.0  # Escaneia abas das janelas a cada 1 segundo
+    topology_interval = 0.3  # Escaneia abas das janelas a cada 300ms
     spinner_idx = 0
 
     # Estado por socket: {
@@ -183,7 +183,8 @@ def main():
                         active_pts = None
                         active_title = ""
                         active_agent = "default"
-                        active_is_natively_spinning = False
+                        active_tab_is_running = False
+                        tabs_to_clean = []
 
                         for tab in os_win.get("tabs", []):
                             is_active = tab.get("is_active", False)
@@ -205,6 +206,11 @@ def main():
                             agy_pid = next((p.get("pid", 0) for p in fg if any("agy" in arg or "antigravity" in arg for arg in p.get("cmdline", []))), 0)
 
                             tab_is_running = False
+                            tab_pts = None
+                            try:
+                                tab_pts = os.readlink(f"/proc/{w_pid}/fd/0")
+                            except OSError:
+                                pass
 
                             if is_agy and agy_pid > 0:
                                 has_ai_agent_in_window = True
@@ -214,29 +220,41 @@ def main():
                                     if is_active:
                                         active_agent = "antigravity"
                                         active_title = t_name
+                                        active_tab_is_running = tab_is_running
                             elif is_codex or is_claude or is_openai:
                                 has_ai_agent_in_window = True
                                 agent_name = "claude" if is_claude else ("openai" if is_openai else "codex")
                                 # Codex e Claude Code prefixam o título da aba com o spinner quando trabalhando
                                 if has_spinner(t_title):
                                     tab_is_running = True
-                                    if is_active:
-                                        active_is_natively_spinning = True
 
                                 if is_active:
                                     active_agent = agent_name
                                     active_title = clean_title(t_title)
+                                    active_tab_is_running = tab_is_running
+                            else:
+                                if is_active:
+                                    active_title = clean_title(t_title)
+                                    active_tab_is_running = False
 
                             if tab_is_running:
                                 has_any_running = True
 
+                            # Se uma aba de IA não está em execução mas ficou com spinner residual no título nativo,
+                            # limpa o pts dessa aba para remover qualquer frame falso herdado
+                            if not tab_is_running and has_spinner(t_title) and tab_pts:
+                                tab_agent = "antigravity" if is_agy else ("claude" if is_claude else ("openai" if is_openai else ("codex" if is_codex else "default")))
+                                tab_icon = AGENT_ICONS.get(tab_agent, AGENT_ICONS["default"])
+                                tabs_to_clean.append((tab_pts, format_display_title(tab_icon, t_title, spinner_frame=None, max_len=40)))
+
                             if is_active:
                                 if not active_title:
                                     active_title = clean_title(t_title)
-                                try:
-                                    active_pts = os.readlink(f"/proc/{w_pid}/fd/0")
-                                except OSError:
-                                    pass
+                                active_pts = tab_pts
+
+                        # Limpa qualquer aba inativa que tenha ficado com spinner residual
+                        for c_pts, c_title in tabs_to_clean:
+                            set_terminal_title(c_pts, c_title)
 
                         # Se esta janela Kitty não possui nenhum agente de IA (ex: terminal bash puro), ignora
                         if not has_ai_agent_in_window:
@@ -249,7 +267,7 @@ def main():
                             "active_pts": active_pts,
                             "active_title": active_title or "Chat",
                             "active_agent": active_agent if active_title else prev.get("active_agent", "default"),
-                            "active_is_natively_spinning": active_is_natively_spinning,
+                            "active_tab_is_running": active_tab_is_running,
                             "has_any_running": has_any_running,
                             "last_set_title": prev.get("last_set_title", ""),
                             "we_are_animating": prev.get("we_are_animating", False),
@@ -269,16 +287,16 @@ def main():
                 title = st.get("active_title", "Chat")
                 agent = st.get("active_agent", "default")
                 icon = AGENT_ICONS.get(agent, AGENT_ICONS["default"])
-                has_running = st.get("has_any_running", False)
+                active_is_running = st.get("active_tab_is_running", False)
 
-                if has_running:
+                if active_is_running:
                     frame = SPINNER_FRAMES[spinner_idx % len(SPINNER_FRAMES)]
                     full_title = format_display_title(icon, title, spinner_frame=frame, max_len=40)
                     set_terminal_title(pts, full_title)
                     st["last_set_title"] = full_title
                     st["we_are_animating"] = True
                 else:
-                    # Todos os processos da janela estão ociosos
+                    # A aba ativa está ociosa/standby (sem spinner no terminal nem no Hyprland)
                     idle_title = format_display_title(icon, title, spinner_frame=None, max_len=40)
                     if st.get("we_are_animating") or st.get("last_set_title") != idle_title:
                         set_terminal_title(pts, idle_title)

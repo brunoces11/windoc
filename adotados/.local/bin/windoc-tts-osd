@@ -1,0 +1,189 @@
+#!/usr/bin/env -S LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3
+"""
+WinDoc TTS OSD - Overlay Visual em Cápsula Flutuante (Estilo Voxtype)
+Exibe feedback instantâneo no topo da tela para Text-to-Speech:
+1. Conectando/Sintetizando: Ícone Cinza + Spinner + "Conectando à IA e gerando voz..."
+2. Tocando: Ícone Azul + Onda Sonora Animada + "Lendo seleção..."
+3. Finalizado/Interrompido: Fecha suavemente e limpa a tela.
+"""
+
+import os
+import sys
+
+# Garante o carregamento do libgtk4-layer-shell antes da inicialização do Wayland
+if "libgtk4-layer-shell.so" not in os.environ.get("LD_PRELOAD", ""):
+    env = dict(os.environ)
+    env["LD_PRELOAD"] = "/usr/lib/libgtk4-layer-shell.so"
+    os.execvpe(sys.executable, [sys.executable] + sys.argv, env)
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gtk4LayerShell, GLib, Gdk
+
+WAVE_FRAMES = [" ▂▃▅▃ ", " ▃▅▆▅ ", " ▅▆▇▆ ", " ▃▅▆▅ ", " ▂▃▅▃ ", "  ▂▃▂ "]
+
+CSS = """
+window {
+    background-color: transparent;
+}
+.tts-pill {
+    background-color: rgba(22, 26, 33, 0.94);
+    border: 1px solid rgba(129, 161, 193, 0.4);
+    border-radius: 24px;
+    padding: 7px 18px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+.tts-icon-gray {
+    color: #7b889b;
+    font-size: 16px;
+    margin-right: 4px;
+}
+.tts-icon-blue {
+    color: #81a1c1;
+    font-size: 16px;
+    margin-right: 4px;
+}
+.tts-text {
+    color: #d8dee9;
+    font-family: 'BRUNOMA TYPEFACE', 'JetBrainsMono Nerd Font', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+}
+.tts-wave {
+    color: #81a1c1;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 6px;
+}
+.tts-hint {
+    color: #5e6c82;
+    font-family: 'BRUNOMA TYPEFACE', sans-serif;
+    font-size: 11px;
+    margin-left: 8px;
+}
+"""
+
+
+class TtsOsdApp(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="org.windoc.tts.osd")
+        self.win = None
+        self.icon_label = None
+        self.spinner = None
+        self.wave_label = None
+        self.status_label = None
+        self.hint_label = None
+        self.wave_timer_id = None
+        self.wave_idx = 0
+
+    def do_activate(self):
+        self.win = Gtk.ApplicationWindow(application=self)
+        Gtk4LayerShell.init_for_window(self.win)
+        Gtk4LayerShell.set_layer(self.win, Gtk4LayerShell.Layer.OVERLAY)
+        Gtk4LayerShell.set_anchor(self.win, Gtk4LayerShell.Edge.TOP, True)
+        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 28)
+        Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.NONE)
+
+        # Carrega o estilo CSS
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.add_css_class("tts-pill")
+
+        # Ícone de alto-falante/volume
+        self.icon_label = Gtk.Label(label="󰔊")
+        self.icon_label.add_css_class("tts-icon-gray")
+
+        # Spinner de carregamento
+        self.spinner = Gtk.Spinner()
+        self.spinner.start()
+
+        # Onda sonora animada (inicialmente oculta)
+        self.wave_label = Gtk.Label(label=WAVE_FRAMES[0])
+        self.wave_label.add_css_class("tts-wave")
+        self.wave_label.set_visible(False)
+
+        # Texto de status
+        self.status_label = Gtk.Label(label="Conectando à IA e gerando voz...")
+        self.status_label.add_css_class("tts-text")
+
+        # Dica de interrupção
+        self.hint_label = Gtk.Label(label="• Pause p/ parar")
+        self.hint_label.add_css_class("tts-hint")
+
+        box.append(self.icon_label)
+        box.append(self.spinner)
+        box.append(self.wave_label)
+        box.append(self.status_label)
+        box.append(self.hint_label)
+
+        self.win.set_child(box)
+        self.win.present()
+
+        # Escuta comandos via stdin (IPC leve)
+        GLib.io_add_watch(
+            sys.stdin.fileno(),
+            GLib.IOCondition.IN | GLib.IOCondition.HUP,
+            self.on_stdin_event,
+        )
+
+    def on_stdin_event(self, source, condition):
+        if condition & GLib.IOCondition.HUP:
+            self.quit()
+            return False
+
+        line = sys.stdin.readline()
+        if not line:
+            self.quit()
+            return False
+
+        cmd = line.strip()
+        if cmd.startswith("PLAYING"):
+            parts = cmd.split(":", 1)
+            preview = parts[1] if len(parts) > 1 and parts[1] else "Lendo seleção..."
+            self.transition_to_playing(preview)
+        elif cmd in ("QUIT", "STOP", "EXIT"):
+            self.quit()
+            return False
+
+        return True
+
+    def transition_to_playing(self, preview_text: str):
+        # 1. Atualiza ícone: vira azul
+        self.icon_label.remove_css_class("tts-icon-gray")
+        self.icon_label.add_css_class("tts-icon-blue")
+        self.icon_label.set_text("󰕾")
+
+        # 2. Esconde o spinner e ativa a onda sonora
+        self.spinner.stop()
+        self.spinner.set_visible(False)
+        self.wave_label.set_visible(True)
+
+        # 3. Atualiza texto
+        self.status_label.set_text(preview_text)
+
+        # 4. Inicia animação da onda sonora
+        if self.wave_timer_id is None:
+            self.wave_timer_id = GLib.timeout_add(130, self.animate_wave)
+
+    def animate_wave(self):
+        self.wave_idx = (self.wave_idx + 1) % len(WAVE_FRAMES)
+        self.wave_label.set_text(WAVE_FRAMES[self.wave_idx])
+        return True
+
+
+def main():
+    app = TtsOsdApp()
+    app.run([])
+
+
+if __name__ == "__main__":
+    main()

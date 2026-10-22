@@ -22,3 +22,5 @@
 ~/.local/share/dbus-1/services/io.bassi.Amberol.service	adotados/.local/share/dbus-1/services/io.bassi.Amberol.service
 
 ~/.local/bin/windoc-tts	adotados/.local/bin/windoc-tts
+
+~/.local/bin/windoc-tts-osd	adotados/.local/bin/windoc-tts-osd

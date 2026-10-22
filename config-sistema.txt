@@ -2070,6 +2070,21 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+112. IMPLEMENTAÇÃO DE OVERLAY VISUAL FLUTUANTE (OSD) EM CÁPSULA PARA TEXT-TO-SPEECH
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: criação de interface visual flutuante (OSD) no topo da tela com transição dinâmica de dois estados (Cinza ➔ Azul ➔ Some) para feedback visual imediato ao acionar o Text-to-Speech via tecla Pause, criando paridade com o OSD do Voxtype.
+- Alterações:
+  1. `adotados/.local/bin/windoc-tts-osd`: aplicativo GTK4 Layer Shell em Python que renderiza uma cápsula translúcida no topo da tela (`top-center`, `OVERLAY`, `KeyboardMode.NONE`) sem roubar foco. No estado 1 (conexão/síntese neural) exibe ícone de alto-falante cinza `󰔊` acompanhado de `Gtk.Spinner`. No estado 2 (reprodução de áudio) transiciona o ícone para azul `#81a1c1` `󰕾` com onda sonora animada em tempo real e texto da seleção. O processo encerra imediatamente via IPC leve por stdin (`QUIT` ou EOF).
+  2. `adotados/.local/bin/windoc-tts`: orquestrador atualizado para instanciar o OSD em background no milissegundo zero, realizar download via `edge-tts` com feedback visual imediato, transicionar o OSD para `PLAYING` ao iniciar o `mpv`, e garantir limpeza de processos órfãos e remoção segura de arquivos temporários.
+  3. `symlinks.tsv`: registrada a adoção de `~/.local/bin/windoc-tts-osd`.
+- Validação:
+  - Teste de ciclo de vida completo do OSD (Conectando ➔ Lendo ➔ Finalizado) executado com sucesso.
+  - Teste de cancelamento/interrupção toggle via tecla Pause validado, com encerramento imediato do áudio e fechamento suave da cápsula.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
+
 
 
 
