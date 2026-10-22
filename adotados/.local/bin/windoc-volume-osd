@@ -1,0 +1,307 @@
+#!/usr/bin/env -S LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3
+"""
+WinDoc Volume OSD - Overlay Visual em Cápsula Flutuante Minimalista
+Exibe feedback instantâneo de volume e mute no topo da tela:
+- Posicionado ~150px abaixo da borda superior (abaixo do TTS OSD para nunca sobrepor).
+- Ícone dinâmico de alto-falante (alto, médio, baixo, mudo).
+- Barra de progresso com transição de cor suave e indicador circular (bolinha).
+- Animação fluida de progressão (aumento, diminuição ou deslizamento até zero no mute).
+- Desativação automática após inatividade via timer suave.
+"""
+
+import os
+import sys
+import json
+import socket
+import math
+import signal
+
+if "libgtk4-layer-shell.so" not in os.environ.get("LD_PRELOAD", ""):
+    env = dict(os.environ)
+    env["LD_PRELOAD"] = "/usr/lib/libgtk4-layer-shell.so"
+    os.execvpe(sys.executable, [sys.executable] + sys.argv, env)
+
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gtk4LayerShell, GLib, Gdk
+
+SOCKET_PATH = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "windoc-volume-osd.sock")
+
+CSS = """
+window {
+    background-color: transparent;
+}
+.volume-pill {
+    background-color: rgba(22, 26, 33, 0.94);
+    border: 1px solid rgba(129, 161, 193, 0.40);
+    border-radius: 26px;
+    padding: 8px 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+}
+.volume-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+.volume-icon-normal {
+    color: #81a1c1;
+}
+.volume-icon-muted {
+    color: #bf616a;
+}
+.volume-percent {
+    color: #d8dee9;
+    font-family: 'BRUNOMA TYPEFACE', 'JetBrainsMono Nerd Font', monospace, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin-left: 12px;
+    min-width: 40px;
+}
+"""
+
+
+class VolumeOsdApp(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="org.windoc.volume.osd")
+        self.win = None
+        self.icon_label = None
+        self.percent_label = None
+        self.draw_area = None
+
+        self.current_val = 0.50
+        self.target_val = 0.50
+        self.is_muted = False
+        self.anim_timer_id = None
+        self.hide_timer_id = None
+        self.sock = None
+
+    def do_activate(self):
+        self.win = Gtk.ApplicationWindow(application=self)
+        Gtk4LayerShell.init_for_window(self.win)
+        Gtk4LayerShell.set_layer(self.win, Gtk4LayerShell.Layer.OVERLAY)
+        Gtk4LayerShell.set_anchor(self.win, Gtk4LayerShell.Edge.TOP, True)
+        # Posicionado a 150px do topo (TTS fica a 78px + altura ~50px, garantindo zero sobreposição)
+        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 150)
+        Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.NONE)
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        box.add_css_class("volume-pill")
+
+        self.icon_label = Gtk.Label(label="󰕾")
+        self.icon_label.add_css_class("volume-icon")
+        self.icon_label.add_css_class("volume-icon-normal")
+
+        self.draw_area = Gtk.DrawingArea()
+        self.draw_area.set_content_width(200)
+        self.draw_area.set_content_height(26)
+        self.draw_area.set_draw_func(self.on_draw)
+
+        self.percent_label = Gtk.Label(label="50%")
+        self.percent_label.add_css_class("volume-percent")
+
+        box.append(self.icon_label)
+        box.append(self.draw_area)
+        box.append(self.percent_label)
+
+        self.win.set_child(box)
+        self.win.present()
+
+        # Configura o socket UNIX DGRAM
+        if os.path.exists(SOCKET_PATH):
+            try:
+                os.remove(SOCKET_PATH)
+            except OSError:
+                pass
+
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.sock.bind(SOCKET_PATH)
+        self.sock.setblocking(False)
+
+        GLib.io_add_watch(self.sock.fileno(), GLib.IOCondition.IN, self.on_socket_event)
+
+        # Timer inicial de segurança caso nenhum pacote chegue
+        self.reset_hide_timer(2000)
+
+    def on_socket_event(self, source, condition):
+        try:
+            data, _ = self.sock.recvfrom(4096)
+            if data:
+                payload = json.loads(data.decode("utf-8"))
+                self.handle_payload(payload)
+        except Exception as e:
+            print("OSD Socket error:", e, file=sys.stderr)
+        return True
+
+    def handle_payload(self, p: dict):
+        action = p.get("action", "change")
+        old_vol = max(0.0, min(1.0, float(p.get("old_vol", self.current_val))))
+        new_vol = max(0.0, min(1.0, float(p.get("new_vol", old_vol))))
+        muted = bool(p.get("muted", False))
+
+        if action == "mute":
+            # Começa no ponto onde o volume estava e arrasta a barra toda para a esquerda
+            if self.anim_timer_id is None:
+                self.current_val = old_vol
+            self.target_val = 0.0
+            self.is_muted = True
+            self.update_labels(0.0, True)
+            self.start_animation()
+            # Ao concluir o deslizamento para a esquerda, aguarda brevemente e some
+            self.reset_hide_timer(1100)
+
+        elif action == "unmute":
+            # Começa no zero e volta deslizando para o volume original que estava
+            self.current_val = 0.0
+            self.target_val = new_vol
+            self.is_muted = False
+            self.update_labels(new_vol, False)
+            self.start_animation()
+            self.reset_hide_timer(1700)
+
+        else: # change (up / down)
+            if self.anim_timer_id is None:
+                self.current_val = old_vol
+            self.target_val = new_vol
+            self.is_muted = muted
+            self.update_labels(new_vol, muted)
+            self.start_animation()
+            self.reset_hide_timer(1700)
+
+    def start_animation(self):
+        if self.anim_timer_id is None:
+            self.anim_timer_id = GLib.timeout_add(16, self.on_anim_tick)
+
+    def reset_hide_timer(self, ms: int):
+        if self.hide_timer_id is not None:
+            GLib.source_remove(self.hide_timer_id)
+        self.hide_timer_id = GLib.timeout_add(ms, self.on_hide_timeout)
+
+    def on_hide_timeout(self):
+        self.cleanup()
+        self.quit()
+        return False
+
+    def update_labels(self, target_val: float, is_muted: bool):
+        val = int(round(target_val * 100))
+        if is_muted:
+            self.icon_label.remove_css_class("volume-icon-normal")
+            self.icon_label.add_css_class("volume-icon-muted")
+            self.icon_label.set_text("󰝟")
+            self.percent_label.set_text("Mudo")
+        else:
+            self.icon_label.remove_css_class("volume-icon-muted")
+            self.icon_label.add_css_class("volume-icon-normal")
+            if val > 65:
+                self.icon_label.set_text("󰕾")
+            elif val > 30:
+                self.icon_label.set_text("󰖀")
+            elif val > 0:
+                self.icon_label.set_text("󰕿")
+            else:
+                self.icon_label.set_text("󰝟")
+            self.percent_label.set_text(f"{val}%")
+
+    def on_anim_tick(self):
+        diff = self.target_val - self.current_val
+        if abs(diff) < 0.003:
+            self.current_val = self.target_val
+            self.draw_area.queue_draw()
+            self.anim_timer_id = None
+            return False
+        # Interpolação suave a 60 FPS
+        self.current_val += diff * 0.28
+        self.draw_area.queue_draw()
+        return True
+
+    def on_draw(self, area, cr, width, height):
+        padding_x = 7
+        track_w = width - (2 * padding_x)
+        track_h = 7
+        track_y = (height - track_h) / 2
+        track_r = track_h / 2
+
+        # 1. Barra de fundo (trilho sutil)
+        self.rounded_rect(cr, padding_x, track_y, track_w, track_h, track_r)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.16)
+        cr.fill()
+
+        # 2. Barra de progresso preenchida com transição de cor
+        prog = max(0.0, min(1.0, self.current_val))
+        fill_w = track_w * prog
+        if fill_w > 0:
+            self.rounded_rect(cr, padding_x, track_y, fill_w, track_h, track_r)
+            if self.is_muted:
+                cr.set_source_rgba(0.75, 0.38, 0.42, 0.95)  # #bf616a (vermelho suave)
+            else:
+                if prog < 0.35:
+                    cr.set_source_rgba(0.53, 0.75, 0.82, 0.95)  # #88c0d0 (azul gelo)
+                elif prog < 0.75:
+                    cr.set_source_rgba(0.51, 0.63, 0.76, 0.95)  # #81a1c1 (azul nórdico)
+                else:
+                    cr.set_source_rgba(0.90, 0.71, 0.40, 0.95)  # #e5b567 (dourado/accent)
+            cr.fill()
+
+        # 3. Bolinha indicadora na ponta da barra
+        ball_r = 6.0
+        ball_x = padding_x + fill_w
+        ball_y = height / 2
+
+        # Sombra sutil da bolinha
+        cr.arc(ball_x, ball_y, ball_r + 1.5, 0, 2 * math.pi)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.4)
+        cr.fill()
+
+        # Corpo da bolinha
+        cr.arc(ball_x, ball_y, ball_r, 0, 2 * math.pi)
+        if self.is_muted:
+            cr.set_source_rgba(0.75, 0.38, 0.42, 1.0)
+        else:
+            cr.set_source_rgba(0.93, 0.94, 0.96, 1.0)  # #eceff4 (branco suave)
+        cr.fill_preserve()
+
+        # Borda sutil de realce
+        cr.set_line_width(1.2)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.6)
+        cr.stroke()
+
+    def rounded_rect(self, cr, x, y, w, h, r):
+        r = min(r, w / 2, h / 2)
+        cr.new_sub_path()
+        cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+        cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+        cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+        cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+        cr.close_path()
+
+    def cleanup(self):
+        if self.sock:
+            try:
+                self.sock.close()
+            except Exception:
+                pass
+            self.sock = None
+        if os.path.exists(SOCKET_PATH):
+            try:
+                os.remove(SOCKET_PATH)
+            except Exception:
+                pass
+
+
+def main():
+    app = VolumeOsdApp()
+    try:
+        app.run([])
+    finally:
+        app.cleanup()
+
+
+if __name__ == "__main__":
+    main()

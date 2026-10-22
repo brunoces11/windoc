@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""
+WinDoc Volume Controller - CLI para controle de volume do sistema e acionamento do OSD
+Acionado por teclas de atalho globais:
+- Super + F2: Diminuir volume (down)
+- Super + F3: Aumentar volume (up)
+- Super + F4: Alternar mudo (mute / unmute)
+"""
+
+import os
+import sys
+import json
+import time
+import socket
+import subprocess
+
+SOCKET_PATH = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "windoc-volume-osd.sock")
+STEP = "5%"
+LIMIT = "1.0"
+
+
+def get_volume_info():
+    try:
+        res = subprocess.run(
+            ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+        out = res.stdout.strip()
+        parts = out.split()
+        vol = float(parts[1]) if len(parts) > 1 else 0.0
+        muted = "[MUTED]" in out
+        return vol, muted
+    except Exception:
+        return 0.5, False
+
+
+def send_to_osd(payload: dict):
+    data = json.dumps(payload).encode("utf-8")
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+    # Se o daemon OSD não estiver ativo, inicia em background via setsid
+    if not os.path.exists(SOCKET_PATH):
+        try:
+            subprocess.Popen(
+                ["windoc-volume-osd"],
+                start_new_session=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            # Aguarda brevemente o socket ficar disponível
+            for _ in range(25):
+                if os.path.exists(SOCKET_PATH):
+                    break
+                time.sleep(0.01)
+        except Exception:
+            pass
+
+    if os.path.exists(SOCKET_PATH):
+        try:
+            sock.sendto(data, SOCKET_PATH)
+        except Exception:
+            pass
+    sock.close()
+
+
+def main():
+    action = sys.argv[1].lower() if len(sys.argv) > 1 else "status"
+
+    old_vol, was_muted = get_volume_info()
+
+    if action in ("up", "raise", "increase"):
+        if was_muted:
+            subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"], check=False)
+        subprocess.run(
+            ["wpctl", "set-volume", "-l", LIMIT, "@DEFAULT_AUDIO_SINK@", f"{STEP}+"],
+            check=False,
+        )
+        new_vol, is_muted = get_volume_info()
+        send_to_osd({
+            "action": "change",
+            "old_vol": old_vol if not was_muted else 0.0,
+            "new_vol": new_vol,
+            "muted": False,
+        })
+
+    elif action in ("down", "lower", "decrease"):
+        if was_muted:
+            subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"], check=False)
+        subprocess.run(
+            ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{STEP}-"],
+            check=False,
+        )
+        new_vol, is_muted = get_volume_info()
+        send_to_osd({
+            "action": "change",
+            "old_vol": old_vol if not was_muted else 0.0,
+            "new_vol": new_vol,
+            "muted": False,
+        })
+
+    elif action in ("mute", "toggle", "mute-toggle"):
+        if not was_muted:
+            # Silenciar: manda a barra arrastar toda para a esquerda até 0
+            subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "1"], check=False)
+            send_to_osd({
+                "action": "mute",
+                "old_vol": old_vol,
+                "new_vol": 0.0,
+                "muted": True,
+            })
+        else:
+            # Reativar: reativa o som e restaura para o volume original
+            subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"], check=False)
+            new_vol, is_muted = get_volume_info()
+            send_to_osd({
+                "action": "unmute",
+                "old_vol": 0.0,
+                "new_vol": new_vol,
+                "muted": False,
+            })
+
+    elif action in ("status", "--status"):
+        print(f"Volume: {int(round(old_vol * 100))}% {'[MUTED]' if was_muted else ''}")
+
+
+if __name__ == "__main__":
+    main()

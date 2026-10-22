@@ -2155,6 +2155,41 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   * Testes de regressão: 26/26 em `dock/tests/test_dock_minimize.py`, 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` e testes do `amberol-deskband` (14/14 unitários + MPRIS runtime) todos aprovados com 100% de sucesso.
 
 
+116. OVERLAY VISUAL DE VOLUME MINIMALISTA (OSD) EM CÁPSULA COM ATALHOS SUPER+F2/F3/F4
+Data: 22/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Contexto e Objetivo:
+  - Criação de um overlay visual flutuante (OSD) para feedback imediato nas teclas de ajuste de áudio:
+    * `Super + F2`: diminuir volume.
+    * `Super + F3`: aumentar volume.
+    * `Super + F4`: alternar mudo (mute / unmute).
+  - Design minimalista em formato de pílula (mesma solução técnica do WinDoc TTS OSD: Python + GTK4 + Gtk4LayerShell).
+  - Posicionamento vertical a 150px do topo (abaixo do TTS OSD a 78px, garantindo que ambos possam coexistir sem sobreposição).
+  - Elementos visuais: ícone de alto-falante dinâmico (alto, médio, baixo, mudo), barra de progresso com transição de cor suave e indicador circular (bolinha) posicionado exatamente na ponta do preenchimento da barra, acompanhado do percentual numérico.
+  - Comportamento de animação fluida:
+    * No aumento/diminuição (`Super + F2/F3`): mostra onde o volume estava e anima suavemente a progressão até o novo valor.
+    * No silenciamento (`Super + F4` mudo): exibe a barra no volume em que estava, arrasta a barra e a bolinha suavemente toda para a esquerda até zero, muda para o ícone de mudo avermelhado e desaparece após breve intervalo.
+    * Na reativação (`Super + F4` desmudo): reabre no zero e arrasta a barra e a bolinha de volta até o volume original persistido, retornando ao estado ativo normal.
+- Componentes desenvolvidos e integrados:
+  1. `adotados/.local/bin/windoc-volume-osd`:
+     - Servidor OSD Layer Shell em GTK4 renderizado via Cairo com animação a 60 FPS.
+     - Comunicação atômica via UNIX Domain Socket Datagram (`SOCK_DGRAM`) em `$XDG_RUNTIME_DIR/windoc-volume-osd.sock`.
+     - Gerenciamento inteligente de ciclo de vida: inicia sob demanda e encerra automaticamente por timer de inatividade (1.7s), consumindo 0 MB de memória em repouso.
+  2. `adotados/.local/bin/windoc-volume`:
+     - Controlador CLI de áudio via PipeWire/WirePlumber (`wpctl`), disparador do daemon sob demanda e despachante atômico de payloads com volume anterior e novo volume.
+  3. Symlinks e Sincronização (`symlinks.tsv` e `sync-symlinks.sh`):
+     - Registrados `~/.local/bin/windoc-volume` e `~/.local/bin/windoc-volume-osd`.
+  4. Configuração de Atalhos no Hyprland (`hyprland/bindings.lua`):
+     - Atualizados os bindings de `SUPER + F2`, `SUPER + F3` e `SUPER + F4` para `windoc-volume down`, `windoc-volume up` e `windoc-volume mute`.
+- Validação técnica executada:
+  * Testes de aumento e diminuição com animação fluida da barra e bolinha.
+  * Teste do ciclo de mute: deslizamento da barra toda para a esquerda até 0 e fechamento automático.
+  * Teste do ciclo de unmute: restauração a partir do 0 até o volume anterior.
+  * Validação de coexistência espacial com TTS OSD (gap de ~20px entre pílulas).
+  * 86 testes automatizados do ecossistema WinDoc executados com 100% de sucesso.
+
+
+
 
 
 

@@ -26,3 +26,7 @@
 ~/.local/bin/windoc-tts-osd	adotados/.local/bin/windoc-tts-osd
 
 ~/.local/bin/windoc-amberol-toggle	adotados/.local/bin/windoc-amberol-toggle
+
+~/.local/bin/windoc-volume	adotados/.local/bin/windoc-volume
+
+~/.local/bin/windoc-volume-osd	adotados/.local/bin/windoc-volume-osd
