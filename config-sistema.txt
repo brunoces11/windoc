@@ -2214,6 +2214,25 @@ Data: 22/10/2026. Estado: implementado, verificado e validado em runtime.
   * JSON de `shell/dock-pinned.json` validado sem erros.
 
 
+117. EXPANSÃO DO CANVAS EXTERNO DOS OVERLAYS (OSD) PARA PREVENÇÃO DE CORTE DE SOMBRA
+Data: 22/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Contexto e Motivação:
+  - No Wayland / GTK4 Layer Shell, a superfície da janela aloca exatamente o espaço delimitado pelos widgets filhos. Quando um elemento visual (cápsula / pílula) possui sombra com blur e offset (`box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65)`), a ausência de uma área transparente periférica ao redor do elemento causa o corte seco (clipping) dos pixels difusos da sombra nas bordas da subsuperfície Wayland.
+- Modificações realizadas:
+  1. `adotados/.local/bin/windoc-volume-osd`:
+     - Adicionado container raiz transparente `.osd-canvas` (`Gtk.Box`) envolvendo a pílula do OSD de volume.
+     - Definido padding de segurança de 24px no topo, 32px nas laterais e 36px na base (`padding: 24px 32px 36px 32px`), fornecendo folga ampla de respiração em 360° para o espalhamento suave da sombra.
+     - Ajustada a margem superior do Layer Shell de 150px para 126px (`126px + 24px de padding = 150px`), preservando com precisão milimétrica a posição visual exata da pílula na tela.
+  2. `adotados/.local/bin/windoc-tts-osd`:
+     - Aplicada a mesma arquitetura de canvas transparente (`.osd-canvas`) com padding generoso para eliminar qualquer corte na sombra do overlay de Text-to-Speech.
+     - Ajustada a margem do Layer Shell de 78px para 54px (`54px + 24px = 78px`), mantendo a localização original da cápsula do TTS.
+- Validação técnica executada:
+  * Testes de acionamento em runtime para volume e TTS confirmando renderização completa, contínua e sem corte da sombra.
+  * Validação dos 86 testes automatizados do WinDoc com 100% de aprovação.
+
+
+
 
 
 

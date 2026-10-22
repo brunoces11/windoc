@@ -32,6 +32,10 @@ CSS = """
 window {
     background-color: transparent;
 }
+.osd-canvas {
+    background-color: transparent;
+    padding: 24px 32px 36px 32px;
+}
 .volume-pill {
     background-color: rgba(22, 26, 33, 0.94);
     border: 1px solid rgba(129, 161, 193, 0.40);
@@ -80,8 +84,8 @@ class VolumeOsdApp(Gtk.Application):
         Gtk4LayerShell.init_for_window(self.win)
         Gtk4LayerShell.set_layer(self.win, Gtk4LayerShell.Layer.OVERLAY)
         Gtk4LayerShell.set_anchor(self.win, Gtk4LayerShell.Edge.TOP, True)
-        # Posicionado a 150px do topo (TTS fica a 78px + altura ~50px, garantindo zero sobreposição)
-        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 150)
+        # Posicionado a 126px do topo (+24px de padding do canvas = pílula visível a 150px)
+        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 126)
         Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.NONE)
 
         provider = Gtk.CssProvider()
@@ -91,6 +95,10 @@ class VolumeOsdApp(Gtk.Application):
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
+
+        # Canvas externo transparente com folga para a sombra respirar em 360° sem cortes
+        canvas = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        canvas.add_css_class("osd-canvas")
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         box.add_css_class("volume-pill")
@@ -111,7 +119,8 @@ class VolumeOsdApp(Gtk.Application):
         box.append(self.draw_area)
         box.append(self.percent_label)
 
-        self.win.set_child(box)
+        canvas.append(box)
+        self.win.set_child(canvas)
         self.win.present()
 
         # Configura o socket UNIX DGRAM

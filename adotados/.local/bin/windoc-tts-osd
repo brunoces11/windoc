@@ -31,6 +31,10 @@ CSS = """
 window {
     background-color: transparent;
 }
+.osd-canvas {
+    background-color: transparent;
+    padding: 24px 32px 36px 32px;
+}
 .tts-pill {
     background-color: rgba(22, 26, 33, 0.94);
     border: 1px solid rgba(129, 161, 193, 0.45);
@@ -104,8 +108,8 @@ class TtsOsdApp(Gtk.Application):
         Gtk4LayerShell.init_for_window(self.win)
         Gtk4LayerShell.set_layer(self.win, Gtk4LayerShell.Layer.OVERLAY)
         Gtk4LayerShell.set_anchor(self.win, Gtk4LayerShell.Edge.TOP, True)
-        # Posicionado ~80px abaixo da borda superior (50px a mais que os 28px originais)
-        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 78)
+        # Posicionado a 54px do topo (+24px de padding do canvas = pílula visível a 78px)
+        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 54)
         Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
 
         # Carrega o estilo CSS
@@ -116,6 +120,10 @@ class TtsOsdApp(Gtk.Application):
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
+
+        # Canvas externo transparente com folga para a sombra respirar em 360° sem cortes
+        canvas = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        canvas.add_css_class("osd-canvas")
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         box.add_css_class("tts-pill")
@@ -159,7 +167,8 @@ class TtsOsdApp(Gtk.Application):
         key_controller.connect("key-pressed", self.on_key_pressed)
         self.win.add_controller(key_controller)
 
-        self.win.set_child(box)
+        canvas.append(box)
+        self.win.set_child(canvas)
         self.win.present()
 
         # Escuta comandos via stdin (IPC leve)
