@@ -51,7 +51,10 @@ var FALLBACK_MAP = {
     "io.bassi.amberol": "io.bassi.Amberol",
     "bassi.amberol": "io.bassi.Amberol",
     "fontbase": "fontbase-app",
-    "gucharmap": "accessories-character-map"
+    "gucharmap": "accessories-character-map",
+    "warp": "dev.warp.Warp",
+    "warp-terminal": "dev.warp.Warp",
+    "dev.warp.warp": "dev.warp.Warp"
 };
 
 function sanitizeName(name) {

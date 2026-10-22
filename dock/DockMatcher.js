@@ -843,7 +843,8 @@ var KNOWN_TERMINALS = [
     "org.kde.konsole", "xfce4-terminal", "tilix", "com.gexperts.tilix", "st",
     "simple-terminal", "urxvt", "rxvt", "rxvt-unicode", "terminator",
     "lxterminal", "contour", "rio", "blackbox", "com.raggesilver.blackbox",
-    "ptyxis", "org.gnome.ptyxis", "tabby", "hyper", "warp", "warp-terminal"
+    "ptyxis", "org.gnome.ptyxis", "tabby", "hyper", "warp", "warp-terminal",
+    "dev.warp.warp"
 ];
 
 function isTerminalApp(id, entry) {

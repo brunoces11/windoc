@@ -2188,6 +2188,31 @@ Data: 22/10/2026. Estado: implementado, verificado e validado em runtime.
   * Validação de coexistência espacial com TTS OSD (gap de ~20px entre pílulas).
   * 86 testes automatizados do ecossistema WinDoc executados com 100% de sucesso.
 
+================================================================================
+INSTALAÇÃO E FIXAÇÃO DO WARP TERMINAL NO WINDOC DOCK
+================================================================================
+Data: 22/10/2026. Estado: implementado, verificado e validado em runtime.
+
+- Contexto e Objetivo:
+  - Instalação do emulador de terminal moderno Warp (aceleração GPU em Rust, modo "Pin to bottom" para manter a barra de input fixa enquanto o histórico rola livremente).
+  - Fixação do Warp Terminal na WinDoc Dock ao lado do Kitty.
+- Modificações realizadas:
+  1. Instalação de pacote:
+     - Pacote `warp-terminal-bin` instalado via AUR/yay.
+     - Registrado `warp-terminal-bin` no inventário `pacotes-sistema.txt`.
+  2. WinDoc Dock (`shell/dock-pinned.json`):
+     - Adicionado o identificador `dev.warp.Warp` na lista de aplicativos fixados da dock.
+     - Validação estrutural do arquivo JSON realizada via `python3 -m json.tool`.
+  3. Resolução de Ícones e Reconhecimento de Terminal (`dock/IconResolver.js` e `dock/DockMatcher.js`):
+     - Adicionados mapeamentos de fallback de ícone em `dock/IconResolver.js` (`warp`, `warp-terminal`, `dev.warp.warp` -> `dev.warp.Warp`).
+     - Adicionado `dev.warp.warp` à lista `KNOWN_TERMINALS` em `dock/DockMatcher.js`.
+  4. Sincronização de symlinks:
+     - Executado `sync-symlinks.sh` confirmando a integridade dos symlinks de `dock-pinned.json` para `~/.config/omarchy/dock-pinned.json`.
+- Validações técnicas:
+  * Binário `/usr/bin/warp-terminal` e desktop entry `/usr/share/applications/dev.warp.Warp.desktop` verificados.
+  * Ícones do Warp validados em `/usr/share/icons/hicolor/*/apps/dev.warp.Warp.png`.
+  * JSON de `shell/dock-pinned.json` validado sem erros.
+
 
 
 

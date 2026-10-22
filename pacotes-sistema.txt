@@ -11,3 +11,4 @@ fontbase
 fontforge
 python-fonttools
 gucharmap
+warp-terminal-bin
