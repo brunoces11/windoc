@@ -2084,6 +2084,29 @@ Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
 
 
+113. ISOLAMENTO DO SPINNER EM ABAS DO KITTY EXCLUSIVAMENTE PARA PROCESSOS DE IA ATIVOS
+Data: 21/10/2026. Estado: implementado, corrigido e validado em runtime.
+
+- Ação: correção da sincronização de spinner e títulos para que única e exclusivamente as abas do Kitty que estiverem ativamente executando/processando uma solicitação de agente de IA (Antigravity, Claude Code, Codex, OpenAI) exibam o loader animado. Abas passivas/ociosas (em standby) mantêm-se estritamente sem spinner, mesmo quando múltiplas instâncias do mesmo agente ou de agentes diferentes estiverem abertas simultaneamente na mesma janela.
+- Causa raiz identificada:
+  1. No daemon `terminal/agy-title-daemon.py`, a variável `has_any_running` (que monitorava se qualquer aba da janela estava trabalhando) estava sendo usada para disparar a animação por escape sequences OSC 0 diretamente no `active_pts` da aba em foco. Quando uma aba de fundo executava e a aba ativa estava ociosa, a aba ativa recebia indevidamente o título com frame de spinner e ficava girando. Ao alternar de aba, os títulos das abas ficavam poluídos com frames residuais.
+  2. No script da barra `terminal/tab_bar.py`, a verificação `is_running = (agent_icon == ICON_AGY and is_agy_tab_running(tab)) or is_tab_spinning(tab)` avaliava `is_tab_spinning(tab)` mesmo para abas do Antigravity, fazendo com que qualquer título que contivesse frame residual disparasse o spinner mesmo com a conversa em estado ocioso (`CASCADE_RUN_STATUS_IDLE`).
+  3. Em `get_tab_process_info`, apenas o último processo filho (`procs[-1]`) era inspecionado; quando o agente executava sub-comandos CLI (bash, python, etc.), a identificação do agente e do PID do lock de conversa falhava temporariamente.
+- Alterações implementadas:
+  1. `terminal/tab_bar.py`:
+     - `get_tab_process_info`: prioriza a identificação de processos de agentes de IA (`agy`, `antigravity`, `codex`, `claude`) na árvore de foreground processes, garantindo inspeção contínua e estável de PID e status mesmo durante execução de sub-ferramentas.
+     - `draw_tab`: isolamento estrito de verificação por agente — para Antigravity (`ICON_AGY`), `is_running` depende exclusivamente de `is_agy_tab_running(tab)` (consulta em tempo real ao SQLite e lock do processo); para Claude/Codex, depende de `is_tab_spinning(tab)`.
+     - `clean_agent_topic`: reforçada a sanitização para remover qualquer frame braille ou glifo PUA residual no título das sessões.
+  2. `terminal/agy-title-daemon.py`:
+     - Sincronização do daemon desacoplada: a aba ativa em foco só recebe título animado com spinner se ela própria estiver ativamente em execução (`active_tab_is_running`). Se a aba ativa estiver ociosa (standby), o daemon fixa imediatamente o título limpo (`idle_title`), sem loader.
+     - Sanitização e limpeza de abas em segundo plano: abas inativas que possuam qualquer frame de spinner residual têm seu PTS limpo automaticamente pelo daemon.
+     - Redução do intervalo de varredura topológica de 1.0s para 0.3s para resposta instantânea na alternância de abas.
+- Validação:
+  - Verificação ao vivo via `kitty @ ls`: com duas abas de Antigravity abertas (uma ociosa e uma executando), a aba ociosa permaneceu sem spinner (`title: " Open-Source Terminal Text-To-Speech Tool..."`) e a aba ativa em execução manteve a rotação do spinner (`title: " ⠇ Correção Do Spinner Nas Abas"`).
+  - Recarga a quente com `systemctl --user restart antigravity-tab-daemon.service` e envio de `SIGUSR1` ao Kitty.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados com 100% de sucesso.
+
+
 
 
 
