@@ -57,6 +57,7 @@ def stop_existing_playback() -> bool:
 
     # Garante encerramento de processos filhos e OSD
     try:
+        subprocess.run(["hyprctl", "eval", 'pcall(function() hl.unbind("Escape") end)'], check=False)
         subprocess.run(["pkill", "-f", "windoc-tts-osd"], check=False)
         res = subprocess.run(["pgrep", "-f", "edge-tts.*pt-BR"], capture_output=True, text=True)
         if res.returncode == 0 and res.stdout.strip():
@@ -146,6 +147,11 @@ def main():
             stdin=subprocess.PIPE,
             text=True,
         )
+        # Habilita tecla ESC globalmente no Hyprland enquanto o TTS estiver ativo
+        subprocess.run(
+            ["hyprctl", "eval", 'pcall(function() hl.bind("Escape", hl.dsp.exec_cmd("windoc-tts")) end)'],
+            check=False,
+        )
     except Exception:
         osd_proc = None
 
@@ -194,6 +200,15 @@ def main():
                 check=False,
             )
     finally:
+        # Desvincula o atalho ESC temporário
+        try:
+            subprocess.run(
+                ["hyprctl", "eval", 'pcall(function() hl.unbind("Escape") end)'],
+                check=False,
+            )
+        except Exception:
+            pass
+
         # Encerra o OSD
         if osd_proc:
             try:

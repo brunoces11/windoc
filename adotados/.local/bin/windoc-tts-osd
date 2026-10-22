@@ -1,13 +1,17 @@
 #!/usr/bin/env -S LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so python3
 """
-WinDoc TTS OSD - Overlay Visual em Cápsula Flutuante (Estilo Voxtype)
+WinDoc TTS OSD - Overlay Visual em Cápsula Flutuante (Estilo Voxtype Ampliado)
 Exibe feedback instantâneo no topo da tela para Text-to-Speech:
-1. Conectando/Sintetizando: Ícone Cinza + Spinner + "Conectando à IA e gerando voz..."
-2. Tocando: Ícone Azul + Onda Sonora Animada + "Lendo seleção..."
-3. Finalizado/Interrompido: Fecha suavemente e limpa a tela.
+- Cápsula ampliada (dobro da altura) e posicionada ~80px abaixo da borda superior.
+- Botão de fechar minimalista '✕' no canto direito para interromper com o mouse.
+- Suporte a cancelamento via tecla ESC e botão de fechar.
+- Transição de estados:
+  1. Conectando/Sintetizando: Ícone Cinza + Spinner + "Conectando à IA e gerando voz..."
+  2. Tocando: Ícone Azul + Onda Sonora Animada + "Lendo seleção..."
 """
 
 import os
+import subprocess
 import sys
 
 # Garante o carregamento do libgtk4-layer-shell antes da inicialização do Wayland
@@ -29,39 +33,55 @@ window {
 }
 .tts-pill {
     background-color: rgba(22, 26, 33, 0.94);
-    border: 1px solid rgba(129, 161, 193, 0.4);
-    border-radius: 24px;
-    padding: 7px 18px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(129, 161, 193, 0.45);
+    border-radius: 34px;
+    padding: 13px 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
 }
 .tts-icon-gray {
     color: #7b889b;
-    font-size: 16px;
-    margin-right: 4px;
+    font-size: 24px;
+    margin-right: 6px;
 }
 .tts-icon-blue {
     color: #81a1c1;
-    font-size: 16px;
-    margin-right: 4px;
+    font-size: 24px;
+    margin-right: 6px;
 }
 .tts-text {
     color: #d8dee9;
     font-family: 'BRUNOMA TYPEFACE', 'JetBrainsMono Nerd Font', sans-serif;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 500;
 }
 .tts-wave {
     color: #81a1c1;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 18px;
     font-weight: bold;
     margin-right: 6px;
 }
 .tts-hint {
     color: #5e6c82;
     font-family: 'BRUNOMA TYPEFACE', sans-serif;
-    font-size: 11px;
-    margin-left: 8px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+.tts-close-btn {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    color: #8892b0;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 4px 11px;
+    margin-left: 14px;
+    transition: all 150ms ease;
+}
+.tts-close-btn:hover {
+    background-color: rgba(191, 97, 106, 0.3);
+    border-color: rgba(191, 97, 106, 0.6);
+    color: #bf616a;
 }
 """
 
@@ -75,6 +95,7 @@ class TtsOsdApp(Gtk.Application):
         self.wave_label = None
         self.status_label = None
         self.hint_label = None
+        self.close_btn = None
         self.wave_timer_id = None
         self.wave_idx = 0
 
@@ -83,8 +104,9 @@ class TtsOsdApp(Gtk.Application):
         Gtk4LayerShell.init_for_window(self.win)
         Gtk4LayerShell.set_layer(self.win, Gtk4LayerShell.Layer.OVERLAY)
         Gtk4LayerShell.set_anchor(self.win, Gtk4LayerShell.Edge.TOP, True)
-        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 28)
-        Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.NONE)
+        # Posicionado ~80px abaixo da borda superior (50px a mais que os 28px originais)
+        Gtk4LayerShell.set_margin(self.win, Gtk4LayerShell.Edge.TOP, 78)
+        Gtk4LayerShell.set_keyboard_mode(self.win, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
 
         # Carrega o estilo CSS
         provider = Gtk.CssProvider()
@@ -95,10 +117,10 @@ class TtsOsdApp(Gtk.Application):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         box.add_css_class("tts-pill")
 
-        # Ícone de alto-falante/volume
+        # Ícone de alto-falante/volume ampliado
         self.icon_label = Gtk.Label(label="󰔊")
         self.icon_label.add_css_class("tts-icon-gray")
 
@@ -111,19 +133,31 @@ class TtsOsdApp(Gtk.Application):
         self.wave_label.add_css_class("tts-wave")
         self.wave_label.set_visible(False)
 
-        # Texto de status
+        # Texto de status ampliado
         self.status_label = Gtk.Label(label="Conectando à IA e gerando voz...")
         self.status_label.add_css_class("tts-text")
 
-        # Dica de interrupção
-        self.hint_label = Gtk.Label(label="• Pause p/ parar")
+        # Dica de tecla de atalho
+        self.hint_label = Gtk.Label(label="• ESC ou Pause p/ parar")
         self.hint_label.add_css_class("tts-hint")
+
+        # Botão '✕' no canto direito para cancelar via clique do mouse
+        self.close_btn = Gtk.Button(label="✕")
+        self.close_btn.add_css_class("tts-close-btn")
+        self.close_btn.set_tooltip_text("Cancelar leitura (ESC)")
+        self.close_btn.connect("clicked", self.on_close_clicked)
 
         box.append(self.icon_label)
         box.append(self.spinner)
         box.append(self.wave_label)
         box.append(self.status_label)
         box.append(self.hint_label)
+        box.append(self.close_btn)
+
+        # Controlador de tecla: fecha ao pressionar Escape
+        key_controller = Gtk.EventControllerKey()
+        key_controller.connect("key-pressed", self.on_key_pressed)
+        self.win.add_controller(key_controller)
 
         self.win.set_child(box)
         self.win.present()
@@ -134,6 +168,20 @@ class TtsOsdApp(Gtk.Application):
             GLib.IOCondition.IN | GLib.IOCondition.HUP,
             self.on_stdin_event,
         )
+
+    def on_key_pressed(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape:
+            self.on_close_clicked(None)
+            return True
+        return False
+
+    def on_close_clicked(self, btn):
+        try:
+            # Aciona interrupção do TTS
+            subprocess.run(["windoc-tts"], check=False)
+        except Exception:
+            pass
+        self.quit()
 
     def on_stdin_event(self, source, condition):
         if condition & GLib.IOCondition.HUP:

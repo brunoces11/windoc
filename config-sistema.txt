@@ -2107,6 +2107,25 @@ Data: 21/10/2026. Estado: implementado, corrigido e validado em runtime.
   - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados com 100% de sucesso.
 
 
+114. REFINAMENTO DO OVERLAY TTS: AMPLIAÇÃO DA PÍLULA, BOTÃO ✕ E CANCELAMENTO VIA ESC
+Data: 21/10/2026. Estado: configurado, testado e validado em runtime.
+
+- Ação: aumento substancial de visibilidade da cápsula flutuante (dobro da altura, tipografia e ícones maiores), deslocamento de +50px para baixo (topo em 78px), inclusão de botão minimalista '✕' para cancelamento por clique e suporte a cancelamento por teclado via tecla ESC.
+- Alterações:
+  1. `adotados/.local/bin/windoc-tts-osd`:
+     - Margem superior ajustada de 28px para 78px (+50px abaixo).
+     - Altura da pílula dobrada com padding vertical de 13px, cantos arredondados de 34px, fontes de 15px/24px e efeito de sombra aprimorado.
+     - Adicionado botão '✕' (`tts-close-btn`) no canto direito com efeito hover avermelhado suave (`#bf616a`), acionável por clique do mouse para cancelamento imediato.
+     - Habilitado `Gtk.EventControllerKey` para interceptação de `Gdk.KEY_Escape`.
+  2. `adotados/.local/bin/windoc-tts`:
+     - Vinculação dinâmica da tecla `Escape` no Hyprland (`hl.bind("Escape", hl.dsp.exec_cmd("windoc-tts"))`) exclusivamente durante o ciclo de reprodução do áudio.
+     - Desvinculação mandatória no término (`finally:`) ou interrupção (`stop_existing_playback()`), garantindo impacto zero na tecla Escape fora do contexto do TTS.
+- Validação:
+  - Testes de acionamento via mouse no botão '✕' e cancelamento via tecla ESC em runtime.
+  - Testes do WinDoc: 26/26 em `dock/tests/test_dock_minimize.py` e 45/45 em `PERSISTIR_WORKSPACE/TEST_WORKSPACE1.py` aprovados.
+
+
+
 
 
 
